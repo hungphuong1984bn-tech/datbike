@@ -594,7 +594,7 @@ class _FirmwareLabScreenState extends ConsumerState<FirmwareLabScreen> {
         : s.verdict == 'fail'
             ? const Icon(Icons.cancel_rounded, color: Colors.redAccent, size: 18)
             : s.verdict == 'skip'
-                ? const Icon(Icons.skip_next_rounded, color: AppColors.textDim, size: 18)
+                ? Icon(Icons.skip_next_rounded, color: AppColors.textDim, size: 18)
                 : null;
 
     return Container(

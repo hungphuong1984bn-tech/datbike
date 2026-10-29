@@ -271,16 +271,16 @@ class _TripRouteScreenState extends State<TripRouteScreen> with SingleTickerProv
   Color _getContinuousSpeedColor(double speedKmh) {
     if (speedKmh <= 15.0) {
       final t = (speedKmh / 15.0).clamp(0.0, 1.0);
-      return Color.lerp(const Color(0xFF06B6D4), const Color(0xFF10B981), t)!; // Cyan -> Mint
+      return Color.lerp(const Color(0xFF06B6D4), AppColors.tertiary, t)!; // Cyan -> Mint
     } else if (speedKmh <= 35.0) {
       final t = ((speedKmh - 15.0) / 20.0).clamp(0.0, 1.0);
-      return Color.lerp(const Color(0xFF10B981), const Color(0xFF0EA5E9), t)!; // Mint -> Electric Azure
+      return Color.lerp(AppColors.tertiary, AppColors.cyan, t)!; // Mint -> Electric Azure
     } else if (speedKmh <= 55.0) {
       final t = ((speedKmh - 35.0) / 20.0).clamp(0.0, 1.0);
-      return Color.lerp(const Color(0xFFF59E0B), const Color(0xFFF97316), t)!; // Amber -> Orange
+      return Color.lerp(AppColors.amber, const Color(0xFFF97316), t)!; // Amber -> Orange
     } else {
       final t = ((speedKmh - 55.0) / 30.0).clamp(0.0, 1.0);
-      return Color.lerp(const Color(0xFFF97316), const Color(0xFFEF4444), t)!; // Orange -> Red
+      return Color.lerp(const Color(0xFFF97316), AppColors.red, t)!; // Orange -> Red
     }
   }
 
@@ -321,7 +321,7 @@ class _TripRouteScreenState extends State<TripRouteScreen> with SingleTickerProv
               constraints: BoxConstraints(
                 maxHeight: MediaQuery.of(context).size.height * 0.78,
               ),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: AppColors.panel,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                 border: Border(top: BorderSide(color: AppColors.panelBorderBright)),
@@ -346,7 +346,7 @@ class _TripRouteScreenState extends State<TripRouteScreen> with SingleTickerProv
                     padding: const EdgeInsets.fromLTRB(20, 8, 16, 10),
                     child: Row(
                       children: [
-                        const Icon(Icons.route_rounded, color: AppColors.primary, size: 22),
+                        Icon(Icons.route_rounded, color: AppColors.primary, size: 22),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
@@ -359,7 +359,7 @@ class _TripRouteScreenState extends State<TripRouteScreen> with SingleTickerProv
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.ios_share_rounded, color: AppColors.textDim),
+                          icon: Icon(Icons.ios_share_rounded, color: AppColors.textDim),
                           tooltip: 'Xuất GPX chuyến đang xem',
                           onPressed: () async {
                             // Chỉ xuất điểm GPS đã ghi thật, không xuất tuyến mô phỏng.
@@ -374,7 +374,7 @@ class _TripRouteScreenState extends State<TripRouteScreen> with SingleTickerProv
                           },
                         ),
                         IconButton(
-                          icon: const Icon(Icons.close_rounded, color: AppColors.textDim),
+                          icon: Icon(Icons.close_rounded, color: AppColors.textDim),
                           onPressed: () => Navigator.pop(modalCtx),
                         ),
                       ],
@@ -390,7 +390,7 @@ class _TripRouteScreenState extends State<TripRouteScreen> with SingleTickerProv
                       decoration: InputDecoration(
                         hintText: 'Tìm kiếm theo #1, ngày 27/10, số km…',
                         hintStyle: GoogleFonts.plusJakartaSans(color: AppColors.textDim, fontSize: 13),
-                        prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primary, size: 20),
+                        prefixIcon: Icon(Icons.search_rounded, color: AppColors.primary, size: 20),
                         suffixIcon: searchCtrl.text.isNotEmpty
                             ? IconButton(
                                 icon: const Icon(Icons.clear_rounded, size: 18),
@@ -405,22 +405,22 @@ class _TripRouteScreenState extends State<TripRouteScreen> with SingleTickerProv
                         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: AppColors.panelBorderBright),
+                          borderSide: BorderSide(color: AppColors.panelBorderBright),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: AppColors.panelBorderBright),
+                          borderSide: BorderSide(color: AppColors.panelBorderBright),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                          borderSide: BorderSide(color: AppColors.primary, width: 1.5),
                         ),
                       ),
                     ),
                   ),
 
                   const SizedBox(height: 8),
-                  const Divider(color: AppColors.panelBorder, height: 1),
+                  Divider(color: AppColors.panelBorder, height: 1),
 
                   // Danh sách hành trình đã lọc
                   Expanded(
@@ -459,7 +459,7 @@ class _TripRouteScreenState extends State<TripRouteScreen> with SingleTickerProv
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                                   decoration: BoxDecoration(
-                                    color: isSelected ? const Color(0xFFEFF6FF) : AppColors.panel,
+                                    color: isSelected ? AppColors.primarySoft : AppColors.panel,
                                     borderRadius: BorderRadius.circular(14),
                                     border: Border.all(
                                       color: isSelected ? AppColors.primary : AppColors.panelBorderBright,
@@ -528,7 +528,7 @@ class _TripRouteScreenState extends State<TripRouteScreen> with SingleTickerProv
                                         ),
                                       ),
                                       if (isSelected)
-                                        const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 20),
+                                        Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 20),
                                     ],
                                   ),
                                 ),
@@ -562,7 +562,7 @@ class _TripRouteScreenState extends State<TripRouteScreen> with SingleTickerProv
           constraints: BoxConstraints(
             maxHeight: MediaQuery.of(context).size.height * 0.80,
           ),
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: AppColors.panel,
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
             border: Border(top: BorderSide(color: AppColors.panelBorderBright)),
@@ -591,7 +591,7 @@ class _TripRouteScreenState extends State<TripRouteScreen> with SingleTickerProv
                         color: AppColors.primary.withValues(alpha: 0.10),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(Icons.info_rounded, color: AppColors.primary, size: 20),
+                      child: Icon(Icons.info_rounded, color: AppColors.primary, size: 20),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -605,14 +605,14 @@ class _TripRouteScreenState extends State<TripRouteScreen> with SingleTickerProv
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close_rounded, color: AppColors.textDim),
+                      icon: Icon(Icons.close_rounded, color: AppColors.textDim),
                       onPressed: () => Navigator.pop(ctx),
                     ),
                   ],
                 ),
               ),
 
-              const Divider(color: AppColors.panelBorder, height: 1),
+              Divider(color: AppColors.panelBorder, height: 1),
 
               Expanded(
                 child: ListView(
@@ -644,21 +644,21 @@ class _TripRouteScreenState extends State<TripRouteScreen> with SingleTickerProv
                             '< 15 km/h',
                             'Dừng hoặc di chuyển chậm',
                           ),
-                          const Divider(color: AppColors.panelBorder, height: 16),
+                          Divider(color: AppColors.panelBorder, height: 16),
                           _speedLegendRow(
-                            const Color(0xFF10B981),
+                            AppColors.tertiary,
                             '15 – 35 km/h',
                             'Tốc độ ổn định trong phố',
                           ),
-                          const Divider(color: AppColors.panelBorder, height: 16),
+                          Divider(color: AppColors.panelBorder, height: 16),
                           _speedLegendRow(
-                            const Color(0xFFF59E0B),
+                            AppColors.amber,
                             '35 – 55 km/h',
                             'Đường thoáng / đại lộ',
                           ),
-                          const Divider(color: AppColors.panelBorder, height: 16),
+                          Divider(color: AppColors.panelBorder, height: 16),
                           _speedLegendRow(
-                            const Color(0xFFEF4444),
+                            AppColors.red,
                             '> 55 km/h',
                             'Đường trường / tốc độ cao',
                           ),
@@ -666,12 +666,12 @@ class _TripRouteScreenState extends State<TripRouteScreen> with SingleTickerProv
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFEFF6FF),
+                              color: AppColors.primarySoft,
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.auto_awesome_rounded, size: 14, color: AppColors.primary),
+                                Icon(Icons.auto_awesome_rounded, size: 14, color: AppColors.primary),
                                 const SizedBox(width: 6),
                                 Expanded(
                                   child: Text(
@@ -966,7 +966,7 @@ class _TripRouteScreenState extends State<TripRouteScreen> with SingleTickerProv
                               ),
                               child: Row(
                                 children: [
-                                  const Icon(Icons.search_rounded, size: 16, color: AppColors.primary),
+                                  Icon(Icons.search_rounded, size: 16, color: AppColors.primary),
                                   const SizedBox(width: 6),
                                   Expanded(
                                     child: Text(
@@ -979,7 +979,7 @@ class _TripRouteScreenState extends State<TripRouteScreen> with SingleTickerProv
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
-                                  const Icon(Icons.unfold_more_rounded, size: 16, color: AppColors.textDim),
+                                  Icon(Icons.unfold_more_rounded, size: 16, color: AppColors.textDim),
                                 ],
                               ),
                             ),
@@ -1087,7 +1087,7 @@ class _TripRouteScreenState extends State<TripRouteScreen> with SingleTickerProv
                         child: Row(
                           children: [
                             if (progress.isRunning)
-                              const SizedBox(
+                              SizedBox(
                                 width: 12,
                                 height: 12,
                                 child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
@@ -1231,7 +1231,7 @@ class _TripRouteScreenState extends State<TripRouteScreen> with SingleTickerProv
                         SliderTheme(
                           data: SliderTheme.of(context).copyWith(
                             trackHeight: 4,
-                            activeTrackColor: AppColors.primary,
+                            activeTrackColor: AppColors.primaryFill,
                             inactiveTrackColor: AppColors.surfaceContainer,
                             thumbColor: AppColors.primary,
                             overlayColor: AppColors.primary.withValues(alpha: 0.15),
@@ -1264,7 +1264,7 @@ class _TripRouteScreenState extends State<TripRouteScreen> with SingleTickerProv
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                               decoration: BoxDecoration(
-                                color: _followBike ? const Color(0xFFEFF6FF) : AppColors.panelSecondary,
+                                color: _followBike ? AppColors.primarySoft : AppColors.panelSecondary,
                                 borderRadius: BorderRadius.circular(10),
                                 border: Border.all(
                                   color: _followBike ? AppColors.primary : AppColors.panelBorderBright,
@@ -1293,7 +1293,7 @@ class _TripRouteScreenState extends State<TripRouteScreen> with SingleTickerProv
 
                           // Nút tua lùi về đầu
                           IconButton(
-                            icon: const Icon(Icons.replay_rounded, color: AppColors.textDim, size: 20),
+                            icon: Icon(Icons.replay_rounded, color: AppColors.textDim, size: 20),
                             tooltip: 'Về đầu',
                             onPressed: () => _seekTo(0),
                           ),
@@ -1341,7 +1341,7 @@ class _TripRouteScreenState extends State<TripRouteScreen> with SingleTickerProv
 
                           // Nút tua đến cuối
                           IconButton(
-                            icon: const Icon(Icons.skip_next_rounded, color: AppColors.textDim, size: 20),
+                            icon: Icon(Icons.skip_next_rounded, color: AppColors.textDim, size: 20),
                             tooltip: 'Đến cuối',
                             onPressed: () => _seekTo(_routePoints.length - 1),
                           ),
@@ -1488,10 +1488,10 @@ class _TripRouteScreenState extends State<TripRouteScreen> with SingleTickerProv
                       height: 36,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        gradient: const LinearGradient(
+                        gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
+                          colors: [Color(0xFF1E293B), AppColors.textPrimary],
                         ),
                         border: Border.all(
                           color: const Color(0xFF38BDF8),
@@ -1525,10 +1525,10 @@ class _TripRouteScreenState extends State<TripRouteScreen> with SingleTickerProv
               margin: const EdgeInsets.only(top: 14),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: const LinearGradient(
+                gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [Color(0xFF38BDF8), Color(0xFF2563EB)],
+                  colors: [Color(0xFF38BDF8), AppColors.primary],
                 ),
                 boxShadow: const [
                   BoxShadow(
@@ -1581,7 +1581,7 @@ class _TripRouteScreenState extends State<TripRouteScreen> with SingleTickerProv
                   Icon(
                     Icons.bolt_rounded,
                     size: 11,
-                    color: isMoving ? const Color(0xFF10B981) : const Color(0xFF38BDF8),
+                    color: isMoving ? AppColors.tertiary : const Color(0xFF38BDF8),
                   ),
                   const SizedBox(width: 2),
                   Text(
@@ -1618,7 +1618,7 @@ class _TripRouteScreenState extends State<TripRouteScreen> with SingleTickerProv
           width: 36,
           height: 36,
           decoration: BoxDecoration(
-            color: isActive ? const Color(0xFFEFF6FF) : AppColors.panel.withValues(alpha: 0.94),
+            color: isActive ? AppColors.primarySoft : AppColors.panel.withValues(alpha: 0.94),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: isActive ? AppColors.primary : AppColors.panelBorderBright,

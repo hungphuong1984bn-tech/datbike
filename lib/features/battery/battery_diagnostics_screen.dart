@@ -11,16 +11,19 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/ble/ble_controller.dart';
 import '../../core/services/battery_diagnostics_service.dart';
 import '../../ui/app_theme.dart';
+import '../../ui/components.dart';
 import '../../ui/widgets.dart';
 
 class BatteryDiagnosticsScreen extends ConsumerStatefulWidget {
   const BatteryDiagnosticsScreen({super.key});
 
   @override
-  ConsumerState<BatteryDiagnosticsScreen> createState() => _BatteryDiagnosticsScreenState();
+  ConsumerState<BatteryDiagnosticsScreen> createState() =>
+      _BatteryDiagnosticsScreenState();
 }
 
-class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScreen> {
+class _BatteryDiagnosticsScreenState
+    extends ConsumerState<BatteryDiagnosticsScreen> {
   int? _selectedCellIndex;
   bool _isRefreshing = false;
 
@@ -41,7 +44,9 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
       setState(() => _isRefreshing = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('⚡ Đã cập nhật dữ liệu Bác Sĩ Pin & OBD từ xe thành công!'),
+          content: Text(
+            '⚡ Đã cập nhật dữ liệu Bác Sĩ Pin & OBD từ xe thành công!',
+          ),
           backgroundColor: AppColors.tertiary,
           duration: Duration(seconds: 2),
         ),
@@ -59,8 +64,10 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
     final resolvedModel = (ble.bikeName != null && ble.bikeName!.isNotEmpty)
         ? ble.bikeName!
         : ((ble.frameSerial?.toUpperCase().contains('DBQ') == true)
-            ? 'Quantum S'
-            : (telemetry?.model.isNotEmpty == true ? telemetry!.model : 'Quantum S'));
+              ? 'Quantum S'
+              : (telemetry?.model.isNotEmpty == true
+                    ? telemetry!.model
+                    : 'Quantum S'));
 
     final report = BatteryDiagnosticsService.analyze(
       telemetry: telemetry,
@@ -73,32 +80,41 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: Color(0xFF0F172A)),
-          onPressed: () {
-            if (Navigator.of(context).canPop()) {
-              Navigator.of(context).pop();
-            }
-          },
-        ),
+        leading: !Navigator.of(context).canPop()
+            ? null
+            : IconButton(
+                icon: Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  size: 20,
+                  color: AppColors.textPrimary,
+                ),
+                onPressed: () {
+                  if (Navigator.of(context).canPop()) {
+                    Navigator.of(context).pop();
+                  }
+                },
+              ),
         centerTitle: true,
         title: Text(
           'Battery & BMS',
           style: GoogleFonts.plusJakartaSans(
             fontWeight: FontWeight.w700,
             fontSize: 18,
-            color: const Color(0xFF0F172A),
+            color: AppColors.textPrimary,
           ),
         ),
         actions: [
           IconButton(
             icon: _isRefreshing
-                ? const SizedBox(
+                ? SizedBox(
                     width: 18,
                     height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.primary,
+                    ),
                   )
-                : const Icon(Icons.refresh_rounded, color: Color(0xFF0F172A)),
+                : Icon(Icons.refresh_rounded, color: AppColors.textPrimary),
             tooltip: 'Quét lại dữ liệu xe',
             onPressed: connected && !_isRefreshing ? _refreshData : null,
           ),
@@ -120,6 +136,19 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
             ),
             const SizedBox(height: 14),
           ],
+
+          // Chú giải nguồn dữ liệu: phân biệt số đo thật / ước tính / chưa có
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: const [
+              FreshnessBadge(freshness: DataFreshness.live, labelOverride: 'Đo từ xe'),
+              FreshnessBadge(freshness: DataFreshness.estimated),
+              FreshnessBadge(freshness: DataFreshness.none, labelOverride: 'Chưa có (--)'),
+            ],
+          ),
+          const SizedBox(height: 12),
 
           // 1. Tổng quan Sức Khỏe Pin & Điểm An Toàn
           _buildHealthOverviewCard(report, telemetry?.percent ?? 0),
@@ -169,15 +198,19 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
                     width: 68,
                     height: 68,
                     child: CircularProgressIndicator(
-                      value: report.hasLiveTelemetry ? (report.safetyScore / 100.0) : 0.0,
+                      value: report.hasLiveTelemetry
+                          ? (report.safetyScore / 100.0)
+                          : 0.0,
                       strokeWidth: 6,
                       backgroundColor: AppColors.panelBorder,
                       valueColor: AlwaysStoppedAnimation<Color>(
                         !report.hasLiveTelemetry
                             ? AppColors.textDim
                             : (report.safetyScore >= 90
-                                ? AppColors.tertiary
-                                : (report.safetyScore >= 70 ? AppColors.amber : AppColors.error)),
+                                  ? AppColors.tertiary
+                                  : (report.safetyScore >= 70
+                                        ? AppColors.amber
+                                        : AppColors.error)),
                       ),
                     ),
                   ),
@@ -185,11 +218,15 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        report.hasLiveTelemetry ? '${report.safetyScore}' : '--',
+                        report.hasLiveTelemetry
+                            ? '${report.safetyScore}'
+                            : '--',
                         style: GoogleFonts.spaceGrotesk(
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
-                          color: report.hasLiveTelemetry ? AppColors.textPrimary : AppColors.textDim,
+                          color: report.hasLiveTelemetry
+                              ? AppColors.textPrimary
+                              : AppColors.textDim,
                         ),
                       ),
                       Text(
@@ -221,22 +258,33 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
                         ),
                         const Spacer(),
                         Text(
-                          report.hasLiveTelemetry ? '${report.healthPercentage}%' : '--',
+                          report.hasLiveTelemetry
+                              ? '${report.healthPercentage}%'
+                              : '--',
                           style: GoogleFonts.spaceGrotesk(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
-                            color: report.hasLiveTelemetry ? AppColors.primary : AppColors.textDim,
+                            color: report.hasLiveTelemetry
+                                ? AppColors.primary
+                                : AppColors.textDim,
                           ),
                         ),
                       ],
                     ),
+                    if (report.hasLiveTelemetry) ...[
+                      const SizedBox(height: 6),
+                      const FreshnessBadge(
+                        freshness: DataFreshness.estimated,
+                        labelOverride: 'Ước tính từ chu kỳ sạc & cân bằng cell',
+                      ),
+                    ],
                     const SizedBox(height: 4),
                     Text(
                       !report.hasLiveTelemetry
                           ? 'Chưa kết nối xe — Đang chờ dữ liệu Telemetry.'
                           : (report.safetyScore >= 90
-                              ? 'Tất cả tế bào pin & hệ thống điện hoạt động xuất sắc.'
-                              : 'Phát hiện cảnh báo hệ thống, vui lòng xem danh mục OBD bên dưới.'),
+                                ? 'Tất cả tế bào pin & hệ thống điện hoạt động xuất sắc.'
+                                : 'Phát hiện cảnh báo hệ thống, vui lòng xem danh mục OBD bên dưới.'),
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 12,
                         color: AppColors.textDim,
@@ -248,7 +296,7 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
             ],
           ),
           const SizedBox(height: 16),
-          const Divider(color: AppColors.panelBorder, height: 1),
+          Divider(color: AppColors.panelBorder, height: 1),
           const SizedBox(height: 14),
 
           // 4 thông số mini
@@ -267,17 +315,22 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
                     : '-- A',
                 valueColor: report.hasLiveTelemetry
                     ? (report.currentAmp < -0.5
-                        ? AppColors.tertiary
-                        : (report.currentAmp > 0.5 ? AppColors.secondary : AppColors.textDim))
+                          ? AppColors.tertiary
+                          : (report.currentAmp > 0.5
+                                ? AppColors.secondary
+                                : AppColors.textDim))
                     : AppColors.textDim,
               ),
               _buildMiniMetric(
                 label: 'CHU KỲ SẠC',
-                value: report.hasLiveTelemetry ? '${report.chargeCycles} cycles' : '--',
+                value: report.hasLiveTelemetry
+                    ? '${report.chargeCycles} cycles'
+                    : '--',
               ),
               _buildMiniMetric(
                 label: 'NỘI TRỞ',
-                value: report.hasLiveTelemetry && report.internalResistanceMo > 0
+                value:
+                    report.hasLiveTelemetry && report.internalResistanceMo > 0
                     ? '${report.internalResistanceMo.toStringAsFixed(1)} mΩ'
                     : '-- mΩ',
               ),
@@ -288,7 +341,11 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
     );
   }
 
-  Widget _buildMiniMetric({required String label, required String value, Color? valueColor}) {
+  Widget _buildMiniMetric({
+    required String label,
+    required String value,
+    Color? valueColor,
+  }) {
     return Expanded(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -356,7 +413,9 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
                     textBaseline: TextBaseline.alphabetic,
                     children: [
                       Text(
-                        hasCells ? report.deltaVoltageMv.toStringAsFixed(1) : '--',
+                        hasCells
+                            ? report.deltaVoltageMv.toStringAsFixed(1)
+                            : '--',
                         style: GoogleFonts.spaceGrotesk(
                           fontSize: 34,
                           fontWeight: FontWeight.w800,
@@ -393,7 +452,7 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
             ),
           ),
           const SizedBox(height: 16),
-          const Divider(color: AppColors.panelBorder, height: 1),
+          Divider(color: AppColors.panelBorder, height: 1),
           const SizedBox(height: 14),
 
           // 3 khối đối sánh: Cell cao nhất, Cell thấp nhất, Trung bình
@@ -405,13 +464,17 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
                   decoration: BoxDecoration(
                     color: AppColors.primary.withValues(alpha: 0.06),
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.15),
+                    ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        hasCells ? 'Cell cao nhất (#${report.maxCellIndex})' : 'Cell cao nhất',
+                        hasCells
+                            ? 'Cell cao nhất (#${report.maxCellIndex})'
+                            : 'Cell cao nhất',
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
@@ -420,7 +483,9 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        hasCells ? '${report.maxCellVoltage.toStringAsFixed(3)} V' : '-- V',
+                        hasCells
+                            ? '${report.maxCellVoltage.toStringAsFixed(3)} V'
+                            : '-- V',
                         style: GoogleFonts.spaceGrotesk(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
@@ -437,28 +502,40 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
                 child: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: (report.deltaVoltageMv > 80 ? AppColors.error : AppColors.amber)
-                        .withValues(alpha: 0.08),
+                    color:
+                        (report.deltaVoltageMv > 80
+                                ? AppColors.error
+                                : AppColors.amber)
+                            .withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                      color: (report.deltaVoltageMv > 80 ? AppColors.error : AppColors.amber)
-                          .withValues(alpha: 0.25),
+                      color:
+                          (report.deltaVoltageMv > 80
+                                  ? AppColors.error
+                                  : AppColors.amber)
+                              .withValues(alpha: 0.25),
                     ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        hasCells ? 'Cell thấp nhất (#${report.minCellIndex})' : 'Cell thấp nhất',
+                        hasCells
+                            ? 'Cell thấp nhất (#${report.minCellIndex})'
+                            : 'Cell thấp nhất',
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: report.deltaVoltageMv > 80 ? AppColors.error : AppColors.amber,
+                          color: report.deltaVoltageMv > 80
+                              ? AppColors.error
+                              : AppColors.amber,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        hasCells ? '${report.minCellVoltage.toStringAsFixed(3)} V' : '-- V',
+                        hasCells
+                            ? '${report.minCellVoltage.toStringAsFixed(3)} V'
+                            : '-- V',
                         style: GoogleFonts.spaceGrotesk(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
@@ -492,7 +569,9 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        hasCells ? '${report.avgCellVoltage.toStringAsFixed(3)} V' : '-- V',
+                        hasCells
+                            ? '${report.avgCellVoltage.toStringAsFixed(3)} V'
+                            : '-- V',
                         style: GoogleFonts.spaceGrotesk(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
@@ -515,8 +594,12 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
   Widget _buildCellVoltagesChart(BatteryHealthReport report) {
     final cells = report.cellVoltages;
     final hasCells = cells.isNotEmpty;
-    final minV = hasCells ? (report.minCellVoltage - 0.05).clamp(2.5, 4.2) : 2.5;
-    final maxV = hasCells ? (report.maxCellVoltage + 0.05).clamp(minV + 0.05, 4.3) : 4.2;
+    final minV = hasCells
+        ? (report.minCellVoltage - 0.05).clamp(2.5, 4.2)
+        : 2.5;
+    final maxV = hasCells
+        ? (report.maxCellVoltage + 0.05).clamp(minV + 0.05, 4.3)
+        : 4.2;
 
     return Panel(
       padding: const EdgeInsets.all(18),
@@ -531,7 +614,10 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.25), width: 0.8),
+                  border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.25),
+                    width: 0.8,
+                  ),
                 ),
                 child: Text(
                   report.packConfigName,
@@ -543,7 +629,9 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
                 ),
               ),
               const Spacer(),
-              if (hasCells && _selectedCellIndex != null && _selectedCellIndex! < cells.length)
+              if (hasCells &&
+                  _selectedCellIndex != null &&
+                  _selectedCellIndex! < cells.length)
                 Flexible(
                   child: Text(
                     'Cell #${_selectedCellIndex! + 1}: ${cells[_selectedCellIndex!].toStringAsFixed(3)} V',
@@ -558,12 +646,18 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
               else if (hasCells)
                 Text(
                   'Chạm vào cell để xem',
-                  style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AppColors.textDim),
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12,
+                    color: AppColors.textDim,
+                  ),
                 )
               else
                 Text(
                   'Đang chờ dữ liệu BMS...',
-                  style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AppColors.textDim),
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12,
+                    color: AppColors.textDim,
+                  ),
                 ),
             ],
           ),
@@ -583,7 +677,11 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.developer_board_off_rounded, color: AppColors.textDim, size: 28),
+                  Icon(
+                    Icons.developer_board_off_rounded,
+                    color: AppColors.textDim,
+                    size: 28,
+                  ),
                   const SizedBox(height: 8),
                   Text(
                     'Chưa nhận được gói tin chi tiết điện áp từng cell từ BMS qua Bluetooth.\nỨng dụng sẽ tự động vẽ biểu đồ ngay khi xe truyền telemetry BMS.',
@@ -605,7 +703,10 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: List.generate(cells.length, (idx) {
                   final v = cells[idx];
-                  final normalized = ((v - minV) / (maxV - minV)).clamp(0.08, 1.0);
+                  final normalized = ((v - minV) / (maxV - minV)).clamp(
+                    0.08,
+                    1.0,
+                  );
                   final isLowest = (idx + 1) == report.minCellIndex;
                   final isHighest = (idx + 1) == report.maxCellIndex;
                   final isSelected = _selectedCellIndex == idx;
@@ -625,7 +726,9 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
                     child: GestureDetector(
                       onTap: () {
                         setState(() {
-                          _selectedCellIndex = (_selectedCellIndex == idx) ? null : idx;
+                          _selectedCellIndex = (_selectedCellIndex == idx)
+                              ? null
+                              : idx;
                         });
                       },
                       child: Padding(
@@ -651,9 +754,14 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
                                   height: 110 * normalized,
                                   decoration: BoxDecoration(
                                     color: barColor,
-                                    borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                                    borderRadius: const BorderRadius.vertical(
+                                      top: Radius.circular(4),
+                                    ),
                                     border: isSelected
-                                        ? Border.all(color: Colors.white, width: 1.5)
+                                        ? Border.all(
+                                            color: Colors.white,
+                                            width: 1.5,
+                                          )
                                         : null,
                                   ),
                                 ),
@@ -668,19 +776,23 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
                                 '${idx + 1}',
                                 style: GoogleFonts.spaceGrotesk(
                                   fontSize: 9,
-                                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-                                  color: isSelected ? AppColors.primary : AppColors.textDim,
+                                  fontWeight: isSelected
+                                      ? FontWeight.w800
+                                      : FontWeight.w500,
+                                  color: isSelected
+                                      ? AppColors.primary
+                                      : AppColors.textDim,
                                 ),
                               ),
                             ),
                           ],
                         ),
                       ),
-                  ),
-                );
-              }),
+                    ),
+                  );
+                }),
+              ),
             ),
-          ),
           const SizedBox(height: 12),
           // Chú thích màu
           Row(
@@ -693,7 +805,10 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
                 'Cell thấp nhất',
               ),
               const SizedBox(width: 14),
-              _buildChartLegend(AppColors.primary.withValues(alpha: 0.55), 'Cell tiêu chuẩn'),
+              _buildChartLegend(
+                AppColors.primary.withValues(alpha: 0.55),
+                'Cell tiêu chuẩn',
+              ),
             ],
           ),
         ],
@@ -708,12 +823,18 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
         Container(
           width: 10,
           height: 10,
-          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3)),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(3),
+          ),
         ),
         const SizedBox(width: 5),
         Text(
           label,
-          style: GoogleFonts.plusJakartaSans(fontSize: 11, color: AppColors.textDim),
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 11,
+            color: AppColors.textDim,
+          ),
         ),
       ],
     );
@@ -726,20 +847,40 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
       borderRadius: 20,
       child: Column(
         children: [
-          _buildThermalRow(report.motorThermal, Icons.electric_meter_rounded, report.hasLiveTelemetry),
-          const Divider(color: AppColors.panelBorder, height: 20),
-          _buildThermalRow(report.ecuThermal, Icons.memory_rounded, report.hasLiveTelemetry),
-          const Divider(color: AppColors.panelBorder, height: 20),
-          _buildThermalRow(report.bmsThermal, Icons.battery_charging_full_rounded, report.hasLiveTelemetry),
+          _buildThermalRow(
+            report.motorThermal,
+            Icons.electric_meter_rounded,
+            report.hasLiveTelemetry,
+          ),
+          Divider(color: AppColors.panelBorder, height: 20),
+          _buildThermalRow(
+            report.ecuThermal,
+            Icons.memory_rounded,
+            report.hasLiveTelemetry,
+          ),
+          Divider(color: AppColors.panelBorder, height: 20),
+          _buildThermalRow(
+            report.bmsThermal,
+            Icons.battery_charging_full_rounded,
+            report.hasLiveTelemetry,
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildThermalRow(ThermalZone zone, IconData icon, bool hasLiveTelemetry) {
+  Widget _buildThermalRow(
+    ThermalZone zone,
+    IconData icon,
+    bool hasLiveTelemetry,
+  ) {
     final isOnline = hasLiveTelemetry && zone.temperature > 0;
-    final statusColor = isOnline ? Color(zone.status.colorValue) : AppColors.textDim;
-    final ratio = isOnline ? (zone.temperature / zone.criticalTemp).clamp(0.0, 1.0) : 0.0;
+    final statusColor = isOnline
+        ? Color(zone.status.colorValue)
+        : AppColors.textDim;
+    final ratio = isOnline
+        ? (zone.temperature / zone.criticalTemp).clamp(0.0, 1.0)
+        : 0.0;
 
     return Row(
       children: [
@@ -768,7 +909,9 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
                   ),
                   const Spacer(),
                   Text(
-                    isOnline ? '${zone.temperature.toStringAsFixed(1)} °C' : '-- °C',
+                    isOnline
+                        ? '${zone.temperature.toStringAsFixed(1)} °C'
+                        : '-- °C',
                     style: GoogleFonts.spaceGrotesk(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
@@ -792,13 +935,21 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
               Row(
                 children: [
                   Text(
-                    isOnline ? 'Trạng thái: ${zone.status.label}' : 'Trạng thái: Chờ dữ liệu xe',
-                    style: GoogleFonts.plusJakartaSans(fontSize: 11, color: statusColor),
+                    isOnline
+                        ? 'Trạng thái: ${zone.status.label}'
+                        : 'Trạng thái: Chờ dữ liệu xe',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11,
+                      color: statusColor,
+                    ),
                   ),
                   const Spacer(),
                   Text(
                     'Cảnh báo: ${zone.warningTemp.round()}°C',
-                    style: GoogleFonts.plusJakartaSans(fontSize: 10.5, color: AppColors.textDim),
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 10.5,
+                      color: AppColors.textDim,
+                    ),
                   ),
                 ],
               ),
@@ -824,19 +975,26 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: (!report.hasLiveTelemetry
-                          ? AppColors.textDim
-                          : (activeErrors.isEmpty ? AppColors.tertiary : AppColors.error))
-                      .withValues(alpha: 0.12),
+                  color:
+                      (!report.hasLiveTelemetry
+                              ? AppColors.textDim
+                              : (activeErrors.isEmpty
+                                    ? AppColors.tertiary
+                                    : AppColors.error))
+                          .withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   !report.hasLiveTelemetry
                       ? Icons.sensors_off_rounded
-                      : (activeErrors.isEmpty ? Icons.check_circle_rounded : Icons.warning_rounded),
+                      : (activeErrors.isEmpty
+                            ? Icons.check_circle_rounded
+                            : Icons.warning_rounded),
                   color: !report.hasLiveTelemetry
                       ? AppColors.textDim
-                      : (activeErrors.isEmpty ? AppColors.tertiary : AppColors.error),
+                      : (activeErrors.isEmpty
+                            ? AppColors.tertiary
+                            : AppColors.error),
                   size: 22,
                 ),
               ),
@@ -849,21 +1007,26 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
                       !report.hasLiveTelemetry
                           ? 'Chưa kết nối xe — Đang chờ dữ liệu Telemetry'
                           : (activeErrors.isEmpty
-                              ? 'Tất cả 8 hệ thống phần cứng hoàn hảo'
-                              : 'Phát hiện ${activeErrors.length} sự cố phần cứng!'),
+                                ? 'Tất cả 8 hệ thống phần cứng hoàn hảo'
+                                : 'Phát hiện ${activeErrors.length} sự cố phần cứng!'),
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
                         color: !report.hasLiveTelemetry
                             ? AppColors.textDim
-                            : (activeErrors.isEmpty ? AppColors.tertiary : AppColors.error),
+                            : (activeErrors.isEmpty
+                                  ? AppColors.tertiary
+                                  : AppColors.error),
                       ),
                     ),
                     Text(
                       !report.hasLiveTelemetry
                           ? 'Kết nối Bluetooth để tự động quét 8 hệ thống OBD'
                           : 'Quét thời gian thực qua giao thức Telemetry',
-                      style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AppColors.textDim),
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        color: AppColors.textDim,
+                      ),
                     ),
                   ],
                 ),
@@ -881,7 +1044,7 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
             ),
             child: Row(
               children: [
-                const Icon(Icons.memory_rounded, size: 16, color: AppColors.textDim),
+                Icon(Icons.memory_rounded, size: 16, color: AppColors.textDim),
                 const SizedBox(width: 8),
                 Text(
                   'VESC mc_fault_code:',
@@ -893,12 +1056,18 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
                 ),
                 const SizedBox(width: 6),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
-                    color: (!report.hasLiveTelemetry
-                            ? AppColors.textDim
-                            : (report.rawErrorCode == 0 ? AppColors.tertiary : AppColors.error))
-                        .withValues(alpha: 0.12),
+                    color:
+                        (!report.hasLiveTelemetry
+                                ? AppColors.textDim
+                                : (report.rawErrorCode == 0
+                                      ? AppColors.tertiary
+                                      : AppColors.error))
+                            .withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
@@ -910,7 +1079,9 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
                       fontWeight: FontWeight.w700,
                       color: !report.hasLiveTelemetry
                           ? AppColors.textDim
-                          : (report.rawErrorCode == 0 ? AppColors.tertiary : AppColors.error),
+                          : (report.rawErrorCode == 0
+                                ? AppColors.tertiary
+                                : AppColors.error),
                     ),
                   ),
                 ),
@@ -918,24 +1089,30 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
                 Text(
                   !report.hasLiveTelemetry
                       ? 'CHỜ KẾT NỐI'
-                      : (report.rawErrorCode == 0 ? 'FAULT_NONE' : 'PHÁT HIỆN SỰ CỐ'),
+                      : (report.rawErrorCode == 0
+                            ? 'FAULT_NONE'
+                            : 'PHÁT HIỆN SỰ CỐ'),
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 10.5,
                     fontWeight: FontWeight.w700,
                     color: !report.hasLiveTelemetry
                         ? AppColors.textDim
-                        : (report.rawErrorCode == 0 ? AppColors.tertiary : AppColors.error),
+                        : (report.rawErrorCode == 0
+                              ? AppColors.tertiary
+                              : AppColors.error),
                   ),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 10),
-          const Divider(color: AppColors.panelBorder, height: 1),
+          Divider(color: AppColors.panelBorder, height: 1),
           const SizedBox(height: 6),
 
           // Danh sách 8 mục chẩn đoán
-          ...report.obdItems.map((item) => _buildObdItemTile(item, report.hasLiveTelemetry)),
+          ...report.obdItems.map(
+            (item) => _buildObdItemTile(item, report.hasLiveTelemetry),
+          ),
         ],
       ),
     );
@@ -953,7 +1130,9 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
         leading: Icon(
           !hasLiveTelemetry
               ? Icons.radio_button_unchecked_rounded
-              : (item.isHealthy ? Icons.check_circle_outline_rounded : Icons.error_rounded),
+              : (item.isHealthy
+                    ? Icons.check_circle_outline_rounded
+                    : Icons.error_rounded),
           color: statusColor,
           size: 20,
         ),
@@ -964,8 +1143,12 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
                 item.name,
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 13.5,
-                  fontWeight: (hasLiveTelemetry && !item.isHealthy) ? FontWeight.w700 : FontWeight.w500,
-                  color: (hasLiveTelemetry && !item.isHealthy) ? AppColors.error : AppColors.textPrimary,
+                  fontWeight: (hasLiveTelemetry && !item.isHealthy)
+                      ? FontWeight.w700
+                      : FontWeight.w500,
+                  color: (hasLiveTelemetry && !item.isHealthy)
+                      ? AppColors.error
+                      : AppColors.textPrimary,
                 ),
               ),
             ),
@@ -1008,7 +1191,10 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
                 const SizedBox(height: 2),
                 Text(
                   item.description,
-                  style: GoogleFonts.plusJakartaSans(fontSize: 12.5, color: AppColors.textPrimary),
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12.5,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -1018,13 +1204,18 @@ class _BatteryDiagnosticsScreenState extends ConsumerState<BatteryDiagnosticsScr
                     fontWeight: FontWeight.w700,
                     color: !hasLiveTelemetry
                         ? AppColors.textDim
-                        : (item.isHealthy ? AppColors.primary : AppColors.error),
+                        : (item.isHealthy
+                              ? AppColors.primary
+                              : AppColors.error),
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   item.recommendation,
-                  style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AppColors.textDim),
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12,
+                    color: AppColors.textDim,
+                  ),
                 ),
               ],
             ),

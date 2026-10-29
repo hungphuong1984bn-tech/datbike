@@ -74,6 +74,8 @@ class SpeedGauge extends StatelessWidget {
 
 class _KineticGaugePainter extends CustomPainter {
   final double progress;
+  // Ghi nhận chế độ sáng/tối lúc tạo để vẽ lại khi đổi theme (màu đọc trong paint()).
+  final bool _dark = AppColors.isDark;
   _KineticGaugePainter({required this.progress});
 
   static const _start = 140 * pi / 180; // 140°
@@ -148,7 +150,7 @@ class _KineticGaugePainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeWidth = strokeTrack
         ..strokeCap = StrokeCap.round
-        ..shader = const SweepGradient(
+        ..shader = SweepGradient(
           startAngle: _start,
           endAngle: _start + _sweep,
           colors: [AppColors.secondary, AppColors.primary],
@@ -174,5 +176,5 @@ class _KineticGaugePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_KineticGaugePainter old) => old.progress != progress;
+  bool shouldRepaint(_KineticGaugePainter old) => old.progress != progress || old._dark != _dark;
 }

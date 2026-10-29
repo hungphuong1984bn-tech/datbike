@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/ble/ble_controller.dart';
+import '../../core/ble/connect_diagnostics.dart';
 import '../../ui/app_theme.dart';
 import '../../ui/widgets.dart';
 
@@ -41,8 +42,14 @@ class _ConnectingScreenState extends ConsumerState<ConnectingScreen> {
       Navigator.of(context).popUntil((route) => route.isFirst);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _detail = 'Lỗi kết nối: $e');
-      await Future.delayed(const Duration(seconds: 2));
+      // Hiện đúng bước/loại lỗi (không gộp thành "kết nối thất bại"). Chi tiết
+      // kỹ thuật đã nằm trong báo cáo chẩn đoán ở thư mục ble_logs.
+      final msg = e is ConnectFailure
+          ? '${e.userMessage}\n[${e.stage.name} · ${e.kind.name}'
+              '${e.code != null ? ' · mã ${e.code}' : ''}]'
+          : 'Lỗi kết nối: $e';
+      setState(() => _detail = msg);
+      await Future.delayed(const Duration(seconds: 6));
       if (!mounted) return;
       Navigator.of(context).pushReplacementNamed('/scan');
     }
@@ -68,11 +75,11 @@ class _ConnectingScreenState extends ConsumerState<ConnectingScreen> {
                       height: 96,
                       child: CircularProgressIndicator(
                         strokeWidth: 3,
-                        valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
                         backgroundColor: AppColors.panelSecondary,
                       ),
                     ),
-                    const Icon(
+                    Icon(
                       Icons.electric_moped_rounded,
                       size: 44,
                       color: AppColors.primary,
@@ -106,7 +113,7 @@ class _ConnectingScreenState extends ConsumerState<ConnectingScreen> {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.info_outline_rounded, size: 18, color: AppColors.primary),
+                          Icon(Icons.info_outline_rounded, size: 18, color: AppColors.primary),
                           const SizedBox(width: 8),
                           Text(
                             'LƯU Ý KHI KẾT NỐI',

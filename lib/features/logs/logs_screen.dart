@@ -12,7 +12,19 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../core/ble/ble_logger.dart';
 import '../../ui/app_theme.dart';
+import '../../ui/components.dart';
 import '../../ui/widgets.dart';
+
+enum _LogRange {
+  all('Tất cả', null),
+  today('Hôm nay', 1),
+  week('7 ngày', 7),
+  month('30 ngày', 30);
+
+  final String label;
+  final int? days;
+  const _LogRange(this.label, this.days);
+}
 
 class LogsScreen extends ConsumerStatefulWidget {
   const LogsScreen({super.key});
@@ -31,6 +43,30 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
   bool _exporting = false;
   int? _sdkInt;
 
+  // Trạng thái tải / lọc
+  bool _loading = true;
+  String? _loadError;
+  bool _opening = false;
+  String _query = '';
+  _LogRange _range = _LogRange.all;
+
+  List<File> get _visible {
+    final q = _query.trim().toLowerCase();
+    final now = DateTime.now();
+    return _files.where((f) {
+      if (q.isNotEmpty && !f.uri.pathSegments.last.toLowerCase().contains(q)) return false;
+      final days = _range.days;
+      if (days != null) {
+        try {
+          if (now.difference(f.statSync().modified).inDays >= days) return false;
+        } catch (_) {
+          return false;
+        }
+      }
+      return true;
+    }).toList();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -44,22 +80,47 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
   }
 
   Future<void> _refresh() async {
-    final files = await BleLogger.listSessions();
-    setState(() => _files = files.cast<File>());
+    if (mounted) setState(() { _loading = true; _loadError = null; });
+    try {
+      final files = await BleLogger.listSessions();
+      if (!mounted) return;
+      setState(() {
+        _files = files.cast<File>();
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _loadError = 'Không đọc được thư mục nhật ký. Kiểm tra quyền lưu trữ rồi thử lại.';
+      });
+    }
   }
 
   Future<void> _open(File f) async {
-    final len = f.lengthSync();
-    final cap = 20 * 1024 * 1024;
-    final start = len > cap ? len - cap : 0;
-    final content = await File(f.path)
-        .openRead(start, len)
-        .transform(systemEncoding.decoder)
-        .join();
-    setState(() {
-      _selected = f;
-      _preview = (start > 0 ? '…(bỏ $start byte đầu)\n' : '') + content;
-    });
+    if (_opening) return;
+    setState(() => _opening = true);
+    try {
+      final len = f.lengthSync();
+      final cap = 20 * 1024 * 1024;
+      final start = len > cap ? len - cap : 0;
+      final content = await File(f.path)
+          .openRead(start, len)
+          .transform(systemEncoding.decoder)
+          .join();
+      if (!mounted) return;
+      setState(() {
+        _selected = f;
+        _preview = (start > 0 ? '…(bỏ $start byte đầu)\n' : '') + content;
+      });
+    } catch (e) {
+      if (mounted) {
+        showAppSnack(context, 'Không mở được file nhật ký. File có thể đã bị xóa hoặc hỏng.',
+            kind: SnackKind.error);
+      }
+    } finally {
+      if (mounted) setState(() => _opening = false);
+    }
   }
 
   Future<void> _share(File f) async {
@@ -104,7 +165,7 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Export thất bại: ${e.message}\nDùng nút chia sẻ từng file'),
-          backgroundColor: AppColors.error,
+          backgroundColor: AppColors.errorFill,
         ),
       );
     } finally {
@@ -130,7 +191,7 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
+              backgroundColor: AppColors.primaryFill,
               foregroundColor: Colors.white,
               shape: const StadiumBorder(),
             ),
@@ -146,34 +207,15 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
   }
 
   Future<void> _deleteAll() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (c) => AlertDialog(
-        backgroundColor: AppColors.panel,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: Text('Xóa tất cả nhật ký log?', style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w600)),
-        content: Text(
-          'Toàn bộ session log BLE sẽ bị xóa khỏi bộ nhớ máy.',
-          style: GoogleFonts.plusJakartaSans(color: AppColors.textDim),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(c, false),
-            child: Text('HỦY', style: GoogleFonts.plusJakartaSans(color: AppColors.textDim)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-              shape: const StadiumBorder(),
-            ),
-            onPressed: () => Navigator.pop(c, true),
-            child: Text('XÓA HẾT', style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w700)),
-          ),
-        ],
-      ),
+    final ok = await showConfirmDialog(
+      context,
+      title: 'Xóa tất cả nhật ký?',
+      message: 'Toàn bộ session log BLE sẽ bị xóa khỏi bộ nhớ máy. Không thể hoàn tác.',
+      confirmLabel: 'Xóa hết',
+      destructive: true,
+      icon: Icons.delete_outline_rounded,
     );
-    if (ok == true) {
+    if (ok) {
       await BleLogger.deleteAll();
       setState(() {
         _files = [];
@@ -185,6 +227,7 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final visible = _visible; // tính một lần mỗi lần build
     return Scaffold(
       backgroundColor: AppColors.bg,
       appBar: AppBar(
@@ -224,7 +267,7 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
                           color: AppColors.primary.withValues(alpha: 0.10),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.description_rounded, size: 20, color: AppColors.primary),
+                        child: Icon(Icons.description_rounded, size: 20, color: AppColors.primary),
                       ),
                       const SizedBox(width: 10),
                       Text(
@@ -279,20 +322,89 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
               ),
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  onChanged: (v) => setState(() => _query = v),
+                  textInputAction: TextInputAction.search,
+                  decoration: InputDecoration(
+                    hintText: 'Tìm theo tên file…',
+                    prefixIcon: Icon(Icons.search_rounded, color: AppColors.textSecondary),
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      for (final r in _LogRange.values) ...[
+                        ChoiceChip(
+                          label: Text(r.label),
+                          selected: _range == r,
+                          onSelected: (_) => setState(() => _range = r),
+                          showCheckmark: false,
+                          selectedColor: AppColors.primarySoft,
+                          labelStyle: GoogleFonts.plusJakartaSans(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: _range == r ? AppColors.primary : AppColors.textDim,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                    ],
+                  ),
+                ),
+                if (_opening) ...[
+                  const SizedBox(height: 8),
+                  LinearProgressIndicator(minHeight: 3, borderRadius: BorderRadius.circular(2)),
+                  const SizedBox(height: 2),
+                  Text('Đang đọc file…',
+                      style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AppColors.textSecondary)),
+                ],
+              ],
+            ),
+          ),
           Expanded(
             flex: _preview == null ? 2 : 1,
-            child: _files.isEmpty
-                ? Center(
-                    child: Text(
-                      'Chưa có log — kết nối xe để bắt đầu ghi lại phiên.',
-                      style: GoogleFonts.plusJakartaSans(color: AppColors.textDim, fontSize: 13),
-                    ),
-                  )
-                : ListView.builder(
+            child: _loading
+                ? const StateView(kind: StateKind.loading, title: 'Đang tải danh sách nhật ký…')
+                : _loadError != null
+                    ? StateView(
+                        kind: StateKind.error,
+                        title: 'Không tải được nhật ký',
+                        message: _loadError,
+                        actionLabel: 'Thử lại',
+                        onAction: _refresh,
+                      )
+                    : _files.isEmpty
+                        ? const StateView(
+                            kind: StateKind.empty,
+                            icon: Icons.receipt_long_outlined,
+                            title: 'Chưa có nhật ký',
+                            message: 'Kết nối xe để bắt đầu ghi lại phiên BLE.',
+                          )
+                        : visible.isEmpty
+                            ? StateView(
+                                kind: StateKind.empty,
+                                icon: Icons.search_off_rounded,
+                                title: 'Không có kết quả',
+                                message: 'Không có file nào khớp bộ lọc hiện tại.',
+                                actionLabel: 'Xóa bộ lọc',
+                                onAction: () => setState(() {
+                                  _query = '';
+                                  _range = _LogRange.all;
+                                }),
+                              )
+                            : ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: _files.length,
+                    itemCount: visible.length,
                     itemBuilder: (ctx, idx) {
-                      final f = _files[idx];
+                      final f = visible[idx];
                       final isSelected = _selected?.path == f.path;
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 8),
@@ -351,7 +463,7 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
               flex: 2,
               child: Container(
                 width: double.infinity,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   color: AppColors.panel,
                   border: Border(top: BorderSide(color: AppColors.panelBorder, width: 1)),
                 ),
@@ -359,7 +471,7 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         color: AppColors.panelSecondary,
                         border: Border(bottom: BorderSide(color: AppColors.panelBorder, width: 1)),
                       ),

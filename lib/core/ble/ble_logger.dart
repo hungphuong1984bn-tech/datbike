@@ -11,8 +11,10 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
+import 'connect_diagnostics.dart';
+
 /// Bump mỗi lần build release — để đối chiếu log với code chính xác.
-const appBuild = '20261028a';
+const appBuild = '20261029-diag1';
 
 class BleLogger {
   BleLogger._();
@@ -65,7 +67,7 @@ class BleLogger {
         'ts': DateTime.now().toIso8601String(),
         'build': appBuild,
         'kind': kind,
-        'error': error.toString(),
+        'error': Redactor.scrubText(error.toString()),
         if (stackTrace != null)
           'stack': stackTrace.toString().split('\n').take(40).join('\n'),
       }));
@@ -86,10 +88,13 @@ class BleLogger {
     final sink = _sink;
     if (sink == null) return;
     try {
+      // Lớp bảo vệ cuối: loại bỏ token/PIN/password/khóa phiên/response xác
+      // thực khỏi log kể cả khi một call-site quên che (xem Redactor).
+      final safe = Redactor.sanitizeEvent(type, data);
       final line = jsonEncode({
         'ts': DateTime.now().toIso8601String(),
         'type': type,
-        ...data,
+        ...safe,
       });
       sink.writeln(line);
       _eventCount++;
@@ -132,6 +137,24 @@ class BleLogger {
     final dir = Directory('$base/ble_logs');
     if (!dir.existsSync()) dir.createSync(recursive: true);
     return dir;
+  }
+
+  /// Ghi báo cáo chẩn đoán văn bản (đã lọc bí mật) cạnh file log phiên.
+  /// Trả về file đã ghi, hoặc null nếu ghi thất bại (không bao giờ throw).
+  static Future<File?> writeDiagnosticReport(String report) async {
+    try {
+      final dir = await _logDir();
+      final ts = DateTime.now()
+          .toIso8601String()
+          .substring(0, 19)
+          .replaceAll(':', '')
+          .replaceAll('-', '');
+      final f = File('${dir.path}/connect_report_$ts.txt');
+      await f.writeAsString(report, flush: true);
+      return f;
+    } catch (_) {
+      return null;
+    }
   }
 
   static Future<List<FileSystemEntity>> listSessions() async {

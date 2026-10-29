@@ -66,7 +66,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi mở xe: $e'), backgroundColor: AppColors.error),
+        SnackBar(content: Text('Lỗi mở xe: $e'), backgroundColor: AppColors.errorFill),
       );
     } finally {
       if (mounted) setState(() => _powerBusy = false);
@@ -80,7 +80,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('⚠️ CẢNH BÁO AN TOÀN: Không thể tắt xe khi đang chạy (${speed.toStringAsFixed(1)} km/h)!'),
-          backgroundColor: AppColors.error,
+          backgroundColor: AppColors.errorFill,
           duration: const Duration(seconds: 4),
           behavior: SnackBarBehavior.floating,
         ),
@@ -124,7 +124,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
+              backgroundColor: AppColors.errorFill,
               foregroundColor: Colors.white,
               elevation: 0,
               shape: const StadiumBorder(),
@@ -146,12 +146,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       await ref.read(bleProvider.notifier).turnOffBike();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('🔒 Đã gửi lệnh TẮT XE!'), backgroundColor: AppColors.error),
+        const SnackBar(content: Text('🔒 Đã gửi lệnh TẮT XE!'), backgroundColor: AppColors.errorFill),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi tắt xe: $e'), backgroundColor: AppColors.error),
+        SnackBar(content: Text('Lỗi tắt xe: $e'), backgroundColor: AppColors.errorFill),
       );
     } finally {
       if (mounted) setState(() => _powerBusy = false);
@@ -238,7 +238,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               child: Image.asset(
                 'assets/images/bike_logo_3d.png',
                 fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => const Icon(Icons.two_wheeler_rounded, color: AppColors.primary, size: 20),
+                errorBuilder: (_, _, _) => Icon(Icons.two_wheeler_rounded, color: AppColors.primary, size: 20),
               ),
             ),
             const SizedBox(width: 8),
@@ -919,7 +919,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFF0F9FF) : AppColors.panel,
+          color: isSelected ? AppColors.primarySoft : AppColors.panel,
           borderRadius: BorderRadius.circular(9999),
           border: Border.all(
             color: isSelected ? AppColors.secondary : AppColors.panelBorder,
@@ -973,7 +973,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.timer_outlined, size: 18, color: AppColors.primary),
+                  Icon(Icons.timer_outlined, size: 18, color: AppColors.primary),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -1096,7 +1096,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ],
           ),
           const SizedBox(height: 14),
-          const Divider(color: AppColors.panelBorder),
+          Divider(color: AppColors.panelBorder),
           const SizedBox(height: 12),
 
           const SectionTitle('CHẨN ĐOÁN & MÃ LỖI HỆ THỐNG'),
@@ -1131,7 +1131,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             child: OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.primary,
-                side: const BorderSide(color: AppColors.primary, width: 1.2),
+                side: BorderSide(color: AppColors.primary, width: 1.2),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
@@ -1215,5 +1215,5 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  Widget _divider() => const Divider(height: 1, indent: 16, endIndent: 16, color: AppColors.panelBorder);
+  Widget _divider() => Divider(height: 1, indent: 16, endIndent: 16, color: AppColors.panelBorder);
 }

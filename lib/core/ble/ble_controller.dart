@@ -4,9 +4,10 @@
 // - Nhớ xe kết nối lần cuối (shared_preferences) → tự kết nối lại khi mở app.
 // - Nghe connectionState → khi đứt ngoài ý muốn, tự reconnect với backoff
 //   2→4→8→16→30s, tối đa 5 lần.
-// - Sau 2 lần reconnect fail liên tiếp: nghi bond mismatch → removeBond()
-//   rồi thử lại (app gốc bắt user vào Settings xoá bond thủ công).
-// - MTU 517 re-request mỗi lần kết nối (chunk 244 byte như app gốc).
+// - KHÔNG tự removeBond(): chỉ forgetBike() (người dùng chủ động) mới xóa bond.
+//   Bond lệch chỉ được GỢI Ý khi có bằng chứng (BondEvidence), xem
+//   connect_diagnostics.dart. (Bản cũ ghi chú sai là có nhánh tự xóa bond.)
+// - MTU: yêu cầu 517 một lần, dùng giá trị thực tế do callback trả về.
 
 import 'dart:async';
 import 'dart:convert';
@@ -25,6 +26,7 @@ import '../session/bike_session_crypto.dart';
 import '../utils/kalman_filter.dart';
 import 'ble_logger.dart';
 import 'ble_permissions.dart';
+import 'connect_diagnostics.dart';
 import 'gatt.dart';
 
 export '../models/trip_gps_point.dart';
@@ -430,6 +432,10 @@ class BleController extends Notifier<BleState> {
 
   /// Chỉ-đọc, dùng cho cổng an toàn của mô-đun Regen (không đổi hành vi cũ).
   bool get telemetryFresh => _telemetryFresh;
+
+  /// Chỉ-đọc: thời điểm nhận khung telemetry hợp lệ gần nhất (null = chưa có).
+  /// Dùng cho UI hiển thị dấu thời gian/độ mới của dữ liệu.
+  DateTime? get lastTelemetryAt => _lastTelemetryAt;
   int _theftCounter = 0;
   int _unlockNearCounter = 0;
   bool _autoSecureBusy = false; // đang chạy chuỗi tắt→ARM (chống chạy chồng)
@@ -467,8 +473,8 @@ class BleController extends Notifier<BleState> {
       return;
     }
     if (!ref.mounted) return;
-    final savedName = prefs.getString(_kLastBikeName);
-    final savedId = prefs.getString(_kLastBikeId);
+    final savedName = _readStringPref(prefs, _kLastBikeName);
+    final savedId = _readStringPref(prefs, _kLastBikeId);
     final autoLock = prefs.getBool(_kAutoLockWalkAway) ?? false;
     final walkUp = prefs.getBool(_kWalkUpUnlock) ?? false;
     final walkUpPowerOn = prefs.getBool(_kWalkUpAutoPowerOn) ?? false;
@@ -1695,6 +1701,260 @@ class BleController extends Notifier<BleState> {
   Future<SharedPreferences> get _prefs => SharedPreferences.getInstance();
 
   // ------------------------------------------------------------------
+  // Chẩn đoán kết nối (xem connect_diagnostics.dart)
+  // ------------------------------------------------------------------
+
+  final ConnectStateMachine _diag = ConnectStateMachine();
+  final Set<ConnectFailure> _recordedFailures = {};
+  ConnectFailure? _lastAuthFailure;
+  ConnectFailure? _lastConnectFailure;
+  ConnectFailure? _lastBondFailure;
+  String? _lastDiagnosticReport;
+  StreamSubscription<BluetoothConnectionState>? _setupLinkSub;
+  ConnectFailure? _setupLinkLoss;
+  int _negotiatedMtu = 23;
+  bool _wasBondedBefore = false;
+
+  /// Timeout cho thao tác GATT thường trong handshake. Phía native
+  /// (FlutterBluePlus) dùng cùng giá trị nên mã lỗi gốc được giữ lại.
+  static const Duration _opTimeout = Duration(seconds: 10);
+
+  /// Thao tác được bảo vệ ĐẦU TIÊN có thể kích hoạt ghép nối/mã hóa của
+  /// Android (hộp thoại pair) nên cần thời gian dài hơn nhiều.
+  static const Duration _firstProtectedOpTimeout = Duration(seconds: 30);
+
+  ConnectFailure? get lastConnectFailure => _lastConnectFailure;
+  String? get lastDiagnosticReport => _lastDiagnosticReport;
+  int get negotiatedMtu => _negotiatedMtu;
+
+  /// Mã GATT/ATT/HCI gốc — CHỈ từ nền tảng native (mã `fbp` trùng số với ATT).
+  int? _gattCodeOf(Object e) {
+    if (e is FlutterBluePlusException &&
+        (e.platform == ErrorPlatform.android ||
+            e.platform == ErrorPlatform.apple)) {
+      return e.code;
+    }
+    return null;
+  }
+
+  void _stageStart(ConnectStage s, [String note = '']) {
+    _diag.start(s, note);
+    BleLogger.instance.event('stage_start', {
+      'stage': s.name,
+      if (note.isNotEmpty) 'note': Redactor.scrubText(note),
+    });
+  }
+
+  void _stageOk(ConnectStage s, [String note = '']) {
+    _diag.ok(s, note);
+    BleLogger.instance.event('stage_ok', {
+      'stage': s.name,
+      'ms': _diag.steps.last.elapsed.inMilliseconds,
+      if (note.isNotEmpty) 'note': Redactor.scrubText(note),
+    });
+  }
+
+  void _stageWarn(ConnectStage s, String note, {int? code}) {
+    _diag.warn(s, note, code: code);
+    BleLogger.instance.event('stage_warn', {
+      'stage': s.name,
+      'note': Redactor.scrubText(note),
+      if (code != null) 'code': code,
+    });
+  }
+
+  /// Ghi thất bại (idempotent theo instance) và trả lại chính nó để `throw`.
+  ConnectFailure _stageFail(ConnectFailure f) {
+    if (!_recordedFailures.add(f)) return f;
+    _diag.fail(f);
+    BleLogger.instance.event('stage_failed', {
+      'stage': f.stage.name,
+      'kind': f.kind.name,
+      if (f.code != null) 'code': f.code,
+      if (f.code != null) 'code_desc': describeGattCode(f.code!),
+      if (f.timeout != null) 'timeout_ms': f.timeout!.inMilliseconds,
+      'detail': Redactor.scrubText(f.detail),
+    });
+    return f;
+  }
+
+  /// Chạy một thao tác GATT: ghi thời gian/kết quả, chuyển mọi lỗi thành
+  /// ConnectFailure có kiểu, và ưu tiên nguyên nhân "link đứt" nếu có.
+  Future<T> _guarded<T>(
+    ConnectStage stage,
+    String label,
+    Future<T> Function() op, {
+    Duration timeout = _opTimeout,
+  }) async {
+    final lost = _setupLinkLoss;
+    if (lost != null) throw _stageFail(lost);
+    final sw = Stopwatch()..start();
+    try {
+      final r = await op().timeout(timeout);
+      BleLogger.instance.event('gatt_op', {
+        'stage': stage.name,
+        'op': label,
+        'ok': true,
+        'ms': sw.elapsedMilliseconds,
+      });
+      return r;
+    } catch (e) {
+      final ConnectFailure f;
+      final lostNow = _setupLinkLoss;
+      if (e is ConnectFailure) {
+        f = e;
+      } else if (lostNow != null) {
+        f = lostNow;
+      } else if (e is TimeoutException) {
+        f = ConnectFailure(stage, ConnectFailureKind.operationTimeout,
+            '$label: không phản hồi sau ${timeout.inMilliseconds}ms',
+            timeout: timeout);
+      } else {
+        f = classifyError(stage, e, code: _gattCodeOf(e), timeout: timeout);
+      }
+      BleLogger.instance.event('gatt_op', {
+        'stage': stage.name,
+        'op': label,
+        'ok': false,
+        'ms': sw.elapsedMilliseconds,
+        'kind': f.kind.name,
+        if (f.code != null) 'code': f.code,
+      });
+      throw _stageFail(f);
+    }
+  }
+
+  Future<List<int>> _read(
+    ConnectStage stage,
+    String label,
+    BluetoothCharacteristic c, {
+    Duration timeout = _opTimeout,
+  }) =>
+      _guarded(stage, label, () => c.read(timeout: timeout.inSeconds),
+          timeout: timeout + const Duration(seconds: 1));
+
+  Future<void> _write(
+    ConnectStage stage,
+    String label,
+    BluetoothCharacteristic c,
+    List<int> data, {
+    Duration timeout = _opTimeout,
+  }) =>
+      _guarded(
+          stage,
+          label,
+          () => c.write(data,
+              withoutResponse: false, timeout: timeout.inSeconds),
+          timeout: timeout + const Duration(seconds: 1));
+
+  /// Theo dõi link trong lúc thiết lập: nếu xe ngắt giữa chừng, các bước sau
+  /// báo đúng "link đứt + mã lý do" thay vì lỗi mơ hồ.
+  void _beginSetupWatch(BluetoothDevice device) {
+    _setupLinkLoss = null;
+    _setupLinkSub?.cancel();
+    _setupLinkSub = device.connectionState.listen((s) {
+      if (s != BluetoothConnectionState.disconnected) return;
+      final r = device.disconnectReason;
+      final code = (r != null &&
+              (r.platform == ErrorPlatform.android ||
+                  r.platform == ErrorPlatform.apple))
+          ? r.code
+          : null;
+      final stage = _diag.current ?? ConnectStage.gattConnect;
+      _setupLinkLoss ??= ConnectFailure(
+        stage,
+        ConnectFailureKind.linkLostDuringSetup,
+        'xe ngắt kết nối khi đang ở bước ${stage.name}'
+        '${r?.description != null ? ': ${r!.description}' : ''}',
+        code: code,
+      );
+      BleLogger.instance.event('link_lost_during_setup', {
+        'stage': stage.name,
+        if (code != null) 'code': code,
+        if (code != null) 'code_desc': describeGattCode(code),
+        'reason': r?.description,
+      });
+    });
+  }
+
+  void _endSetupWatch() {
+    _setupLinkSub?.cancel();
+    _setupLinkSub = null;
+  }
+
+  Future<bool> _waitForIdle(Duration max) async {
+    final end = DateTime.now().add(max);
+    while (_establishBusy || _restoreBusy) {
+      if (DateTime.now().isAfter(end)) return false;
+      await Future.delayed(const Duration(milliseconds: 200));
+    }
+    return true;
+  }
+
+  /// Ngắt link sau một lần thiết lập thất bại để KHÔNG giữ GATT client của xe
+  /// (xe chỉ nhận một kết nối; app Dat Bike chính thức cũng sẽ không nối được).
+  Future<void> _abortAttempt(BluetoothDevice device) async {
+    final prevManual = _manualDisconnect;
+    final prevRecovery = _recoveryDisconnect;
+    _manualDisconnect = true;
+    _recoveryDisconnect = true;
+    _pollTimer?.cancel();
+    _pollTimer = null;
+    try {
+      await device.disconnect();
+      BleLogger.instance.event('attempt_aborted', {'disconnected': true});
+    } catch (e) {
+      BleLogger.instance.event(
+          'attempt_aborted', {'disconnected': false, 'error': '$e'});
+    }
+    await Future.delayed(const Duration(milliseconds: 250));
+    _manualDisconnect = prevManual;
+    _recoveryDisconnect = prevRecovery;
+  }
+
+  Future<void> _persistReport() async {
+    final report = _diag.buildReport(appBuild: appBuild, bikeModel: 'Quantum S1');
+    _lastDiagnosticReport = report;
+    final f = await BleLogger.writeDiagnosticReport(report);
+    BleLogger.instance.event('diagnostic_report', {
+      'saved': f != null,
+      'succeeded': _diag.succeeded,
+      'last_ok_stage': _diag.lastSuccess?.name,
+      'first_failed_stage': _diag.firstFailure?.stage.name,
+      'first_failed_kind': _diag.firstFailure?.kind.name,
+    });
+  }
+
+  /// Đọc chuỗi từ SharedPreferences mà không nổ TypeError khi dữ liệu sai kiểu.
+  /// [critical] = true: dữ liệu hỏng là lỗi rõ ràng (storageCorrupt), KHÔNG
+  /// âm thầm coi như "chưa có" (sẽ kích hoạt đăng ký password mới).
+  String? _readStringPref(SharedPreferences prefs, String key,
+      {bool critical = false}) {
+    Object? v;
+    try {
+      v = prefs.get(key);
+    } catch (e) {
+      BleLogger.instance.event('prefs_read_error',
+          {'key': key, 'error': Redactor.scrubText('$e')});
+      if (critical) {
+        throw ConnectFailure(ConnectStage.selectDevice,
+            ConnectFailureKind.storageCorrupt, 'không đọc được khóa $key');
+      }
+      return null;
+    }
+    if (v == null) return null;
+    if (v is String) return v;
+    BleLogger.instance.event(
+        'prefs_type_mismatch', {'key': key, 'type': v.runtimeType.toString()});
+    if (critical) {
+      throw ConnectFailure(ConnectStage.selectDevice,
+          ConnectFailureKind.storageCorrupt,
+          'khóa $key có kiểu ${v.runtimeType}, không phải chuỗi');
+    }
+    return null;
+  }
+
+  // ------------------------------------------------------------------
   // Kết nối
   // ------------------------------------------------------------------
 
@@ -1704,9 +1964,22 @@ class BleController extends Notifier<BleState> {
         state.device?.remoteId == device.remoteId) {
       return;
     }
+    // Không chạy chồng lên restore/reconnect đang giữ handshake: vòng thử lại
+    // cũ gọi disconnect() giữa chừng và phá flow đang chạy kia.
+    _cancelReconnect();
+    if (!await _waitForIdle(const Duration(seconds: 25))) {
+      final f = ConnectFailure(ConnectStage.selectDevice,
+          ConnectFailureKind.busy, 'handshake khác vẫn chạy sau 25s');
+      BleLogger.instance.event('connect_rejected_busy', {});
+      throw f;
+    }
+    if (state.phase == BlePhase.connected &&
+        state.isAuthorized &&
+        state.device?.remoteId == device.remoteId) {
+      return;
+    }
     _manualDisconnect = false;
     _writeCounter = 0;
-    _cancelReconnect();
     state = BleState(phase: BlePhase.connecting, device: device, bikeName: name);
     unawaited(ForegroundService.start(
       title: 'Dat Bike',
@@ -1716,97 +1989,159 @@ class BleController extends Notifier<BleState> {
     BleLogger.instance.event('connect_start', {
       'device_id': device.remoteId.str,
       'name': name ?? device.platformName,
+      'build': appBuild,
     });
-    // Health-check storage trước khi vào BLE: shared_preferences hỏng (vd
-    // NoSuchMethodError getAll khi cài đè APK bẩn) sẽ nổ ngay trong handshake
-    // khi đọc password đã lưu — phải báo đúng bệnh thay vì "kết nối xe thất bại".
+    _diag.beginAttempt();
+    _recordedFailures.clear();
+    _stageStart(ConnectStage.selectDevice);
+    _stageOk(ConnectStage.selectDevice, 'thiết bị do người dùng chọn');
+
+    try {
+      await _preflight();
+    } on ConnectFailure catch (f) {
+      await _failConnect(f, attempts: 0);
+      throw f;
+    }
+
+    ConnectFailure? last;
+    var attempt = 0;
+    while (true) {
+      attempt++;
+      if (attempt > 1) {
+        final delay = retryDelay(last!.kind);
+        state = state.copyWith(
+          phase: BlePhase.reconnecting,
+          message: 'Thử lại lần $attempt sau lỗi ở bước '
+              '"${stageLabel(last.stage)}"…',
+        );
+        BleLogger.instance.event('connect_retry', {
+          'attempt': attempt,
+          'after_kind': last.kind.name,
+          'after_stage': last.stage.name,
+          'delay_ms': delay.inMilliseconds,
+        });
+        await Future.delayed(delay);
+        if (_manualDisconnect) break;
+      }
+      try {
+        final ok = await _establish(device);
+        if (ok && state.isAuthorized) {
+          await _finishConnected(device, name);
+          _diag.bondEvidence.reset();
+          await _persistReport();
+          return;
+        }
+        last = _lastAuthFailure ??
+            ConnectFailure(ConnectStage.authResponse,
+                ConnectFailureKind.authRejected,
+                state.message ?? 'xác thực không thành công');
+      } on ConnectFailure catch (f) {
+        last = f;
+      } catch (e) {
+        last = _stageFail(classifyError(
+            _diag.current ?? ConnectStage.gattConnect, e,
+            code: _gattCodeOf(e)));
+      }
+      final limit = maxAttemptsFor(last.kind);
+      if (attempt >= limit || attempt >= 5) break;
+    }
+    final f = last;
+    await _failConnect(f, attempts: attempt);
+    throw f;
+  }
+
+  Future<void> _failConnect(ConnectFailure f, {required int attempts}) async {
+    _lastConnectFailure = f;
+    _stageFail(f);
+    BleLogger.instance.event('connect_failed', {
+      'stage': f.stage.name,
+      'kind': f.kind.name,
+      if (f.code != null) 'code': f.code,
+      'attempts': attempts,
+      'detail': Redactor.scrubText(f.detail),
+    });
+    await _persistReport();
+    state = state.copyWith(
+        phase: BlePhase.disconnected, message: f.userMessage);
+    unawaited(ForegroundService.stop());
+  }
+
+  Future<void> _finishConnected(BluetoothDevice device, String? name) async {
+    await _saveLastBike(device, name);
+    _watchConnection(device);
+    state = state.copyWith(
+        phase: BlePhase.connected, isAuthorized: true, message: null);
+    unawaited(ForegroundService.start(
+      title: 'Dat Bike: ${state.bikeName ?? device.platformName}',
+      text: 'Đã kết nối Bluetooth — Sẵn sàng điều khiển',
+    ));
+    _failStreak = 0;
+  }
+
+  /// Kiểm tra quyền, Bluetooth và bộ nhớ app TRƯỚC khi chạm vào GATT.
+  Future<void> _preflight() async {
+    _stageStart(ConnectStage.permissions);
+    final perm = await BlePermissions.check();
+    if (perm != BlePermissionResult.granted) {
+      final kind = perm == BlePermissionResult.permanentlyDenied
+          ? ConnectFailureKind.permissionPermanentlyDenied
+          : ConnectFailureKind.permissionDenied;
+      throw _stageFail(ConnectFailure(
+        ConnectStage.permissions,
+        kind,
+        'kết quả quyền: ${perm.name}',
+        messageOverride: perm == BlePermissionResult.locationServiceOff
+            ? 'Android 11 trở xuống cần bật dịch vụ Vị trí của điện thoại '
+                'thì mới quét/kết nối BLE được. Hãy bật Vị trí rồi thử lại.'
+            : null,
+      ));
+    }
+    _stageOk(ConnectStage.permissions);
+
+    _stageStart(ConnectStage.adapter);
+    var ad = BluetoothAdapterState.unknown;
+    try {
+      ad = await FlutterBluePlus.adapterState.first
+          .timeout(const Duration(seconds: 2));
+      if (ad != BluetoothAdapterState.on &&
+          ad != BluetoothAdapterState.unknown) {
+        ad = await FlutterBluePlus.adapterState
+            .where((s) => s == BluetoothAdapterState.on)
+            .first
+            .timeout(const Duration(seconds: 4));
+      }
+    } catch (_) {}
+    BleLogger.instance.event('adapter_state', {'state': ad.name});
+    if (ad == BluetoothAdapterState.off ||
+        ad == BluetoothAdapterState.turningOff ||
+        ad == BluetoothAdapterState.unavailable ||
+        ad == BluetoothAdapterState.unauthorized) {
+      throw _stageFail(ConnectFailure(ConnectStage.adapter,
+          ConnectFailureKind.adapterOff, 'adapter=${ad.name}'));
+    }
+    _stageOk(ConnectStage.adapter, 'adapter=${ad.name}');
+
+    // Health-check storage: shared_preferences hỏng (vd NoSuchMethodError khi
+    // cài đè APK bẩn) phải báo đúng bệnh thay vì "kết nối xe thất bại".
     try {
       await _prefs;
     } catch (e, st) {
       BleLogger.instance.event('prefs_broken', {'error': '$e'});
       await BleLogger.logAppError('prefs_connect', e, st);
-      state = state.copyWith(
-        phase: BlePhase.disconnected,
-        message: 'Lỗi bộ nhớ app (shared_preferences): $e\n'
-            '→ Gỡ app rồi cài lại APK mới.',
-      );
-      unawaited(ForegroundService.stop());
-      throw Exception(
-          'Lỗi bộ nhớ app (shared_preferences) — gỡ app và cài lại APK mới. '
-          'Chi tiết: $e');
-    }
-    // Auth bị từ chối sau kill-app: xe giữ session-lock một khoảng ngắn
-    // (quan sát thực tế: còn khoá ở +10s, mở ở +35s). DÒ DẦY mỗi 3s (15 vòng
-    // ≈ 45s) để vào ngay khoảnh khắc xe mở khoá — app gốc cũng chỉ nhanh vì
-    // nối lại liên tục.
-    var recovered = false;
-    for (var cycle = 1; cycle <= 5 && !recovered; cycle++) {
-      if (cycle > 1) {
-        state = state.copyWith(
-          phase: BlePhase.reconnecting,
-          message: 'Xe giữ khoá phiên sau lần kết nối bị đứt — đang thử lại '
-              '($cycle/5, mỗi 3s)...',
-        );
-        BleLogger.instance
-            .event('auth_recovery_wait', {'cycle': cycle, 'delay_s': 3});
-        _manualDisconnect = true; // chặn reconnect scheduler đua
-        _recoveryDisconnect = true; // giữ logger sống
-        try {
-          await device.disconnect();
-        } catch (_) {}
-        await Future.delayed(const Duration(seconds: 3));
-        _recoveryDisconnect = false;
-        _manualDisconnect = false;
-      }
-      var ok = false;
-      try {
-        ok = await _establish(device);
-      } catch (e) {
-        BleLogger.instance.event('establish_err', {'cycle': cycle, 'error': '$e'});
-        ok = false;
-      }
-      if (ok && state.isAuthorized) {
-        await _saveLastBike(device, name);
-        _watchConnection(device);
-        state = state.copyWith(phase: BlePhase.connected, isAuthorized: true, message: null);
-        unawaited(ForegroundService.start(
-          title: 'Dat Bike: ${state.bikeName ?? device.platformName}',
-          text: 'Đã kết nối Bluetooth — Sẵn sàng điều khiển',
-        ));
-        _failStreak = 0;
-        recovered = true;
-      }
-    }
-    if (recovered) return;
-    try {
-      final ok = await _establish(device);
-      if (ok && state.isAuthorized) {
-        await _saveLastBike(device, name);
-        _watchConnection(device);
-        state = state.copyWith(phase: BlePhase.connected, isAuthorized: true, message: null);
-        unawaited(ForegroundService.start(
-          title: 'Dat Bike: ${state.bikeName ?? device.platformName}',
-          text: 'Đã kết nối Bluetooth — Sẵn sàng điều khiển',
-        ));
-        _failStreak = 0;
-        return;
-      } else {
-        throw Exception(state.message ?? 'Không thể xác thực phiên xe sau 5 chu kỳ thử lại');
-      }
-    } catch (e) {
-      BleLogger.instance.event('connect_failed', {'error': '$e'});
-      state = state.copyWith(
-          phase: BlePhase.disconnected, message: 'Kết nối thất bại: $e');
-      unawaited(ForegroundService.stop());
-      rethrow;
+      throw _stageFail(ConnectFailure(
+        ConnectStage.selectDevice,
+        ConnectFailureKind.storageCorrupt,
+        'shared_preferences: ${Redactor.scrubText('$e')}',
+        messageOverride:
+            'Lỗi bộ nhớ app (shared_preferences). Gỡ app rồi cài lại APK mới.',
+      ));
     }
   }
 
   Future<bool> _establish(BluetoothDevice device) async {
     // Auto-connect khi mở app (tryRestoreLastBike) và reconnect scheduler đi
     // THẲNG vào _establish, không qua connect() — nếu không tự mở session log
-    // thì toàn bộ event của phiên tự động kết nối bị mất (sink null, event()
-    // bỏ lặng lẽ). Chỉ mở khi chưa có session để không đẻ file mỗi lần retry.
+    // thì toàn bộ event của phiên tự động kết nối bị mất.
     if (!BleLogger.instance.active) {
       await BleLogger.instance.startSession();
       BleLogger.instance.event('auto_session_start', {
@@ -1814,17 +2149,26 @@ class BleController extends Notifier<BleState> {
         'name': device.platformName,
       });
     }
-    // Mutex: nếu một handshake đang chạy (recovery loop đua với reconnect
-    // scheduler…), không chạy chồng — log 19:02 cho thấy 2 flow song song
-    // đăng ký 2 password khác nhau làm session key loạn hoàn toàn.
+    // Mutex: 1 handshake/lúc.
     if (_establishBusy) {
       BleLogger.instance.event('establish_skipped', {'reason': 'busy'});
       return state.isAuthorized;
     }
     _establishBusy = true;
+    var ok = false;
     try {
-      return await _establishInner(device);
+      ok = await _establishInner(device);
+      return ok;
+    } on ConnectFailure catch (f) {
+      _stageFail(f);
+      rethrow;
+    } catch (e) {
+      final f = classifyError(_diag.current ?? ConnectStage.gattConnect, e,
+          code: _gattCodeOf(e));
+      throw _stageFail(f);
     } finally {
+      _endSetupWatch();
+      if (!ok) await _abortAttempt(device);
       _establishBusy = false;
     }
   }
@@ -1833,21 +2177,32 @@ class BleController extends Notifier<BleState> {
     BluetoothDevice device, {
     Duration timeout = const Duration(seconds: 10),
   }) async {
-    // 1. Kiểm tra nếu thiết bị đã được kết nối ở cấp độ OS (Android/iOS)
+    final sw = Stopwatch()..start();
+    // 1. Thiết bị đã nối ở cấp OS?
     final alreadyConnected = FlutterBluePlus.connectedDevices
         .any((d) => d.remoteId == device.remoteId);
+    BleLogger.instance
+        .event('gatt_pre_connect', {'already_connected_os': alreadyConnected});
     if (alreadyConnected) {
       try {
+        // mtu: null — KHÔNG để connect() tự requestMtu(512) rồi ném lỗi như
+        // một lỗi kết nối; MTU được thương lượng riêng, không chặn (xem _negotiateMtu).
         await device.connect(
           license: License.nonprofit,
           timeout: const Duration(seconds: 4),
+          mtu: null,
           autoConnect: false,
         );
+        BleLogger.instance.event('gatt_connect_callback',
+            {'result': 'already_connected', 'ms': sw.elapsedMilliseconds});
         return;
-      } catch (_) {}
+      } catch (e) {
+        BleLogger.instance.event('gatt_reuse_failed',
+            {'error': Redactor.scrubText('$e')});
+      }
     }
 
-    // 2. Chờ adapter Bluetooth bật nếu vừa mở app
+    // 2. Chờ adapter bật nếu vừa mở app
     try {
       if (await FlutterBluePlus.adapterState.first != BluetoothAdapterState.on) {
         await FlutterBluePlus.adapterState
@@ -1857,13 +2212,16 @@ class BleController extends Notifier<BleState> {
       }
     } catch (_) {}
 
-    // 3. Scan nhanh có RemoteId để làm mới BLE cache và connection window của Android
+    // 3. Scan nhanh theo RemoteId để làm mới cache/connection window Android
+    var primeFound = false;
+    final primeSw = Stopwatch()..start();
     try {
       if (!FlutterBluePlus.isScanningNow) {
         StreamSubscription? scanSub;
         final completer = Completer<void>();
         scanSub = FlutterBluePlus.scanResults.listen((results) {
           if (results.any((r) => r.device.remoteId == device.remoteId)) {
+            primeFound = true;
             if (!completer.isCompleted) completer.complete();
           }
         });
@@ -1878,7 +2236,9 @@ class BleController extends Notifier<BleState> {
         );
         await scanSub.cancel();
       }
-    } catch (_) {
+    } catch (e) {
+      BleLogger.instance
+          .event('prime_scan_error', {'error': Redactor.scrubText('$e')});
     } finally {
       if (FlutterBluePlus.isScanningNow) {
         try {
@@ -1886,25 +2246,159 @@ class BleController extends Notifier<BleState> {
         } catch (_) {}
       }
     }
+    BleLogger.instance.event('prime_scan_result',
+        {'found': primeFound, 'ms': primeSw.elapsedMilliseconds});
 
-    // 4. Kết nối trực tiếp sau khi cache đã được làm mới
-    await device.connect(
-      license: License.nonprofit,
-      timeout: timeout,
-      autoConnect: false,
-    );
+    // 4. Kết nối trực tiếp
+    final connectSw = Stopwatch()..start();
+    try {
+      await device.connect(
+        license: License.nonprofit,
+        timeout: timeout,
+        mtu: null,
+        autoConnect: false,
+      );
+    } catch (e) {
+      final r = device.disconnectReason;
+      final code = _gattCodeOf(e) ??
+          ((r != null &&
+                  (r.platform == ErrorPlatform.android ||
+                      r.platform == ErrorPlatform.apple))
+              ? r.code
+              : null);
+      final f = classifyError(ConnectStage.gattConnect, e,
+          code: code, timeout: timeout);
+      BleLogger.instance.event('gatt_connect_callback', {
+        'result': 'failed',
+        'ms': connectSw.elapsedMilliseconds,
+        'kind': f.kind.name,
+        if (code != null) 'status': code,
+        if (code != null) 'status_desc': describeGattCode(code),
+        'prime_scan_found': primeFound,
+      });
+      throw _stageFail(f);
+    }
+    BleLogger.instance.event('gatt_connect_callback', {
+      'result': 'connected',
+      'status': 0,
+      'ms': connectSw.elapsedMilliseconds,
+    });
+    if (!device.isConnected) {
+      throw _stageFail(ConnectFailure(
+          ConnectStage.gattConnect,
+          ConnectFailureKind.linkLostDuringSetup,
+          'connect() trả về nhưng thiết bị không ở trạng thái connected'));
+    }
+  }
+
+  /// MTU: yêu cầu 517 nhưng LUÔN dùng giá trị thực tế do callback trả về.
+  /// Thất bại ở đây chỉ là cảnh báo — không được coi là nguyên nhân khi chưa
+  /// có bằng chứng; chỉ link đứt mới chặn.
+  Future<void> _negotiateMtu(BluetoothDevice device) async {
+    _stageStart(ConnectStage.mtu, 'yêu cầu ${Gatt.androidMtu}');
+    final sw = Stopwatch()..start();
+    try {
+      final mtu = await device.requestMtu(Gatt.androidMtu, timeout: 8);
+      _negotiatedMtu = mtu;
+      _diag.negotiatedMtu = mtu;
+      BleLogger.instance.event('mtu_changed', {
+        'requested': Gatt.androidMtu,
+        'negotiated': mtu,
+        'max_payload': maxAttPayload(mtu),
+        'ms': sw.elapsedMilliseconds,
+      });
+      _stageOk(ConnectStage.mtu, 'MTU thực tế $mtu');
+    } catch (e) {
+      final lost = _setupLinkLoss;
+      if (lost != null || device.isDisconnected) {
+        throw _stageFail(lost ??
+            classifyError(ConnectStage.mtu, e, code: _gattCodeOf(e)));
+      }
+      final cur = device.mtuNow;
+      _negotiatedMtu = cur;
+      _diag.negotiatedMtu = cur;
+      BleLogger.instance.event('mtu_changed', {
+        'requested': Gatt.androidMtu,
+        'negotiated': cur,
+        'ok': false,
+        'error': Redactor.scrubText('$e'),
+        'ms': sw.elapsedMilliseconds,
+      });
+      _stageWarn(ConnectStage.mtu,
+          'requestMtu thất bại, dùng MTU hiện tại $cur (payload ${maxAttPayload(cur)}B)',
+          code: _gattCodeOf(e));
+    }
+  }
+
+  /// Xử lý lỗi "cần mã hóa/xác thực link": ghi bằng chứng bond, KHÔNG xóa bond.
+  /// Chỉ khi lỗi lặp lại dù hệ thống báo đã bond mới kết luận nghi bond lệch
+  /// và dừng để người dùng chủ động phục hồi pairing.
+  Future<void> _recoverEncryption(
+      BluetoothDevice device, ConnectStage stage, ConnectFailure f) async {
+    final bondedNow =
+        (await _bondStateNow(device)) == BluetoothBondState.bonded;
+    _diag.bondEvidence.recordEncryptionError(bondedAtTime: bondedNow);
+    BleLogger.instance.event('encryption_error', {
+      'stage': stage.name,
+      if (f.code != null) 'code': f.code,
+      'bonded_at_time': bondedNow,
+      'evidence': _diag.bondEvidence.toJson(),
+    });
+    if (_diag.bondEvidence.repeatedEncryptionFailure) {
+      throw _stageFail(ConnectFailure(
+        stage,
+        ConnectFailureKind.bondMismatchSuspected,
+        'lỗi mã hóa lặp lại dù hệ thống báo đã bond',
+        code: f.code,
+      ));
+    }
+    _stageStart(ConnectStage.bonding, 'kích hoạt ghép nối do lỗi mã hóa');
+    final ok = await _ensureBonded(device, reason: 'lỗi mã hóa ở ${stage.name}');
+    if (!ok) {
+      throw _stageFail(_lastBondFailure ??
+          ConnectFailure(ConnectStage.bonding, ConnectFailureKind.bondingFailed,
+              'không hoàn tất bonding'));
+    }
+    _stageOk(ConnectStage.bonding, 'bonded');
+  }
+
+  Future<BluetoothBondState?> _bondStateNow(BluetoothDevice device) async {
+    try {
+      return await device.bondState.first
+          .timeout(const Duration(milliseconds: 1500));
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<bool> _establishInner(BluetoothDevice device) async {
+    _diag.beginAttempt();
+    _recordedFailures.clear();
+    _lastAuthFailure = null;
+    _setupLinkLoss = null;
+    _writeCounter = 0;
+    BleLogger.instance.event('establish_start',
+        {'device_id': device.remoteId.str, 'build': appBuild});
+
+    // 1) GATT connect
+    _stageStart(ConnectStage.gattConnect);
     await _connectWithCachePrime(device);
     BleLogger.instance.event('connected', {'device_id': device.remoteId.str});
-    _writeCounter = 0;
-    final mtu = await device.requestMtu(Gatt.androidMtu);
-    BleLogger.instance.event('mtu', {'mtu': mtu});
+    _stageOk(ConnectStage.gattConnect);
+    _beginSetupWatch(device);
 
-    final services = await device.discoverServices();
+    // 2) MTU
+    await _negotiateMtu(device);
 
-    // BẢNG GATT ĐẦY ĐỦ — dữ liệu vàng để hoàn thiện bản đồ UUID.
+    // 3) Discover services
+    _stageStart(ConnectStage.discoverServices);
+    final services = await _guarded(
+        ConnectStage.discoverServices,
+        'discoverServices',
+        () => device.discoverServices(timeout: 15),
+        timeout: const Duration(seconds: 20));
+
+    // BẢNG GATT ĐẦY ĐỦ — dữ liệu để đối chiếu bản đồ UUID.
     final gattTable = <Map<String, Object?>>[];
     for (final service in services) {
       gattTable.add({
@@ -1926,86 +2420,191 @@ class BleController extends Notifier<BleState> {
     }
     BleLogger.instance.event('gatt_table', {'services': gattTable});
 
-    // expose cho AuthProbe / Phase 2
     final allChars = <BluetoothCharacteristic>[];
     for (final s in services) {
       allChars.addAll(s.characteristics);
     }
     state = state.copyWith(device: device, characteristics: allChars);
 
-    // Đọc firmware version — char duy nhất app gốc đọc trước handshake.
-    // Xe yêu cầu link đã bond/mã hoá: chưa bond sẽ bị err 0x05/137
-    // (Insufficient Authentication) — thấy rõ trong btsnoop máy Samsung.
-    for (final service in services) {
-      for (final c in service.characteristics) {
-        if (c.uuid.str128.toLowerCase() != Gatt.firmwareVersion.toLowerCase()) {
-          continue;
-        }
-        try {
-          final value = await c.read();
-          BleLogger.instance.event('char_read', {
-            'uuid': Gatt.firmwareVersion,
-            'len': value.length,
-            'hex': BleLogger.hex(value),
-            'utf8': BleLogger.tryUtf8(value),
-          });
-        } catch (e) {
-          BleLogger.instance.event('char_read_error', {
-            'uuid': Gatt.firmwareVersion,
-            'error': '$e',
-          });
-          if (_isAuthError(e)) {
-            await _ensureBonded(device, reason: 'fw char bị err auth');
-            try {
-              final value = await c.read();
-              BleLogger.instance.event('char_read', {
-                'uuid': Gatt.firmwareVersion,
-                'len': value.length,
-                'hex': BleLogger.hex(value),
-                'utf8': BleLogger.tryUtf8(value),
-              });
-            } catch (_) {}
+    final haveUuids = {
+      for (final c in allChars) c.uuid.str128.toLowerCase(),
+    };
+    final missing = <String>[
+      if (!haveUuids.contains(Gatt.authorizationChar)) Gatt.authorizationChar,
+      if (!haveUuids.contains(Gatt.dashboardCharacteristic))
+        Gatt.dashboardCharacteristic,
+    ];
+    if (missing.isNotEmpty) {
+      throw _stageFail(ConnectFailure(
+          ConnectStage.discoverServices,
+          ConnectFailureKind.requiredServiceMissing,
+          'thiếu ${missing.join(', ')} (tìm thấy ${services.length} service, '
+          '${allChars.length} characteristic)'));
+    }
+    _stageOk(ConnectStage.discoverServices,
+        '${services.length} service, ${allChars.length} characteristic');
+
+    // Quan sát bond: từng bonded nhưng nay none = bằng chứng (chưa phải kết luận).
+    final bond0 = await _bondStateNow(device);
+    BleLogger.instance.event('bond_state', {
+      'when': 'after_discovery',
+      'state': bond0?.name ?? 'unknown',
+      'was_bonded_before': _wasBondedBefore,
+    });
+    if (bond0 == BluetoothBondState.bonded) {
+      _wasBondedBefore = true;
+    } else if (bond0 == BluetoothBondState.none && _wasBondedBefore) {
+      _diag.bondEvidence.recordBondDisappeared();
+      _wasBondedBefore = false;
+    }
+
+    // 4) Đọc firmware version — char đầu tiên cần link mã hóa; có thể kích
+    // hoạt hộp thoại ghép nối của Android nên timeout dài.
+    _stageStart(ConnectStage.readFirmware);
+    BluetoothCharacteristic? fwChar;
+    for (final c in allChars) {
+      if (c.uuid.str128.toLowerCase() == Gatt.firmwareVersion.toLowerCase()) {
+        fwChar = c;
+      }
+    }
+    if (fwChar == null) {
+      _stageWarn(ConnectStage.readFirmware, 'xe không có char firmware version');
+    } else {
+      Future<void> readFw() async {
+        final value = await _read(
+            ConnectStage.readFirmware, 'read firmware', fwChar!,
+            timeout: _firstProtectedOpTimeout);
+        BleLogger.instance.event('char_read', {
+          'uuid': Gatt.firmwareVersion,
+          'len': value.length,
+          'hex': BleLogger.hex(value),
+          'utf8': BleLogger.tryUtf8(value),
+        });
+        _stageOk(ConnectStage.readFirmware, 'len=${value.length}');
+      }
+
+      try {
+        await readFw();
+      } on ConnectFailure catch (f) {
+        if (f.kind == ConnectFailureKind.linkLostDuringSetup) rethrow;
+        if (f.kind == ConnectFailureKind.encryptionRequired) {
+          await _recoverEncryption(device, ConnectStage.readFirmware, f);
+          try {
+            await readFw();
+          } on ConnectFailure catch (f2) {
+            if (f2.kind == ConnectFailureKind.linkLostDuringSetup) rethrow;
+            if (f2.kind == ConnectFailureKind.encryptionRequired) {
+              _diag.bondEvidence.recordEncryptionError(
+                  bondedAtTime:
+                      (await _bondStateNow(device)) == BluetoothBondState.bonded);
+              if (_diag.bondEvidence.repeatedEncryptionFailure) {
+                throw _stageFail(ConnectFailure(
+                    ConnectStage.readFirmware,
+                    ConnectFailureKind.bondMismatchSuspected,
+                    'đọc firmware vẫn lỗi mã hóa sau khi bond',
+                    code: f2.code));
+              }
+            }
+            _stageWarn(ConnectStage.readFirmware,
+                'đọc firmware lại thất bại: ${f2.kind.name}',
+                code: f2.code);
           }
+        } else {
+          // Không chặn như hành vi cũ: firmware version không bắt buộc cho handshake.
+          _stageWarn(ConnectStage.readFirmware,
+              'đọc firmware thất bại: ${f.kind.name}',
+              code: f.code);
         }
       }
     }
 
-    // Tự động kích hoạt bắt tay xác thực phiên xe (Phase 1 + 2) ngay khi kết nối
-    await authenticateSession(targetDevice: device, chars: allChars);
+    // 5) Handshake xác thực (Phase 1 + 2). Lỗi có kiểu nằm ở _lastAuthFailure.
+    final authed = await authenticateSession(
+        targetDevice: device, chars: allChars, postAuthRefresh: false);
+    if (!authed || !state.isAuthorized) {
+      return false;
+    }
 
-    // Dashboard — ĐÃ XÁC MINH TRÊN XE THẬT: characteristic 6d2eb205 chỉ có
-    // read/write, KHÔNG có notify. App gốc POLL đọc định kỳ
-    // (DASHBOARD_REFRESH_INTERVAL), không subscribe.
+    // 6) Notification: dashboard 6d2eb205 chỉ có read (poll), không notify.
+    _stageStart(ConnectStage.notifications);
+    BluetoothCharacteristic? dash;
     for (final service in services) {
       if (service.uuid.str128.toLowerCase() != Gatt.dashboardService) continue;
       for (final c in service.characteristics) {
-        if (c.uuid.str128.toLowerCase() != Gatt.dashboardCharacteristic) continue;
-        _dashChar = c;
-        if (c.properties.notify) {
-          // phòng xa: firmware tương lai thêm notify thì dùng notify
-          await c.setNotifyValue(true);
-          BleLogger.instance.event('notify_subscribed', {
-            'uuid': c.uuid.str128.toLowerCase(),
-          });
-          _notifySub?.cancel();
-          _notifySub = c.lastValueStream.listen((List<int> raw) {
-            BleLogger.instance.event('notify', {
-              'uuid': c.uuid.str128.toLowerCase(),
-              'len': raw.length,
-              'hex': BleLogger.hex(raw),
-            });
-            _handleDashboardPayload(raw);
-          });
+        if (c.uuid.str128.toLowerCase() == Gatt.dashboardCharacteristic) {
+          dash = c;
         }
       }
     }
+    if (dash == null) {
+      throw _stageFail(ConnectFailure(
+          ConnectStage.notifications,
+          ConnectFailureKind.requiredServiceMissing,
+          'dashboard ${Gatt.dashboardCharacteristic} không nằm trong service '
+          '${Gatt.dashboardService}'));
+    }
+    _dashChar = dash;
+    if (dash.properties.notify) {
+      try {
+        final c = dash;
+        await _guarded(ConnectStage.notifications, 'setNotifyValue',
+            () => c.setNotifyValue(true));
+        BleLogger.instance.event('notify_subscribed', {
+          'uuid': c.uuid.str128.toLowerCase(),
+        });
+        _notifySub?.cancel();
+        _notifySub = c.lastValueStream.listen((List<int> raw) {
+          BleLogger.instance.event('notify', {
+            'uuid': c.uuid.str128.toLowerCase(),
+            'len': raw.length,
+            'hex': BleLogger.hex(raw),
+          });
+          _handleDashboardPayload(raw);
+        });
+        _stageOk(ConnectStage.notifications, 'đã đăng ký notify');
+      } on ConnectFailure catch (f) {
+        if (f.kind == ConnectFailureKind.linkLostDuringSetup) rethrow;
+        // Không chặn: đã có poll đọc định kỳ.
+        _stageWarn(ConnectStage.notifications,
+            'setNotify thất bại (${f.kind.name}), dùng poll',
+            code: f.code);
+      }
+    } else {
+      _stageOk(ConnectStage.notifications,
+          'dashboard không hỗ trợ notify — poll ${Gatt.dashboardPollMs}ms');
+    }
 
-    // Poll 1 giây/lần (giữ GATT sống + nhận telemetry). Blob mã hoá trước
-    // handshake là hành vi xe gốc — cờ dashboardEncrypted báo lên UI.
+    // 7) Telemetry: đọc thử một khung và kiểm tra giải mã bằng khóa phiên.
+    _stageStart(ConnectStage.telemetry);
+    try {
+      final c = dash;
+      final raw = await _enqueueGatt(() => _read(
+          ConnectStage.telemetry, 'read dashboard', c));
+      final key = _sessionKey;
+      final valid = key != null && _isValidTelemetry(key, raw);
+      BleLogger.instance.event('telemetry_first_read', {
+        'len': raw.length,
+        'valid': valid,
+        'mtu': _negotiatedMtu,
+      });
+      if (valid) {
+        _stageOk(ConnectStage.telemetry, 'len=${raw.length}, giải mã hợp lệ');
+      } else {
+        _stageWarn(ConnectStage.telemetry,
+            'khung đầu tiên không giải mã hợp lệ (len=${raw.length})');
+      }
+    } on ConnectFailure catch (f) {
+      if (f.kind == ConnectFailureKind.linkLostDuringSetup) rethrow;
+      _stageWarn(ConnectStage.telemetry, 'đọc telemetry lỗi: ${f.kind.name}',
+          code: f.code);
+    }
+
+    // Poll telemetry định kỳ (giữ GATT sống + nhận dữ liệu).
+    _endSetupWatch();
+    _setupLinkLoss = null;
     _pollTimer?.cancel();
     _pollTimer = Timer.periodic(
         Duration(milliseconds: Gatt.dashboardPollMs), (_) => _pollDashboard());
-    await _pollDashboard(); // đọc ngay 1 lần
     if (state.isAuthorized) {
       unawaited(refreshFwSettings());
       unawaited(fetchVehicleDiagnostics());
@@ -2428,14 +3027,27 @@ class BleController extends Notifier<BleState> {
         );
         return false;
       }
-      final id = prefs.getString(_kLastBikeId);
+      final id = _readStringPref(prefs, _kLastBikeId);
       if (id == null || id.isEmpty) {
         return false;
       }
       if (state.phase == BlePhase.connected || state.phase == BlePhase.connecting) return true;
 
-      // Đảm bảo đủ quyền BLE trên Android
-      await BlePermissions.ensure();
+      // Quyền BLE: bị từ chối thì DỪNG (không vào vòng reconnect vô ích) và
+      // báo đúng nguyên nhân thay vì lỗi GATT mơ hồ về sau.
+      final perm = await BlePermissions.check();
+      if (perm != BlePermissionResult.granted) {
+        final f = ConnectFailure(
+            ConnectStage.permissions,
+            perm == BlePermissionResult.permanentlyDenied
+                ? ConnectFailureKind.permissionPermanentlyDenied
+                : ConnectFailureKind.permissionDenied,
+            'restore: quyền ${perm.name}');
+        _lastConnectFailure = f;
+        BleLogger.instance.event('restore_blocked_permission', {'result': perm.name});
+        state = state.copyWith(phase: BlePhase.disconnected, message: f.userMessage);
+        return false;
+      }
 
       // Chờ Bluetooth bật nếu vừa mở app
       try {
@@ -2451,7 +3063,7 @@ class BleController extends Notifier<BleState> {
         }
       } catch (_) {}
 
-      final name = prefs.getString(_kLastBikeName) ?? 'Xe Dat Bike';
+      final name = _readStringPref(prefs, _kLastBikeName) ?? 'Xe Dat Bike';
       BluetoothDevice device = BluetoothDevice.fromId(id);
       final connectedMatch = FlutterBluePlus.connectedDevices
           .where((d) => d.remoteId.str == id)
@@ -2480,7 +3092,22 @@ class BleController extends Notifier<BleState> {
           return true;
         }
       } catch (e) {
-        BleLogger.instance.event('restore_attempt_failed', {'error': '$e'});
+        final f = e is ConnectFailure
+            ? e
+            : classifyError(_diag.current ?? ConnectStage.gattConnect, e,
+                code: _gattCodeOf(e));
+        _lastConnectFailure = f;
+        BleLogger.instance.event('restore_attempt_failed', {
+          'stage': f.stage.name,
+          'kind': f.kind.name,
+          if (f.code != null) 'code': f.code,
+        });
+        await _persistReport();
+        if (!isRetryable(f.kind)) {
+          // Lỗi cấu hình/dữ liệu: thử lại tự động không giúp được gì.
+          state = state.copyWith(phase: BlePhase.disconnected, message: f.userMessage);
+          return false;
+        }
       }
 
       // Xe chưa ở gần hoặc chưa bật nguồn: chuyển sang reconnect loop (giới hạn tối đa 5 lần)
@@ -2935,7 +3562,7 @@ class BleController extends Notifier<BleState> {
       if (_keepaliveCount == 1 || _keepaliveCount % 20 == 0) {
         BleLogger.instance.event('keepalive', {
           'n': _keepaliveCount,
-          'answered': BleLogger.hex(nonce),
+          'nonce_fp': Redactor.fingerprint(nonce),
         });
       }
     } catch (e) {
@@ -2967,12 +3594,18 @@ class BleController extends Notifier<BleState> {
   /// ⚠️ Bước 3-4 hiện sẽ THẤT BẠI trên xe thật: công thức auth response chưa
   /// crack được (computeAuthResponse là placeholder). Flow dừng an toàn ngay
   /// khi status != 0x01 — không spam ghi, không gửi lệnh khi chưa xác thực.
+  bool _authFail(ConnectFailure f) {
+    _lastAuthFailure = _stageFail(f);
+    return false;
+  }
+
   Future<bool> authenticateSession({
     BluetoothDevice? targetDevice,
     List<BluetoothCharacteristic>? chars,
     String? pairingToken,
     String? password,
     bool forceRegister = false,
+    bool postAuthRefresh = true,
   }) async {
     final effectiveChars = (chars != null && chars.isNotEmpty)
         ? chars
@@ -2983,25 +3616,43 @@ class BleController extends Notifier<BleState> {
     final token = (pairingToken?.isNotEmpty ?? false)
         ? pairingToken!
         : Gatt.defaultPairingToken;
-    final prefs = await _prefs;
-    final stored = prefs.getString(_kBikePassword);
+    final SharedPreferences prefs;
+    final String? stored;
+    try {
+      prefs = await _prefs;
+      stored = _readStringPref(prefs, _kBikePassword, critical: true);
+    } on ConnectFailure catch (f) {
+      state = state.copyWith(isAuthorized: false, message: f.userMessage);
+      return _authFail(f);
+    } catch (e) {
+      return _authFail(ConnectFailure(ConnectStage.authChallenge,
+          ConnectFailureKind.storageCorrupt, Redactor.scrubText('$e')));
+    }
     final hasStoredPassword = stored != null && stored.isNotEmpty;
-    // PIN ưu tiên: password truyền vào (nếu có) -> password đã lưu trong prefs -> rỗng
+    // PIN ưu tiên: password truyền vào -> password đã lưu -> rỗng
     final pin = (password != null && password.isNotEmpty)
         ? password
         : (hasStoredPassword ? stored : '');
 
+    // Đăng ký bí mật để Redactor che chúng ở MỌI log/báo cáo.
+    Redactor.registerSecret(token);
+    Redactor.registerSecret(pin);
+    if (hasStoredPassword) Redactor.registerSecret(stored);
+
     BleLogger.instance.event('auto_handshake_start', {
-      'token': token,
-      'pin': pin,
+      'token_len': token.length,
+      'pin_len': pin.length,
+      'pin_empty': pin.isEmpty,
       'chars_count': effectiveChars.length,
       'has_stored': hasStoredPassword,
       'force_register': forceRegister,
+      'mtu': _negotiatedMtu,
     });
 
     if (effectiveChars.isEmpty) {
-      BleLogger.instance.event('auto_handshake_err', {'error': 'Danh sách characteristics rỗng'});
-      return false;
+      return _authFail(ConnectFailure(ConnectStage.authChallenge,
+          ConnectFailureKind.requiredServiceMissing,
+          'danh sách characteristics rỗng'));
     }
 
     BluetoothCharacteristic? find(String uuid) {
@@ -3015,38 +3666,34 @@ class BleController extends Notifier<BleState> {
     try {
       final authChar = find(Gatt.authorizationChar);
       if (authChar == null) {
-        BleLogger.instance.event('auto_handshake_err',
-            {'error': 'Không tìm thấy AUTHORIZATION_CHAR (5e9a2c71)'});
-        return false;
+        return _authFail(ConnectFailure(ConnectStage.authChallenge,
+            ConnectFailureKind.requiredServiceMissing,
+            'không tìm thấy AUTHORIZATION_CHAR ${Gatt.authorizationChar}'));
       }
 
-      // ===== BƯỚC 1: Đọc 5e9a2c71 (authChar) trước tiên để kiểm tra trạng thái phiên trên xe =====
-      List<int> nonce1 = Uint8List(0);
+      // ===== BƯỚC 1: đọc 5e9a2c71 (nonce 15B + status 1B) =====
+      _stageStart(ConnectStage.authChallenge);
+      List<int> nonce1;
       try {
-        nonce1 = await authChar
-            .read()
-            .timeout(const Duration(milliseconds: 800), onTimeout: () => Uint8List(0));
-      } catch (e) {
-        if (_isAuthError(e)) {
-          if (dev != null) {
-            await _ensureBonded(dev, reason: 'auth char cần link mã hoá');
-            try {
-              nonce1 = await authChar
-                  .read()
-                  .timeout(const Duration(milliseconds: 800), onTimeout: () => Uint8List(0));
-            } catch (_) {}
-          }
-        } else {
-          BleLogger.instance.event('auto_handshake_step1_warn', {'error': '$e'});
+        nonce1 = await _read(ConnectStage.authChallenge, 'read 5e9a2c71', authChar,
+            timeout: _firstProtectedOpTimeout);
+      } on ConnectFailure catch (f) {
+        if (f.kind != ConnectFailureKind.encryptionRequired || dev == null) {
+          rethrow;
         }
+        await _recoverEncryption(dev, ConnectStage.authChallenge, f);
+        nonce1 = await _read(ConnectStage.authChallenge, 'read 5e9a2c71 (sau bond)',
+            authChar,
+            timeout: _firstProtectedOpTimeout);
       }
-
-      BleLogger.instance.event('auto_handshake_challenge',
-          {'hex': BleLogger.hex(nonce1), 'len': nonce1.length});
+      BleLogger.instance.event('auto_handshake_challenge', {
+        'len': nonce1.length,
+        'nonce_fp': nonce1.isEmpty ? null : Redactor.fingerprint(nonce1),
+      });
       if (nonce1.length != 16) {
-        BleLogger.instance.event('auto_handshake_err',
-            {'error': 'Nonce phải 16B, nhận ${nonce1.length}'});
-        return false;
+        return _authFail(ConnectFailure(ConnectStage.authChallenge,
+            ConnectFailureKind.authChallengeUnavailable,
+            'nonce phải 16B, nhận ${nonce1.length}B'));
       }
       var nonce15 = Uint8List.fromList(nonce1.sublist(0, 15));
       final status1 = nonce1[15];
@@ -3054,65 +3701,93 @@ class BleController extends Notifier<BleState> {
         'status': status1,
         'note': status1 == Gatt.authStatusOk ? 'đã auth từ trước' : 'chưa auth'
       });
+      _stageOk(ConnectStage.authChallenge, 'status=$status1');
 
       final appAuthChar = find(Gatt.appAuthChar);
       Uint8List? acceptedNonce;
+      var appAuthOutcome = 'không chạy';
 
       if (status1 == Gatt.authStatusOk && !forceRegister) {
-        // FAST-PATH: Xe đã chấp nhận xác thực từ trước -> giữ nguyên nonce1, KHÔNG ghi lại 5e9a2c71
+        // FAST-PATH: xe đã chấp nhận từ trước -> giữ nonce1, KHÔNG ghi lại 5e9a2c71
         acceptedNonce = Uint8List.fromList(nonce1);
         _lastAuthNonce15 = nonce15;
-        BleLogger.instance.event('auto_handshake_fast_path', {'hex': BleLogger.hex(nonce1)});
+        BleLogger.instance.event('auto_handshake_fast_path', {});
       } else {
         // SLOW-PATH (status1 == 0x00 hoặc forceRegister):
-        // ===== BƯỚC 1.5: Giải Challenge-Response SHA-256 trên c8eaf27b (appAuthChar) =====
+        // ===== BƯỚC 1.5: challenge-response SHA-256 trên c8eaf27b =====
         if (pin.isNotEmpty && appAuthChar != null && !forceRegister) {
-          try {
-            final challengeRaw = await appAuthChar
-                .read()
-                .timeout(const Duration(milliseconds: 600), onTimeout: () => Uint8List(0));
-            BleLogger.instance.event('auto_handshake_app_auth_read', {
-              'hex': BleLogger.hex(challengeRaw),
-              'len': challengeRaw.length,
-            });
-            if (challengeRaw.length >= 4) {
-              final respHex = BikeSessionCrypto.computeAppAuthChallengeResponse(
-                challengeRaw: challengeRaw,
-                password: pin,
-              );
-              BleLogger.instance.event('auto_handshake_app_auth_solve', {
-                'respHex': respHex,
-                'candidate_pw': pin,
+          _stageStart(ConnectStage.appAuth);
+          if (!mtuFitsPayload(_negotiatedMtu, 64)) {
+            // Plugin Android từ chối ghi dài hơn MTU-3 khi không long-write,
+            // nên không thử ghi mù: báo rõ và để bước sau (NFC/isAppVerified)
+            // quyết định.
+            appAuthOutcome =
+                'bỏ qua: MTU $_negotiatedMtu chỉ cho ${maxAttPayload(_negotiatedMtu)}B < 64B';
+            _stageWarn(ConnectStage.appAuth, appAuthOutcome);
+          } else {
+            try {
+              final challengeRaw = await _read(
+                  ConnectStage.appAuth, 'read c8eaf27b', appAuthChar);
+              BleLogger.instance.event('auto_handshake_app_auth_read', {
+                'len': challengeRaw.length,
+                'challenge_fp': challengeRaw.isEmpty
+                    ? null
+                    : Redactor.fingerprint(challengeRaw),
               });
-              await appAuthChar
-                  .write(ascii.encode(respHex), withoutResponse: false)
-                  .timeout(const Duration(milliseconds: 800));
-              // Delay ngắn như capture btsnoop (~40-50ms)
-              await Future.delayed(const Duration(milliseconds: 50));
-              try {
-                final ack = await appAuthChar
-                    .read()
-                    .timeout(const Duration(milliseconds: 600), onTimeout: () => Uint8List(0));
-                BleLogger.instance.event('auto_handshake_app_auth_ack', {
-                  'hex': BleLogger.hex(ack),
-                  'verified': ack.isNotEmpty && (ack[0] & 1) == 1,
+              if (challengeRaw.length >= 4) {
+                final respHex = BikeSessionCrypto.computeAppAuthChallengeResponse(
+                  challengeRaw: challengeRaw,
+                  password: pin,
+                );
+                BleLogger.instance.event('auto_handshake_app_auth_solve', {
+                  'resp_len': respHex.length,
+                  'resp_fp': Redactor.fingerprint(ascii.encode(respHex)),
                 });
-              } catch (_) {}
+                await _write(ConnectStage.appAuth, 'write c8eaf27b',
+                    appAuthChar, ascii.encode(respHex));
+                await Future.delayed(const Duration(milliseconds: 50));
+                final ack = await _read(
+                    ConnectStage.appAuth, 'read ack c8eaf27b', appAuthChar);
+                final verified = ack.isNotEmpty && (ack[0] & 1) == 1;
+                BleLogger.instance.event('auto_handshake_app_auth_ack', {
+                  'len': ack.length,
+                  'verified': verified,
+                });
+                appAuthOutcome = verified ? 'ack xác nhận' : 'ack KHÔNG xác nhận';
+                if (verified) {
+                  _stageOk(ConnectStage.appAuth, appAuthOutcome);
+                } else {
+                  _stageWarn(ConnectStage.appAuth, appAuthOutcome);
+                }
+              } else {
+                appAuthOutcome = 'challenge ${challengeRaw.length}B < 4B';
+                _stageWarn(ConnectStage.appAuth, appAuthOutcome);
+              }
+            } on ConnectFailure catch (f) {
+              // Link đứt thì dừng hẳn; còn lại tiếp tục như hành vi cũ nhưng
+              // ghi lại để đối chiếu với kết quả bước sau.
+              if (f.kind == ConnectFailureKind.linkLostDuringSetup) rethrow;
+              appAuthOutcome = 'lỗi ${f.kind.name}${f.code != null ? ' (${f.code})' : ''}';
+              BleLogger.instance.event('auto_handshake_app_auth_error',
+                  {'kind': f.kind.name, if (f.code != null) 'code': f.code});
             }
-          } catch (e) {
-            BleLogger.instance.event('auto_handshake_app_auth_error', {'error': '$e'});
           }
+        } else if (pin.isEmpty) {
+          appAuthOutcome = 'bỏ qua: chưa có password đã lưu';
         }
 
         // ===== BƯỚC 3+4: ghi auth response, đọc lại kiểm status =====
+        _stageStart(ConnectStage.authResponse);
         const maxAttempts = 3;
         for (var attempt = 1; attempt <= maxAttempts; attempt++) {
           if (attempt > 1) {
-            final fresh = await authChar
-                .read()
-                .timeout(const Duration(milliseconds: 800), onTimeout: () => Uint8List(0));
-            BleLogger.instance.event('auto_handshake_challenge',
-                {'attempt': attempt, 'hex': BleLogger.hex(fresh)});
+            final fresh = await _read(
+                ConnectStage.authResponse, 'read 5e9a2c71 (nonce mới)', authChar);
+            BleLogger.instance.event('auto_handshake_challenge', {
+              'attempt': attempt,
+              'len': fresh.length,
+              'nonce_fp': fresh.isEmpty ? null : Redactor.fingerprint(fresh),
+            });
             if (fresh.length == 16) {
               nonce15 = Uint8List.fromList(fresh.sublist(0, 15));
             }
@@ -3122,19 +3797,22 @@ class BleController extends Notifier<BleState> {
             nonce15: nonce15,
           );
 
-          await authChar
-              .write(resp, withoutResponse: false)
-              .timeout(const Duration(milliseconds: 800));
-          BleLogger.instance.event('auto_handshake_response_sent',
-              {'attempt': attempt, 'hex': BleLogger.hex(resp)});
+          await _write(
+              ConnectStage.authResponse, 'write 5e9a2c71', authChar, resp);
+          BleLogger.instance.event('auto_handshake_response_sent', {
+            'attempt': attempt,
+            'resp_len': resp.length,
+            'resp_fp': Redactor.fingerprint(resp),
+          });
 
           await Future.delayed(const Duration(milliseconds: 120));
 
-          final post = await authChar
-              .read()
-              .timeout(const Duration(milliseconds: 800), onTimeout: () => Uint8List(0));
-          BleLogger.instance.event('auto_handshake_post_status',
-              {'hex': BleLogger.hex(post)});
+          final post = await _read(
+              ConnectStage.authResponse, 'read status 5e9a2c71', authChar);
+          BleLogger.instance.event('auto_handshake_post_status', {
+            'len': post.length,
+            'status_byte': post.length == 16 ? post[15] : null,
+          });
           if (post.length == 16 && post[15] == Gatt.authStatusOk) {
             acceptedNonce = Uint8List.fromList(post);
             _lastAuthNonce15 = Uint8List.fromList(post.sublist(0, 15));
@@ -3149,22 +3827,28 @@ class BleController extends Notifier<BleState> {
 
       if (acceptedNonce == null) {
         BleLogger.instance.event('auto_handshake_rejected', {
-          'note': 'xe giữ status 0x00 — token hoặc challenge auth chưa được chấp nhận',
+          'note': 'xe giữ status 0x00',
+          'app_auth': appAuthOutcome,
         });
-        state = state.copyWith(
-          isAuthorized: false,
-          message: hasStoredPassword
-              ? 'Xe từ chối xác thực (status 00) — vui lòng quẹt thẻ NFC vào xe nếu đổi điện thoại'
-              : 'Xe từ chối xác thực (status 00) — vui lòng quẹt thẻ NFC vào xe để ghép nối lần đầu',
-        );
-        return false;
+        final msg = hasStoredPassword
+            ? 'Xe từ chối xác thực (status 00) — vui lòng quẹt thẻ NFC vào xe nếu đổi điện thoại'
+            : 'Xe từ chối xác thực (status 00) — vui lòng quẹt thẻ NFC vào xe để ghép nối lần đầu';
+        state = state.copyWith(isAuthorized: false, message: msg);
+        return _authFail(ConnectFailure(
+          ConnectStage.authResponse,
+          ConnectFailureKind.authRejected,
+          'status 0x00 sau khi ghi phản hồi; bước c8eaf27b: $appAuthOutcome',
+          messageOverride: msg,
+        ));
       }
+      _stageOk(ConnectStage.authResponse, 'status=0x01');
 
       if (dev != null) {
         await _ensureBonded(dev, reason: 'xác thực thành công, thiết lập bond');
       }
 
       // ===== BƯỚC 5: chiến lược password — SELF-REGISTER fallback như app gốc =====
+      _stageStart(ConnectStage.sessionKey);
       final saltNonce = nonce15;
       final dash = find(Gatt.dashboardCharacteristic);
       final serialChar = find(Gatt.bikeSerial);
@@ -3172,16 +3856,18 @@ class BleController extends Notifier<BleState> {
           ? r[0] | (r[1] << 8) | (r[2] << 16) | (r[3] << 24)
           : -1;
 
-      Future<bool> tryPassword(String label, String pw, Uint8List salt) async {
+      Future<bool> tryPassword(String kind, String pw, Uint8List salt) async {
         final sk = BikeSessionCrypto.deriveSessionKey(
           pairingToken: token, password: pw, challenge: salt);
-        BleLogger.instance.event('auto_handshake_try_password',
-            {'candidate': label, 'key8': BleLogger.hex(sk.sublist(0, 8))});
+        BleLogger.instance.event('auto_handshake_try_password', {
+          'candidate_kind': kind,
+          'session_key_derived': true,
+          'session_key_len': sk.length,
+          'nonce_fp': Redactor.fingerprint(salt),
+        });
         if (serialChar != null) {
-          // Đính chính RE2: 44e2bde6 là CURRENT_TIME_CHAR (nhận số giây trong ngày 0..86399).
-          // Trong btsnoop 16:16:47, app gốc gửi "58607" (= 16*3600 + 16*60 + 47) ở counter 0
-          // để đồng bộ giờ ngay khi mở phiên, KHÔNG phải gửi chuỗi password thô (gửi pw chữ cái
-          // sẽ làm atoi() trên xe đặt lại giờ Taplo về 00:00).
+          // 44e2bde6 là CURRENT_TIME_CHAR (số giây trong ngày 0..86399); app
+          // gốc gửi nó ở counter 0 ngay sau handshake (btsnoop 16:16:47).
           final now = DateTime.now();
           final secondsOfDay =
               ((now.hour * 3600) + (now.minute * 60) + now.second).toString();
@@ -3191,38 +3877,32 @@ class BleController extends Notifier<BleState> {
             characteristicUuid: Gatt.timeSyncChar,
             data: secondsOfDay.codeUnits,
           );
-          await serialChar
-              .write(frame, withoutResponse: false)
-              .timeout(const Duration(milliseconds: 800));
+          await _write(
+              ConnectStage.sessionKey, 'write time-sync 44e2bde6', serialChar, frame);
           BleLogger.instance.event('auto_handshake_time_sync_probe',
-              {'candidate': label, 'seconds_of_day': secondsOfDay, 'hex': BleLogger.hex(frame)});
+              {'candidate_kind': kind, 'frame_len': frame.length});
         }
         if (dash == null) return false;
-        try {
-          await Future.delayed(const Duration(milliseconds: 100));
-          final r1 = await dash
-              .read()
-              .timeout(const Duration(milliseconds: 800), onTimeout: () => Uint8List(0));
-          var live = _isValidTelemetry(sk, r1);
-          final c1 = ctr(r1);
-          var c2 = c1;
-          if (!live) {
-            await Future.delayed(const Duration(milliseconds: 700));
-            final r2 = await dash
-                .read()
-                .timeout(const Duration(milliseconds: 800), onTimeout: () => Uint8List(0));
-            c2 = ctr(r2);
-            live = _isValidTelemetry(sk, r2) || (c1 >= 0 && c2 > c1);
-          }
-          BleLogger.instance.event('auto_handshake_session_check',
-              {'candidate': label, 'password': pw, 'counter1': c1,
-               'counter2': c2, 'session_live': live,
-               'telemetry_valid': live,
-               'salt': BleLogger.hex(salt), 'sk': BleLogger.hex(sk)});
-          return live;
-        } catch (_) {
-          return false;
+        await Future.delayed(const Duration(milliseconds: 100));
+        final r1 = await _read(ConnectStage.sessionKey, 'read dashboard #1', dash);
+        var live = _isValidTelemetry(sk, r1);
+        final c1 = ctr(r1);
+        var c2 = c1;
+        if (!live) {
+          await Future.delayed(const Duration(milliseconds: 700));
+          final r2 =
+              await _read(ConnectStage.sessionKey, 'read dashboard #2', dash);
+          c2 = ctr(r2);
+          live = _isValidTelemetry(sk, r2) || (c1 >= 0 && c2 > c1);
         }
+        BleLogger.instance.event('auto_handshake_session_check', {
+          'candidate_kind': kind,
+          'counter1': c1,
+          'counter2': c2,
+          'session_live': live,
+          'nonce_fp': Redactor.fingerprint(salt),
+        });
+        return live;
       }
 
       var live = false;
@@ -3232,11 +3912,11 @@ class BleController extends Notifier<BleState> {
       // (a) Thử candidate password (pin)
       if (pin.isNotEmpty) {
         _writeCounter = 0;
-        live = await tryPassword('candidate "$pin"', pin, saltNonce);
+        live = await tryPassword('pin', pin, saltNonce);
         if (!live) {
           _writeCounter = 0;
           final postNonce15 = Uint8List.fromList(acceptedNonce.sublist(0, 15));
-          live = await tryPassword('candidate "$pin" (postNonce)', pin, postNonce15);
+          live = await tryPassword('pin (postNonce)', pin, postNonce15);
           if (live) {
             livePw = pin;
             liveKey = _sessionKeyOf(token, pin, postNonce15);
@@ -3251,11 +3931,11 @@ class BleController extends Notifier<BleState> {
       // (b) password đã register lần trước (prefs) nếu khác pin
       if (!live && hasStoredPassword && stored != pin) {
         _writeCounter = 0;
-        live = await tryPassword('registered "$stored"', stored, saltNonce);
+        live = await tryPassword('stored', stored, saltNonce);
         if (!live) {
           _writeCounter = 0;
           final postNonce15 = Uint8List.fromList(acceptedNonce.sublist(0, 15));
-          live = await tryPassword('registered "$stored" (postNonce)', stored, postNonce15);
+          live = await tryPassword('stored (postNonce)', stored, postNonce15);
           if (live) {
             livePw = stored;
             liveKey = _sessionKeyOf(token, stored, postNonce15);
@@ -3267,8 +3947,8 @@ class BleController extends Notifier<BleState> {
           await prefs.setString(_kBikePassword, stored);
         }
       }
-      // (c) SELF-REGISTER: Chỉ cho phép tự động khi chưa từng có password lưu (!hasStoredPassword)
-      // hoặc khi người dùng bấm nút Force Register (forceRegister == true)
+      // (c) SELF-REGISTER: chỉ khi chưa từng có password lưu hoặc người dùng
+      // chủ động Force Register.
       if (!live && appAuthChar != null && (!hasStoredPassword || forceRegister)) {
         final newPw = pin.isNotEmpty ? pin : () {
           const chars =
@@ -3276,58 +3956,49 @@ class BleController extends Notifier<BleState> {
           final rng = Random.secure();
           return List.generate(12, (_) => chars[rng.nextInt(chars.length)]).join();
         }();
+        Redactor.registerSecret(newPw);
         BleLogger.instance.event('auto_handshake_register_password',
-            {'new_password': newPw, 'is_fallback': hasStoredPassword});
+            {'password_len': newPw.length, 'is_fallback': hasStoredPassword});
         try {
-          await appAuthChar
-              .write(newPw.codeUnits, withoutResponse: false)
-              .timeout(const Duration(milliseconds: 800));
+          await _write(ConnectStage.sessionKey, 'register pw #1', appAuthChar,
+              newPw.codeUnits);
           await Future.delayed(const Duration(milliseconds: 80));
-          await appAuthChar
-              .write(newPw.codeUnits, withoutResponse: false)
-              .timeout(const Duration(milliseconds: 800));
+          await _write(ConnectStage.sessionKey, 'register pw #2', appAuthChar,
+              newPw.codeUnits);
           await Future.delayed(const Duration(milliseconds: 80));
-          try {
-            final ack = await appAuthChar
-                .read()
-                .timeout(const Duration(milliseconds: 600), onTimeout: () => Uint8List(0));
-            BleLogger.instance.event('auto_handshake_register_ack',
-                {'hex': BleLogger.hex(ack)});
-          } catch (_) {}
-        } catch (e) {
+          final ack = await _read(
+              ConnectStage.sessionKey, 'read register ack', appAuthChar);
+          BleLogger.instance
+              .event('auto_handshake_register_ack', {'len': ack.length});
+        } on ConnectFailure catch (f) {
+          if (f.kind == ConnectFailureKind.linkLostDuringSetup) rethrow;
           BleLogger.instance.event('auto_handshake_register_error',
-              {'error': '$e'});
+              {'kind': f.kind.name, if (f.code != null) 'code': f.code});
         }
 
         // Re-auth với nonce mới → derive với password vừa đăng ký
         await Future.delayed(const Duration(milliseconds: 150));
-        final nonce2 = await authChar
-            .read()
-            .timeout(const Duration(milliseconds: 800), onTimeout: () => Uint8List(0));
+        final nonce2 = await _read(
+            ConnectStage.authResponse, 'read nonce (re-auth)', authChar);
         if (nonce2.length == 16) {
           final n2 = Uint8List.fromList(nonce2.sublist(0, 15));
           final resp2 = BikeSessionCrypto.computeAuthResponse(
               pairingToken: token, nonce15: n2);
-          await authChar
-              .write(resp2, withoutResponse: false)
-              .timeout(const Duration(milliseconds: 800));
+          await _write(
+              ConnectStage.authResponse, 'write re-auth', authChar, resp2);
           await Future.delayed(const Duration(milliseconds: 120));
-          final post2 = await authChar
-              .read()
-              .timeout(const Duration(milliseconds: 800), onTimeout: () => Uint8List(0));
+          final post2 = await _read(
+              ConnectStage.authResponse, 'read status (re-auth)', authChar);
           final ok2 = post2.length == 16 && post2[15] == Gatt.authStatusOk;
-          BleLogger.instance.event('auto_handshake_reauth',
-              {'post_status': BleLogger.hex(post2), 'ok': ok2});
+          BleLogger.instance.event('auto_handshake_reauth', {
+            'len': post2.length,
+            'status_byte': post2.length == 16 ? post2[15] : null,
+            'ok': ok2,
+          });
           if (ok2) {
-            if (post2.length == 16) {
-              _lastAuthNonce15 = Uint8List.fromList(post2.sublist(0, 15));
-            }
-            final sk2 = _sessionKeyOf(token, newPw, n2);
-            BleLogger.instance.event('auto_handshake_session_key', {
-              'salt_nonce2': BleLogger.hex(n2),
-              'session_key': BleLogger.hex(sk2),
-              'password': newPw,
-            });
+            _lastAuthNonce15 = Uint8List.fromList(post2.sublist(0, 15));
+            BleLogger.instance.event('auto_handshake_session_key',
+                {'session_key_derived': true, 'nonce_fp': Redactor.fingerprint(n2)});
             _writeCounter = 0;
             live = await tryPassword('self-registered', newPw, n2);
             if (live) {
@@ -3339,15 +4010,18 @@ class BleController extends Notifier<BleState> {
         }
       }
 
-      // Token lên 87efab0d nếu session sống (đồng bộ giờ 44e2bde6 đã thực hiện trong tryPassword)
       if (live && liveKey != null) {
+        _stageOk(ConnectStage.sessionKey, 'khóa phiên hợp lệ');
+        // Token lên 87efab0d (time-sync 44e2bde6 đã gửi trong tryPassword)
+        _stageStart(ConnectStage.sessionRegister);
         final sessionUuidChar = find(Gatt.sessionUuid);
         if (sessionUuidChar != null) {
-          await sessionUuidChar
-              .write(token.codeUnits, withoutResponse: false)
-              .timeout(const Duration(milliseconds: 800));
-          BleLogger.instance.event('auto_handshake_uuid_sent', {'token': token});
+          await _write(ConnectStage.sessionRegister, 'write 87efab0d',
+              sessionUuidChar, token.codeUnits);
+          BleLogger.instance
+              .event('auto_handshake_uuid_sent', {'token_len': token.length});
         }
+        _stageOk(ConnectStage.sessionRegister);
         _sessionKey = liveKey;
         _activePassword = livePw;
         _startKeepalive();
@@ -3355,13 +4029,14 @@ class BleController extends Notifier<BleState> {
           isAuthorized: true,
           sessionKey: liveKey,
           lastTimeSynced: DateTime.now(),
-          message: 'SESSION HỢP LỆ — password '
-              '"$livePw" sẵn sàng điều khiển',
+          message: 'SESSION HỢP LỆ — sẵn sàng điều khiển',
         );
 
         BleLogger.instance.event('auto_handshake_success');
-        unawaited(refreshFwSettings());
-        unawaited(fetchVehicleDiagnostics());
+        if (postAuthRefresh) {
+          unawaited(refreshFwSettings());
+          unawaited(fetchVehicleDiagnostics());
+        }
         return true;
       } else {
         _sessionKey = null;
@@ -3377,42 +4052,79 @@ class BleController extends Notifier<BleState> {
           message: msg,
         );
         BleLogger.instance.event('auto_handshake_failed_not_live');
-        return false;
+        return _authFail(ConnectFailure(ConnectStage.sessionKey,
+            ConnectFailureKind.sessionKeyInvalid,
+            'Phase-1 OK (status 0x01) nhưng dashboard không giải mã được với '
+            'các password đã thử',
+            messageOverride: msg));
       }
+    } on ConnectFailure catch (f) {
+      BleLogger.instance.event('auto_handshake_failed',
+          {'kind': f.kind.name, 'stage': f.stage.name, if (f.code != null) 'code': f.code});
+      state = state.copyWith(isAuthorized: false, message: f.userMessage);
+      return _authFail(f);
     } catch (e) {
-      BleLogger.instance.event('auto_handshake_failed', {'error': '$e'});
-      return false;
+      final f = classifyError(_diag.current ?? ConnectStage.authChallenge, e,
+          code: _gattCodeOf(e));
+      BleLogger.instance.event('auto_handshake_failed',
+          {'kind': f.kind.name, 'detail': Redactor.scrubText('$e')});
+      return _authFail(f);
     }
   }
 
-  /// Lỗi "cần mã hoá link": Android code 137 (GATT_ERROR) hoặc ATT 0x05
-  /// Insufficient Authentication — app gốc gặp y hệt trong btsnoop trước khi bond.
-  bool _isAuthError(Object e) {
-    final s = e.toString().toLowerCase();
-    return s.contains('137') ||
-        s.contains('insufficient') ||
-        s.contains('gatt_auth') ||
-        s.contains('auth_fail');
-  }
-
-  /// Bond (ghép nối+mã hoá) với xe — app gốc bond ngay sau discovery
-  /// (btsnoop 16:16:15-17, bonding state 11→12). Trả về true nếu đã bond.
+  /// Bond (ghép nối+mã hoá) với xe. Xử lý đúng 3 trạng thái:
+  ///   bonded  → xong; bonding → CHỜ (không gọi createBond lần nữa);
+  ///   none    → createBond. Không xác định được trạng thái → KHÔNG đoán là none.
+  /// Không bao giờ removeBond. Lỗi cụ thể ở [_lastBondFailure].
   Future<bool> _ensureBonded(BluetoothDevice device, {String reason = ''}) async {
+    _lastBondFailure = null;
+    final sw = Stopwatch()..start();
     BleLogger.instance.event('bond_start', {'reason': reason});
     try {
-      final currentBond = await device.bondState.first.timeout(
-        const Duration(milliseconds: 1200),
-        onTimeout: () => BluetoothBondState.none,
-      );
-      if (currentBond == BluetoothBondState.bonded) {
+      var cur = await _bondStateNow(device);
+      BleLogger.instance.event('bond_state',
+          {'when': 'ensure', 'state': cur?.name ?? 'unknown'});
+      if (cur == null) {
+        _lastBondFailure = ConnectFailure(ConnectStage.bonding,
+            ConnectFailureKind.bondingFailed,
+            'không đọc được bond state (thiết bị không phải Android hoặc timeout)');
+        return false;
+      }
+      if (cur == BluetoothBondState.bonded) {
+        _wasBondedBefore = true;
         BleLogger.instance.event('bond_already_bonded', {});
         return true;
       }
-      await device.createBond();
-      BleLogger.instance.event('bond_created', {});
-      return true;
+      if (cur == BluetoothBondState.bonding) {
+        cur = await device.bondState
+            .where((s) => s != BluetoothBondState.bonding)
+            .first
+            .timeout(const Duration(seconds: 60));
+      } else {
+        await device.createBond(timeout: 60);
+        cur = await _bondStateNow(device);
+      }
+      final ok = cur == BluetoothBondState.bonded;
+      BleLogger.instance.event('bond_result', {
+        'state': cur?.name ?? 'unknown',
+        'ms': sw.elapsedMilliseconds,
+      });
+      if (ok) {
+        _wasBondedBefore = true;
+      } else {
+        _lastBondFailure = ConnectFailure(ConnectStage.bonding,
+            ConnectFailureKind.bondingRejected,
+            'bond kết thúc ở trạng thái ${cur?.name ?? 'unknown'}');
+      }
+      return ok;
     } catch (e) {
-      BleLogger.instance.event('bond_failed', {'error': '$e'});
+      final f = classifyError(ConnectStage.bonding, e, code: _gattCodeOf(e));
+      _lastBondFailure = f.kind == ConnectFailureKind.linkLostDuringSetup
+          ? f
+          : ConnectFailure(ConnectStage.bonding, ConnectFailureKind.bondingFailed,
+              f.detail, code: f.code);
+      BleLogger.instance.event('bond_failed',
+          {'kind': _lastBondFailure!.kind.name, 'ms': sw.elapsedMilliseconds});
       return false;
     }
   }
@@ -3455,6 +4167,9 @@ class BleController extends Notifier<BleState> {
     await prefs.remove(_kLastBikeId);
     await prefs.remove(_kLastBikeName);
     await prefs.remove(_kBikePassword);
+    _diag.bondEvidence.reset();
+    _wasBondedBefore = false;
+    BleLogger.instance.event('forget_bike_done', {'removed_bond_by_user': true});
 
     await BleLogger.instance.close();
     unawaited(ForegroundService.stop());
@@ -3582,10 +4297,33 @@ class BleController extends Notifier<BleState> {
           _failStreak = 0;
           _watchConnection(device); // Chỉ gắn watcher khi ĐÃ KẾT NỐI THÀNH CÔNG!
         } else {
-          throw Exception('Bắt tay phiên xe chưa hoàn tất');
+          throw _lastAuthFailure ??
+              ConnectFailure(ConnectStage.authResponse,
+                  ConnectFailureKind.authRejected,
+                  'bắt tay phiên xe chưa hoàn tất');
         }
       } catch (e) {
-        BleLogger.instance.event('reconnect_failed', {'attempt': _reconnectAttempts, 'error': '$e'});
+        final f = e is ConnectFailure
+            ? e
+            : classifyError(_diag.current ?? ConnectStage.gattConnect, e,
+                code: _gattCodeOf(e));
+        _lastConnectFailure = f;
+        BleLogger.instance.event('reconnect_failed', {
+          'attempt': _reconnectAttempts,
+          'stage': f.stage.name,
+          'kind': f.kind.name,
+          if (f.code != null) 'code': f.code,
+        });
+        unawaited(_persistReport());
+        if (!isRetryable(f.kind)) {
+          // Quyền/Bluetooth tắt/dữ liệu hỏng/thiếu dịch vụ/bond lệch: dừng vòng
+          // reconnect và hiện đúng nguyên nhân (KHÔNG tự xóa bond).
+          _cancelReconnect();
+          unawaited(ForegroundService.stop());
+          state = state.copyWith(
+              phase: BlePhase.disconnected, message: f.userMessage);
+          return;
+        }
         _failStreak++;
         if (_failStreak == 2) {
           state = state.copyWith(
@@ -3619,6 +4357,7 @@ class BleController extends Notifier<BleState> {
     _pollTimer?.cancel();
     _connSub?.cancel();
     _notifySub?.cancel();
+    _setupLinkSub?.cancel();
     _telemetry.close();
   }
 

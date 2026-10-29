@@ -201,7 +201,7 @@ class _OfflineMapSheetState extends State<OfflineMapSheet> {
           constraints: BoxConstraints(
             maxHeight: MediaQuery.of(context).size.height * 0.88,
           ),
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: AppColors.panel,
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
             border: Border(
@@ -234,7 +234,7 @@ class _OfflineMapSheetState extends State<OfflineMapSheet> {
                         color: AppColors.primary.withValues(alpha: 0.10),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(Icons.downloading_rounded, color: AppColors.primary, size: 22),
+                      child: Icon(Icons.downloading_rounded, color: AppColors.primary, size: 22),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -261,14 +261,14 @@ class _OfflineMapSheetState extends State<OfflineMapSheet> {
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close_rounded, color: AppColors.textDim),
+                      icon: Icon(Icons.close_rounded, color: AppColors.textDim),
                       onPressed: () => Navigator.pop(context),
                     ),
                   ],
                 ),
               ),
 
-              const Divider(color: AppColors.panelBorder, height: 1),
+              Divider(color: AppColors.panelBorder, height: 1),
 
               Expanded(
                 child: ListView(
@@ -279,7 +279,7 @@ class _OfflineMapSheetState extends State<OfflineMapSheet> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFEF3C7),
+                          color: AppColors.amberSoft,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: AppColors.amber),
                         ),
@@ -296,7 +296,7 @@ class _OfflineMapSheetState extends State<OfflineMapSheet> {
                                     style: GoogleFonts.spaceGrotesk(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w800,
-                                      color: const Color(0xFF92400E),
+                                      color: AppColors.amberText,
                                     ),
                                   ),
                                 ),
@@ -334,7 +334,7 @@ class _OfflineMapSheetState extends State<OfflineMapSheet> {
                                   onPressed: _clearPendingTask,
                                   child: Text(
                                     'BỎ QUA',
-                                    style: GoogleFonts.plusJakartaSans(color: const Color(0xFF92400E), fontWeight: FontWeight.w700, fontSize: 11.5),
+                                    style: GoogleFonts.plusJakartaSans(color: AppColors.amberText, fontWeight: FontWeight.w700, fontSize: 11.5),
                                   ),
                                 ),
                               ],
@@ -485,8 +485,8 @@ class _OfflineMapSheetState extends State<OfflineMapSheet> {
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: progress.isCompleted
-                              ? const Color(0xFFECFDF5)
-                              : (progress.isPaused ? const Color(0xFFFEF3C7) : const Color(0xFFEFF6FF)),
+                              ? AppColors.greenSoft
+                              : (progress.isPaused ? AppColors.amberSoft : AppColors.primarySoft),
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
                             color: progress.isCompleted
@@ -504,7 +504,7 @@ class _OfflineMapSheetState extends State<OfflineMapSheet> {
                                   child: Row(
                                     children: [
                                       if (isDownloading) ...[
-                                        const SizedBox(
+                                        SizedBox(
                                           width: 14,
                                           height: 14,
                                           child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
@@ -624,7 +624,7 @@ class _OfflineMapSheetState extends State<OfflineMapSheet> {
                     ] else if (progress.isPaused) ...[
                       ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
+                          backgroundColor: AppColors.primaryFill,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -644,7 +644,7 @@ class _OfflineMapSheetState extends State<OfflineMapSheet> {
                     ] else ...[
                       ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
+                          backgroundColor: AppColors.primaryFill,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 15),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -682,7 +682,7 @@ class _OfflineMapSheetState extends State<OfflineMapSheet> {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: isSelected ? const Color(0xFFEFF6FF) : AppColors.panel,
+        color: isSelected ? AppColors.primarySoft : AppColors.panel,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isSelected ? AppColors.primary : AppColors.panelBorderBright,
@@ -725,7 +725,7 @@ class _OfflineMapSheetState extends State<OfflineMapSheet> {
                 ),
               ),
               if (isSelected)
-                const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 18),
+                Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 18),
             ],
           ),
         ),
@@ -741,7 +741,7 @@ class _OfflineMapSheetState extends State<OfflineMapSheet> {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: selected ? const Color(0xFFEFF6FF) : AppColors.panel,
+        color: selected ? AppColors.primarySoft : AppColors.panel,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: selected ? AppColors.primary : AppColors.panelBorderBright,

@@ -237,7 +237,7 @@ class BatteryDiagnosticsService {
       grade = CellBalanceGrade.unknown;
     }
 
-    // Ước lượng SOH (State of Health)
+    // Ước lượng SOH (State of Health) — CÔNG THỨC ƯỚC TÍNH, không phải số đo từ BMS.
     final cycles = battery?.socCycles.round() ?? (telemetry != null ? (telemetry.odo / 150.0).round() : 0);
     int health = hasLiveTelemetry ? (100 - (cycles * 0.03).round()) : 100;
     if (hasLiveTelemetry) {
@@ -249,21 +249,21 @@ class BatteryDiagnosticsService {
     // Bản đồ nhiệt 3 điểm: Khi offline trả về 0.0, không bịa nhiệt độ
     final motorZone = ThermalZone.evaluate(
       name: 'Động cơ (Motor)',
-      temp: telemetry?.motor ?? (hasLiveTelemetry ? 32.0 : 0.0),
+      temp: telemetry?.motor ?? 0.0, // 0 = chưa có (UI hiển thị '--')
       warningTemp: 75.0,
       criticalTemp: 90.0,
     );
 
     final ecuZone = ThermalZone.evaluate(
       name: 'Biến tần (ECU)',
-      temp: telemetry?.ecu ?? (hasLiveTelemetry ? 30.0 : 0.0),
+      temp: telemetry?.ecu ?? 0.0,
       warningTemp: 65.0,
       criticalTemp: 80.0,
     );
 
     final bmsZone = ThermalZone.evaluate(
       name: 'Khối Pin (BMS)',
-      temp: telemetry?.bmsTemp ?? (battery?.ntcs.isNotEmpty == true ? battery!.ntcs.first : (hasLiveTelemetry ? 29.0 : 0.0)),
+      temp: telemetry?.bmsTemp ?? (battery?.ntcs.isNotEmpty == true ? battery!.ntcs.first : 0.0),
       warningTemp: 48.0,
       criticalTemp: 58.0,
     );
@@ -291,7 +291,7 @@ class BatteryDiagnosticsService {
       currentAmp: currentAmp,
       isBalancing: (battery?.balancing ?? 0) != 0,
       chargeCycles: cycles,
-      internalResistanceMo: battery?.resistor ?? (hasLiveTelemetry ? 18.5 : 0.0),
+      internalResistanceMo: battery?.resistor ?? 0.0, // không bịa số khi BMS không gửi
       motorThermal: motorZone,
       ecuThermal: ecuZone,
       bmsThermal: bmsZone,

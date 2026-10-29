@@ -71,11 +71,13 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       return;
     }
 
-    final ok = await BlePermissions.ensure();
-    if (!ok) {
+    final perm = await BlePermissions.check();
+    if (perm != BlePermissionResult.granted) {
       setState(() {
         _scanning = false;
-        _error = 'Thiếu quyền Bluetooth/Vị trí — không thể quét.';
+        _error = perm == BlePermissionResult.locationServiceOff
+            ? 'Android 11 trở xuống cần bật dịch vụ Vị trí để quét BLE.'
+            : 'Thiếu quyền Bluetooth ("Thiết bị ở gần") hoặc Vị trí — không thể quét.';
       });
       if (await BlePermissions.permanentlyDenied() && mounted) {
         _openSettingsDialog();
@@ -126,6 +128,12 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
 
   void _connect(ScanResult r) {
     FlutterBluePlus.stopScan();
+    BleLogger.instance.event('device_selected', {
+      'id': r.device.remoteId.str,
+      'adv_name': r.advertisementData.advName,
+      'platform_name': r.device.platformName,
+      'rssi': r.rssi,
+    });
     final name = r.advertisementData.advName.isNotEmpty
         ? r.advertisementData.advName
         : r.device.platformName;
@@ -166,7 +174,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
+              backgroundColor: AppColors.primaryFill,
               foregroundColor: Colors.white,
               shape: const StadiumBorder(),
             ),
@@ -230,7 +238,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
                       ),
-                      child: const Icon(Icons.history_rounded, color: AppColors.primary, size: 26),
+                      child: Icon(Icons.history_rounded, color: AppColors.primary, size: 26),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -261,7 +269,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                             height: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: AppColors.primary),
+                        : Icon(Icons.arrow_forward_ios_rounded, size: 16, color: AppColors.primary),
                   ],
                 ),
               ),
@@ -269,7 +277,12 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
             ],
 
             if (_error != null) ...[
-              NoticeBanner(color: AppColors.error, text: _error!),
+              NoticeBanner(
+                color: AppColors.error,
+                icon: Icons.error_outline_rounded,
+                text: _error!,
+                trailing: TextButton(onPressed: _scanning ? null : _scan, child: const Text('Thử lại')),
+              ),
               const SizedBox(height: 14),
             ],
 
@@ -336,7 +349,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                             ],
                           ),
                         ),
-                        const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: AppColors.primary),
+                        Icon(Icons.arrow_forward_ios_rounded, size: 16, color: AppColors.primary),
                       ],
                     ),
                   ),
@@ -345,7 +358,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
 
             // Xe phát hiện trên Web Preview (Mô phỏng quét BLE)
             if (kIsWeb) ...[
-              const SectionTitle('XE CỦA BẠN PHÁT HIỆN ĐƯỢC (BLE)'),
+              const SectionTitle('DEMO — XE GIẢ LẬP (KHÔNG PHẢI XE THẬT)'),
               const SizedBox(height: 10),
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
@@ -354,10 +367,10 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          'Đã xác thực & ghép đôi chìa khóa số BLE xe Dat Bike Quantum S1!',
+                          'DEMO: giả lập ghép đôi — không có kết nối xe thật.',
                           style: GoogleFonts.plusJakartaSans(),
                         ),
-                        backgroundColor: const Color(0xFF10B981),
+                        backgroundColor: AppColors.tertiary,
                         behavior: SnackBarBehavior.floating,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
@@ -404,7 +417,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
-                                  '-58 dBm · RL9C4NGSSSCC00187',
+                                  'DEMO · dữ liệu mẫu',
                                   style: GoogleFonts.plusJakartaSans(
                                     fontSize: 12,
                                     color: AppColors.textDim,
@@ -415,7 +428,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                           ],
                         ),
                       ),
-                      const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: AppColors.primary),
+                      Icon(Icons.arrow_forward_ios_rounded, size: 16, color: AppColors.primary),
                     ],
                   ),
                 ),
@@ -436,7 +449,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                         color: AppColors.primary.withValues(alpha: 0.08),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.bluetooth_searching_rounded, size: 36, color: AppColors.primary),
+                      child: Icon(Icons.bluetooth_searching_rounded, size: 36, color: AppColors.primary),
                     ),
                     const SizedBox(height: 14),
                     Text(
@@ -498,7 +511,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                     onTap: () => _connect(r),
                     child: Row(
                       children: [
-                        const Icon(Icons.bluetooth_rounded, size: 20, color: AppColors.textDim),
+                        Icon(Icons.bluetooth_rounded, size: 20, color: AppColors.textDim),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
@@ -518,7 +531,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                             ],
                           ),
                         ),
-                        const Icon(Icons.chevron_right, size: 18, color: AppColors.textDim),
+                        Icon(Icons.chevron_right, size: 18, color: AppColors.textDim),
                       ],
                     ),
                   ),
@@ -527,7 +540,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: AppColors.primary,
+        backgroundColor: AppColors.primaryFill,
         foregroundColor: Colors.white,
         elevation: 2,
         shape: const StadiumBorder(),

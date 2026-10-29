@@ -20,6 +20,7 @@ import 'features/home/home_shell.dart';
 import 'features/cluster/cluster_screen.dart';
 import 'features/navigation/charge_finder_screen.dart';
 import 'core/config/cluster_config.dart';
+import 'core/config/ui_prefs.dart';
 import 'features/logs/logs_screen.dart';
 import 'features/firmware_lab/firmware_lab_screen.dart';
 import 'ui/app_theme.dart';
@@ -49,11 +50,67 @@ void main() {
   runApp(const ProviderScope(child: MyBikeApp()));
 }
 
-class MyBikeApp extends ConsumerWidget {
+class MyBikeApp extends ConsumerStatefulWidget {
   const MyBikeApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MyBikeApp> createState() => _MyBikeAppState();
+}
+
+class _MyBikeAppState extends ConsumerState<MyBikeApp> with WidgetsBindingObserver {
+  // ThemeData dựng một lần, tránh tạo lại mỗi khi cấu hình đồng hồ thay đổi.
+  late final ThemeData _lightTheme = AppTheme.light();
+  late final ThemeData _darkTheme = AppTheme.dark();
+
+  Brightness _effective(ThemeMode mode) {
+    switch (mode) {
+      case ThemeMode.light:
+        return Brightness.light;
+      case ThemeMode.dark:
+        return Brightness.dark;
+      case ThemeMode.system:
+        return WidgetsBinding.instance.platformDispatcher.platformBrightness;
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Áp palette trước khung hình đầu tiên để không nháy sai màu.
+    AppColors.apply(_effective(ref.read(themeModeProvider)));
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// Hệ thống đổi sáng/tối (vd. đặt lịch tự động) → theo nếu đang ở "Hệ thống".
+  @override
+  void didChangePlatformBrightness() {
+    _applyTheme(ref.read(themeModeProvider));
+  }
+
+  /// Đổi palette rồi ép dựng lại TOÀN BỘ cây widget (không tạo lại → giữ state,
+  /// stack điều hướng, kết nối BLE). Cần thiết vì phần lớn widget cũ đọc
+  /// AppColors.* trực tiếp thay vì qua Theme.of(context).
+  void _applyTheme(ThemeMode mode) {
+    if (!AppColors.apply(_effective(mode))) return;
+    if (!mounted) return;
+    void rebuild(Element e) {
+      e.markNeedsBuild();
+      e.visitChildren(rebuild);
+    }
+
+    (context as Element).visitChildren(rebuild);
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen<ThemeMode>(themeModeProvider, (_, mode) => _applyTheme(mode));
     ref.listen<bool>(
       clusterConfigProvider.select((c) => c.allowRotate),
       (_, allow) => SystemChrome.setPreferredOrientations(
@@ -64,12 +121,27 @@ class MyBikeApp extends ConsumerWidget {
     );
     // Nạp cấu hình đã lưu ngay khi app mở (để biết người dùng có bật xoay không).
     ref.watch(clusterConfigProvider);
+    final mode = ref.watch(themeModeProvider);
+    AppColors.apply(_effective(mode)); // đảm bảo khớp ngay cả ở lần dựng đầu
+
     return MaterialApp(
       title: 'My Bike',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light(),
-      darkTheme: AppTheme.light(),
-      themeMode: ThemeMode.light,
+      theme: _lightTheme,
+      darkTheme: _darkTheme,
+      themeMode: mode,
+      builder: (context, child) {
+        final dark = AppColors.isDark;
+        // Icon thanh trạng thái/điều hướng hệ thống tương phản với nền.
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: (dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark).copyWith(
+            statusBarColor: Colors.transparent,
+            systemNavigationBarColor: AppColors.panel,
+            systemNavigationBarIconBrightness: dark ? Brightness.light : Brightness.dark,
+          ),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
       initialRoute: '/',
       routes: {
         '/': (_) => const HomeShell(),

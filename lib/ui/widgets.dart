@@ -107,7 +107,7 @@ class StatusPill extends StatelessWidget {
           Text(
             label.toUpperCase(),
             style: GoogleFonts.plusJakartaSans(
-              color: color,
+              color: AppColors.readable(color),
               fontSize: 11,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.06 * 11,
@@ -286,7 +286,8 @@ class VehicleCommandButton extends StatelessWidget {
   final String title;
   final String? subtitle;
   final VoidCallback? onPressed;
-  final Color backgroundColor;
+  /// null → nền xanh chủ đạo của app (AppColors.primaryFill, chữ trắng đạt AA).
+  final Color? backgroundColor;
   final Color foregroundColor;
   final bool isLoading;
 
@@ -296,7 +297,7 @@ class VehicleCommandButton extends StatelessWidget {
     required this.title,
     this.subtitle,
     required this.onPressed,
-    this.backgroundColor = AppColors.primary,
+    this.backgroundColor,
     this.foregroundColor = Colors.white,
     this.isLoading = false,
   });
@@ -307,7 +308,7 @@ class VehicleCommandButton extends StatelessWidget {
       height: 56,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: backgroundColor,
+          backgroundColor: backgroundColor ?? AppColors.primaryFill,
           foregroundColor: foregroundColor,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -537,7 +538,7 @@ class BatteryRangeCapsule extends StatelessWidget {
           ),
           if (onTap != null) ...[
             const SizedBox(height: 10),
-            const Divider(color: AppColors.panelBorder, height: 1),
+            Divider(color: AppColors.panelBorder, height: 1),
             const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -550,7 +551,7 @@ class BatteryRangeCapsule extends StatelessWidget {
                     color: AppColors.primary,
                   ),
                 ),
-                const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: AppColors.primary),
+                Icon(Icons.arrow_forward_ios_rounded, size: 12, color: AppColors.primary),
               ],
             ),
           ],
@@ -566,26 +567,29 @@ class NoticeBanner extends StatelessWidget {
   final Color color;
   final String text;
   final Widget? trailing;
+  final IconData icon;
 
   const NoticeBanner({
     super.key,
     required this.color,
     required this.text,
     this.trailing,
+    this.icon = Icons.info_outline_rounded,
   });
 
   @override
   Widget build(BuildContext context) {
+    final fg = AppColors.readable(color);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
+        color: color.withValues(alpha: AppColors.isDark ? 0.14 : 0.08),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withValues(alpha: 0.30), width: 1),
       ),
       child: Row(
         children: [
-          Icon(Icons.info_outline_rounded, color: color, size: 20),
+          Icon(icon, color: fg, size: 20),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -593,7 +597,7 @@ class NoticeBanner extends StatelessWidget {
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: color,
+                color: fg,
                 height: 1.3,
               ),
             ),

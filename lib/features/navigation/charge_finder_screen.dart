@@ -20,6 +20,7 @@ import '../../core/services/charging_station_service.dart';
 import '../../core/services/energy_estimator.dart';
 import '../../core/services/map_tile_service.dart';
 import '../../core/services/route_service.dart';
+import '../../ui/app_theme.dart';
 
 const double _kDetourFactor = 1.3; // đường thực tế ≈ 1.3 × đường chim bay (ước lượng)
 const double _kReservePercent = 15;
@@ -338,7 +339,7 @@ class _ChargeFinderScreenState extends ConsumerState<ChargeFinderScreen> {
     return ListView(
       padding: const EdgeInsets.all(12),
       children: [
-        if (_error != null) _banner(_error!, Colors.red),
+        if (_error != null) _banner(_error!, AppColors.red),
         if (_route != null) ..._routePanel() else ..._stationPanel(),
       ],
     );
@@ -348,7 +349,7 @@ class _ChargeFinderScreenState extends ConsumerState<ChargeFinderScreen> {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(color: c.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
-        child: Text(text, style: TextStyle(color: c.withValues(alpha: 0.95), fontSize: 13)),
+        child: Text(text, style: TextStyle(color: AppColors.readable(c), fontSize: 13)),
       );
 
   List<Widget> _routePanel() {
@@ -399,8 +400,8 @@ class _ChargeFinderScreenState extends ConsumerState<ChargeFinderScreen> {
       const SizedBox(height: 6),
       Text('Còn ${remainingKm.toStringAsFixed(1)} km  ·  tổng tuyến ${r.distanceKm.toStringAsFixed(1)} km  ·  ~${(r.durationS / 60).round()} phút (theo ô tô, chỉ tham khảo)'),
       const SizedBox(height: 4),
-      Text(battLine, style: TextStyle(color: (pct != null && cons != null && EnergyEstimator.batteryAfter(pct.toDouble(), remainingKm, cons.percentPerKm) < 0) ? Colors.red : null)),
-      if (_note != null) ...[const SizedBox(height: 8), _banner(_note!, Colors.orange)],
+      Text(battLine, style: TextStyle(color: (pct != null && cons != null && EnergyEstimator.batteryAfter(pct.toDouble(), remainingKm, cons.percentPerKm) < 0) ? AppColors.redText : null)),
+      if (_note != null) ...[const SizedBox(height: 8), _banner(_note!, AppColors.amber)],
       const SizedBox(height: 8),
       _disclaimer(),
     ];
@@ -423,7 +424,7 @@ class _ChargeFinderScreenState extends ConsumerState<ChargeFinderScreen> {
       if (res.fromCache)
         _banner('Không có mạng/máy chủ — đang hiện dữ liệu đã lưu lúc ${res.cachedAt?.toLocal().toString().substring(0, 16)}.', Colors.orange),
       Text('Chạm giữ trên bản đồ để chọn điểm đến và lập tuyến (tự chèn trạm sạc nếu pin không đủ).',
-          style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
       const SizedBox(height: 6),
       for (final s in list.take(20))
         Builder(builder: (_) {
@@ -438,7 +439,7 @@ class _ChargeFinderScreenState extends ConsumerState<ChargeFinderScreen> {
           if (s.sockets != null) sub += '\n${s.sockets}';
           return Card(
             child: ListTile(
-              leading: const Icon(Icons.ev_station_rounded, color: Colors.green),
+              leading: Icon(Icons.ev_station_rounded, color: AppColors.tertiary),
               title: Text(s.name),
               subtitle: Text(sub),
               isThreeLine: s.sockets != null,
@@ -472,6 +473,6 @@ class _ChargeFinderScreenState extends ConsumerState<ChargeFinderScreen> {
   Widget _disclaimer() => Text(
         'Dữ liệu trạm sạc từ OpenStreetMap (cộng đồng nhập, có thể sai/thiếu); tuyến đường từ máy chủ OSRM demo (profile ô tô). '
         'App không xác minh trạm tương thích với bộ sạc Datbike. Không thao tác điện thoại khi đang lái.',
-        style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+        style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
       );
 }

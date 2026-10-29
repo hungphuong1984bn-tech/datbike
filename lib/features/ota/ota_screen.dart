@@ -44,7 +44,7 @@ class _OtaScreenState extends ConsumerState<OtaScreen> {
     } on OtaException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message), backgroundColor: AppColors.error),
+        SnackBar(content: Text(e.message), backgroundColor: AppColors.errorFill),
       );
     }
   }
@@ -57,7 +57,7 @@ class _OtaScreenState extends ConsumerState<OtaScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: Color(0xFF0F172A)),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: AppColors.textPrimary),
           onPressed: () {
             if (Navigator.of(context).canPop()) {
               Navigator.of(context).pop();
@@ -70,7 +70,7 @@ class _OtaScreenState extends ConsumerState<OtaScreen> {
           style: GoogleFonts.plusJakartaSans(
             fontWeight: FontWeight.w700,
             fontSize: 18,
-            color: const Color(0xFF0F172A),
+            color: AppColors.textPrimary,
           ),
         ),
       ),
@@ -78,7 +78,7 @@ class _OtaScreenState extends ConsumerState<OtaScreen> {
         future: _future,
         builder: (context, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+            return Center(child: CircularProgressIndicator(color: AppColors.primary));
           }
           final fw = snap.data;
           if (fw == null) {
@@ -94,7 +94,7 @@ class _OtaScreenState extends ConsumerState<OtaScreen> {
                         color: AppColors.error.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.cloud_off_rounded, size: 36, color: AppColors.error),
+                      child: Icon(Icons.cloud_off_rounded, size: 36, color: AppColors.error),
                     ),
                     const SizedBox(height: 16),
                     Text(
@@ -110,7 +110,7 @@ class _OtaScreenState extends ConsumerState<OtaScreen> {
                     const SizedBox(height: 20),
                     ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
+                        backgroundColor: AppColors.primaryFill,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -143,7 +143,7 @@ class _OtaScreenState extends ConsumerState<OtaScreen> {
                             color: AppColors.primary.withValues(alpha: 0.10),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: const Icon(Icons.system_update_rounded, color: AppColors.primary, size: 24),
+                          child: Icon(Icons.system_update_rounded, color: AppColors.primary, size: 24),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -178,7 +178,7 @@ class _OtaScreenState extends ConsumerState<OtaScreen> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    const Divider(color: AppColors.panelBorder, height: 1),
+                    Divider(color: AppColors.panelBorder, height: 1),
                     const SizedBox(height: 14),
                     Text(
                       fw.releaseNote.replaceAll(RegExp(r'<[^>]+>'), ''),

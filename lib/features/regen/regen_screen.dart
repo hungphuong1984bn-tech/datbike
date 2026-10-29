@@ -9,6 +9,7 @@ import '../../core/ble/ble_controller.dart';
 import '../../core/proto/bike_log.dart';
 import '../../core/regen/regen_controller.dart';
 import '../../core/regen/regen_protocol.dart';
+import '../../ui/app_theme.dart';
 
 class RegenScreen extends ConsumerStatefulWidget {
   const RegenScreen({super.key});
@@ -139,14 +140,14 @@ class _RegenScreenState extends ConsumerState<RegenScreen> {
       key: const Key('regen_unsupported_banner'),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFFEF3C7),
+        color: AppColors.amberSoft,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFF59E0B)),
+        border: Border.all(color: AppColors.amber),
       ),
-      child: const Row(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.info_outline_rounded, color: Color(0xFFB45309)),
+          Icon(Icons.info_outline_rounded, color: AppColors.amberText),
           SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -166,9 +167,9 @@ class _RegenScreenState extends ConsumerState<RegenScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: AppColors.panelSecondary,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: AppColors.panelBorderBright),
       ),
       child: Row(
         children: [
@@ -190,31 +191,31 @@ class _RegenScreenState extends ConsumerState<RegenScreen> {
     switch (st.status) {
       case RegenSyncStatus.unsupported:
         text = 'Không hỗ trợ điều khiển';
-        color = const Color(0xFF64748B);
+        color = AppColors.textSecondary;
       case RegenSyncStatus.disconnected:
         text = 'Chưa kết nối xe';
-        color = const Color(0xFF64748B);
+        color = AppColors.textSecondary;
       case RegenSyncStatus.unknown:
         text = 'Chưa biết mức trên xe';
-        color = const Color(0xFF64748B);
+        color = AppColors.textSecondary;
       case RegenSyncStatus.synced:
         text = 'Đã đồng bộ (đã đọc lại từ xe)';
-        color = const Color(0xFF16A34A);
+        color = AppColors.greenText;
       case RegenSyncStatus.pending:
         text = 'Chưa gửi — mức chọn khác mức trên xe';
-        color = const Color(0xFFD97706);
+        color = AppColors.amberText;
       case RegenSyncStatus.writing:
         text = 'Đang gửi…';
-        color = const Color(0xFF2563EB);
+        color = AppColors.primary;
       case RegenSyncStatus.verifying:
         text = 'Đang đọc lại để xác nhận…';
-        color = const Color(0xFF2563EB);
+        color = AppColors.primary;
       case RegenSyncStatus.mismatch:
         text = 'Chưa đồng bộ — xe không ở mức mong muốn';
-        color = const Color(0xFFDC2626);
+        color = AppColors.redText;
       case RegenSyncStatus.failed:
         text = 'Lỗi / bị chặn — chưa xác nhận';
-        color = const Color(0xFFDC2626);
+        color = AppColors.redText;
     }
     return Align(
       alignment: Alignment.centerLeft,
@@ -263,12 +264,12 @@ class _RegenScreenState extends ConsumerState<RegenScreen> {
           ],
         ),
         if (sel != null && (spec.levelByIndex(sel)?.experimental ?? false))
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(top: 6),
             child: Text(
               '⚠ Xe lưu được giá trị này nhưng hiệu ứng Regen của mức này chưa được xác minh. Hãy đo bằng bảng bên dưới.',
               key: Key('regen_experimental_note'),
-              style: TextStyle(color: Color(0xFFB45309)),
+              style: TextStyle(color: AppColors.amberText),
             ),
           ),
         const SizedBox(height: 8),
@@ -318,9 +319,9 @@ class _RegenScreenState extends ConsumerState<RegenScreen> {
       key: const Key('regen_live_meter'),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF0FDF4),
+        color: AppColors.greenSoft,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFBBF7D0)),
+        border: Border.all(color: AppColors.greenSoftBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -353,7 +354,7 @@ class _RegenScreenState extends ConsumerState<RegenScreen> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
+        color: AppColors.surfaceContainer,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(

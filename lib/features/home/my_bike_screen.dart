@@ -22,7 +22,10 @@ import '../../core/services/trip_gps_tracker.dart';
 import '../scan/scan_screen.dart';
 import '../settings/vehicle_settings_screen.dart';
 import '../../ui/geely_icons.dart';
+import '../../ui/components.dart';
+import 'overview_status.dart';
 import 'trip_route_screen.dart';
+import '../../ui/app_theme.dart';
 
 class MyBikeScreen extends ConsumerStatefulWidget {
   const MyBikeScreen({super.key});
@@ -82,7 +85,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
         action: actionLabel != null && onAction != null
             ? SnackBarAction(
                 label: actionLabel,
-                textColor: const Color(0xFFF59E0B),
+                textColor: AppColors.amber,
                 onPressed: onAction,
               )
             : null,
@@ -110,20 +113,20 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
           'Khóa Cổ & Chống Trộm',
-          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, color: const Color(0xFF0F172A)),
+          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, color: AppColors.textPrimary),
         ),
         content: Text(
           'Hệ thống sẽ khóa chốt cổ điện tử và kích hoạt cảm biến cảnh báo chống dắt xe.',
-          style: GoogleFonts.plusJakartaSans(fontSize: 14, color: const Color(0xFF475569)),
+          style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AppColors.textDim),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('HỦY', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600, color: const Color(0xFF64748B))),
+            child: Text('HỦY', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFFEF4444),
+              backgroundColor: AppColors.red,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             onPressed: () => Navigator.pop(ctx, true),
@@ -202,8 +205,8 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
             final ble = sheetRef.watch(bleProvider);
 
           return Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
+            decoration: BoxDecoration(
+              color: AppColors.panel,
               borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
             ),
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
@@ -218,7 +221,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                       width: 38,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFCBD5E1),
+                        color: AppColors.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -232,11 +235,11 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                         width: 40,
                         height: 40,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFEFF6FF),
+                          color: AppColors.primarySoft,
                           borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: const Color(0xFFBFDBFE)),
+                          border: Border.all(color: AppColors.primarySoftBorder),
                         ),
-                        child: const Icon(Icons.tune_rounded, color: Color(0xFF2563EB), size: 20),
+                        child: Icon(Icons.tune_rounded, color: AppColors.primary, size: 20),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -248,7 +251,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 17,
                                 fontWeight: FontWeight.w700,
-                                color: const Color(0xFF0F172A),
+                                color: AppColors.textPrimary,
                               ),
                             ),
                             const SizedBox(height: 2),
@@ -256,14 +259,14 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                               'Cài đặt an toàn & tiện ích nhanh',
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 12,
-                                color: const Color(0xFF64748B),
+                                color: AppColors.textSecondary,
                               ),
                             ),
                           ],
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.close_rounded, size: 20, color: Color(0xFF94A3B8)),
+                        icon: Icon(Icons.close_rounded, size: 20, color: AppColors.textMuted),
                         onPressed: () => Navigator.pop(ctx),
                       ),
                     ],
@@ -278,16 +281,16 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: const Color(0xFF94A3B8),
+                      color: AppColors.textMuted,
                       letterSpacing: 0.8,
                     ),
                   ),
                   const SizedBox(height: 10),
                   Container(
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: AppColors.panel,
                       borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: const Color(0xFFF1F5F9)),
+                      border: Border.all(color: AppColors.panelBorder),
                       boxShadow: const [
                         BoxShadow(
                           color: Color(0x040F172A),
@@ -300,8 +303,8 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                       children: [
                         _sheetToggleRow(
                           icon: Icons.lock_clock_rounded,
-                          iconColor: const Color(0xFF2563EB),
-                          iconBg: const Color(0xFFEFF6FF),
+                          iconColor: AppColors.primary,
+                          iconBg: AppColors.primarySoft,
                           title: 'Tự khóa khi rời xe',
                           subtitle: 'Khóa an toàn khi ra khỏi vùng Bluetooth',
                           value: ble.autoLockWalkAway,
@@ -325,13 +328,13 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                                       style: GoogleFonts.plusJakartaSans(
                                         fontSize: 11.5,
                                         fontWeight: FontWeight.w600,
-                                        color: const Color(0xFF64748B),
+                                        color: AppColors.textSecondary,
                                       ),
                                     ),
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFFEFF6FF),
+                                        color: AppColors.primarySoft,
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(
@@ -339,7 +342,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                                         style: GoogleFonts.plusJakartaSans(
                                           fontSize: 10.5,
                                           fontWeight: FontWeight.w700,
-                                          color: const Color(0xFF2563EB),
+                                          color: AppColors.primary,
                                         ),
                                       ),
                                     ),
@@ -388,10 +391,10 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                                 SliderTheme(
                                   data: SliderTheme.of(context).copyWith(
                                     trackHeight: 4,
-                                    activeTrackColor: const Color(0xFF2563EB),
-                                    inactiveTrackColor: const Color(0xFFE2E8F0),
-                                    thumbColor: const Color(0xFF2563EB),
-                                    overlayColor: const Color(0xFF2563EB).withValues(alpha: 0.15),
+                                    activeTrackColor: AppColors.primaryFill,
+                                    inactiveTrackColor: AppColors.panelBorderBright,
+                                    thumbColor: AppColors.primaryFill,
+                                    overlayColor: AppColors.primary.withValues(alpha: 0.15),
                                   ),
                                   child: Slider(
                                     value: (ble.autoLockRssiThreshold ?? -83.0).clamp(-95.0, -68.0),
@@ -409,11 +412,11 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                                   children: [
                                     Text(
                                       '-95 dBm (Xa ~10m)',
-                                      style: GoogleFonts.plusJakartaSans(fontSize: 10, color: const Color(0xFF94A3B8)),
+                                      style: GoogleFonts.plusJakartaSans(fontSize: 10, color: AppColors.textMuted),
                                     ),
                                     Text(
                                       '-68 dBm (Gần ~2m)',
-                                      style: GoogleFonts.plusJakartaSans(fontSize: 10, color: const Color(0xFF94A3B8)),
+                                      style: GoogleFonts.plusJakartaSans(fontSize: 10, color: AppColors.textMuted),
                                     ),
                                   ],
                                 ),
@@ -421,11 +424,11 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                             ),
                           ),
                         ],
-                        const Divider(color: Color(0xFFF8FAFC), height: 1, thickness: 1, indent: 56, endIndent: 16),
+                        Divider(color: AppColors.panelSecondary, height: 1, thickness: 1, indent: 56, endIndent: 16),
                         _sheetToggleRow(
                           icon: Icons.key_rounded,
-                          iconColor: const Color(0xFF10B981),
-                          iconBg: const Color(0xFFF0FDF4),
+                          iconColor: AppColors.tertiary,
+                          iconBg: AppColors.greenSoft,
                           title: 'Mở khóa tự động',
                           subtitle: 'Tự mở khóa khi đến gần xe',
                           value: ble.walkUpUnlock,
@@ -442,13 +445,13 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                             decoration: BoxDecoration(
                               color: ble.walkUpAutoPowerOn
-                                  ? const Color(0xFFFFFBEB)
-                                  : const Color(0xFFF8FAFC),
+                                  ? AppColors.amberSoft
+                                  : AppColors.panelSecondary,
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(
                                 color: ble.walkUpAutoPowerOn
-                                    ? const Color(0xFFFDE68A)
-                                    : const Color(0xFFE2E8F0),
+                                    ? AppColors.amberSoftBorder
+                                    : AppColors.panelBorderBright,
                               ),
                             ),
                             child: Row(
@@ -457,7 +460,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                                   width: 32,
                                   height: 32,
                                   decoration: BoxDecoration(
-                                    color: ble.walkUpAutoPowerOn ? const Color(0xFFF59E0B) : const Color(0xFFCBD5E1),
+                                    color: ble.walkUpAutoPowerOn ? AppColors.amber : AppColors.surfaceContainerHighest,
                                     shape: BoxShape.circle,
                                   ),
                                   child: const Icon(Icons.bolt_rounded, color: Colors.white, size: 18),
@@ -474,14 +477,14 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                                             style: GoogleFonts.plusJakartaSans(
                                               fontSize: 12.5,
                                               fontWeight: FontWeight.w700,
-                                              color: const Color(0xFF0F172A),
+                                              color: AppColors.textPrimary,
                                             ),
                                           ),
                                           const SizedBox(width: 6),
                                           Container(
                                             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                                             decoration: BoxDecoration(
-                                              color: const Color(0xFFFEF3C7),
+                                              color: AppColors.amberSoft,
                                               borderRadius: BorderRadius.circular(4),
                                             ),
                                             child: Text(
@@ -489,7 +492,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                                               style: GoogleFonts.plusJakartaSans(
                                                 fontSize: 8.5,
                                                 fontWeight: FontWeight.w800,
-                                                color: const Color(0xFFB45309),
+                                                color: AppColors.amberText,
                                               ),
                                             ),
                                           ),
@@ -500,7 +503,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                                         'Tự mở khóa & bật nguồn xe sẵn sàng ngay khi tới cạnh xe',
                                         style: GoogleFonts.plusJakartaSans(
                                           fontSize: 11,
-                                          color: const Color(0xFF64748B),
+                                          color: AppColors.textSecondary,
                                         ),
                                       ),
                                     ],
@@ -508,7 +511,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                                 ),
                                 Switch.adaptive(
                                   value: ble.walkUpAutoPowerOn,
-                                  activeTrackColor: const Color(0xFFF59E0B),
+                                  activeTrackColor: AppColors.amber,
                                   onChanged: (v) {
                                     ref.read(bleProvider.notifier).setWalkUpAutoPowerOn(v);
                                     setSheetState(() {});
@@ -533,13 +536,13 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                                       style: GoogleFonts.plusJakartaSans(
                                         fontSize: 11.5,
                                         fontWeight: FontWeight.w600,
-                                        color: const Color(0xFF64748B),
+                                        color: AppColors.textSecondary,
                                       ),
                                     ),
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFFF0FDF4),
+                                        color: AppColors.greenSoft,
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(
@@ -547,7 +550,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                                         style: GoogleFonts.plusJakartaSans(
                                           fontSize: 10.5,
                                           fontWeight: FontWeight.w700,
-                                          color: const Color(0xFF10B981),
+                                          color: AppColors.tertiary,
                                         ),
                                       ),
                                     ),
@@ -596,10 +599,10 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                                 SliderTheme(
                                   data: SliderTheme.of(context).copyWith(
                                     trackHeight: 4,
-                                    activeTrackColor: const Color(0xFF10B981),
-                                    inactiveTrackColor: const Color(0xFFE2E8F0),
-                                    thumbColor: const Color(0xFF10B981),
-                                    overlayColor: const Color(0xFF10B981).withValues(alpha: 0.15),
+                                    activeTrackColor: AppColors.tertiary,
+                                    inactiveTrackColor: AppColors.panelBorderBright,
+                                    thumbColor: AppColors.tertiary,
+                                    overlayColor: AppColors.tertiary.withValues(alpha: 0.15),
                                   ),
                                   child: Slider(
                                     value: (ble.walkUpRssiThreshold ?? -55.0).clamp(-70.0, -45.0),
@@ -617,11 +620,11 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                                   children: [
                                     Text(
                                       '-70 dBm (Xa hơn ~3m)',
-                                      style: GoogleFonts.plusJakartaSans(fontSize: 10, color: const Color(0xFF94A3B8)),
+                                      style: GoogleFonts.plusJakartaSans(fontSize: 10, color: AppColors.textMuted),
                                     ),
                                     Text(
                                       '-45 dBm (Sát xe ~0.5m)',
-                                      style: GoogleFonts.plusJakartaSans(fontSize: 10, color: const Color(0xFF94A3B8)),
+                                      style: GoogleFonts.plusJakartaSans(fontSize: 10, color: AppColors.textMuted),
                                     ),
                                   ],
                                 ),
@@ -629,11 +632,11 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                             ),
                           ),
                         ],
-                        const Divider(color: Color(0xFFF8FAFC), height: 1, thickness: 1, indent: 56, endIndent: 16),
+                        Divider(color: AppColors.panelSecondary, height: 1, thickness: 1, indent: 56, endIndent: 16),
                         _sheetToggleRow(
                           icon: Icons.security_rounded,
-                          iconColor: const Color(0xFFEF4444),
-                          iconBg: const Color(0xFFFEF2F2),
+                          iconColor: AppColors.red,
+                          iconBg: AppColors.redSoft,
                           title: 'Chống trộm từ xa',
                           subtitle: 'Khóa cứng nếu cách xa hơn 5m',
                           value: ble.antiTheft5m,
@@ -643,7 +646,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                             _heroSnack(v ? 'Đã kích hoạt chống trộm 5m' : 'Đã tắt chống trộm 5m');
                           },
                         ),
-                        const Divider(color: Color(0xFFF8FAFC), height: 1, thickness: 1, indent: 56, endIndent: 16),
+                        Divider(color: AppColors.panelSecondary, height: 1, thickness: 1, indent: 56, endIndent: 16),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           child: Row(
@@ -652,12 +655,12 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                                 width: 36,
                                 height: 36,
                                 decoration: BoxDecoration(
-                                  color: ble.isFindingBike ? const Color(0xFFFEF2F2) : const Color(0xFFEFF6FF),
+                                  color: ble.isFindingBike ? AppColors.redSoft : AppColors.primarySoft,
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Icon(
                                   ble.isFindingBike ? Icons.volume_off_rounded : Icons.campaign_rounded,
-                                  color: ble.isFindingBike ? const Color(0xFFEF4444) : const Color(0xFF2563EB),
+                                  color: ble.isFindingBike ? AppColors.red : AppColors.primary,
                                   size: 18,
                                 ),
                               ),
@@ -671,7 +674,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                                       style: GoogleFonts.plusJakartaSans(
                                         fontSize: 13.5,
                                         fontWeight: FontWeight.w600,
-                                        color: const Color(0xFF0F172A),
+                                        color: AppColors.textPrimary,
                                       ),
                                     ),
                                     const SizedBox(height: 2),
@@ -679,7 +682,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                                       ble.isFindingBike ? 'Đang hú còi định vị…' : 'Phát còi tìm xe trong bãi đỗ',
                                       style: GoogleFonts.plusJakartaSans(
                                         fontSize: 11.5,
-                                        color: ble.isFindingBike ? const Color(0xFFEF4444) : const Color(0xFF64748B),
+                                        color: ble.isFindingBike ? AppColors.red : AppColors.textSecondary,
                                         fontWeight: ble.isFindingBike ? FontWeight.w600 : FontWeight.w400,
                                       ),
                                     ),
@@ -688,9 +691,9 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                               ),
                               OutlinedButton(
                                 style: OutlinedButton.styleFrom(
-                                  foregroundColor: ble.isFindingBike ? const Color(0xFFEF4444) : const Color(0xFF2563EB),
+                                  foregroundColor: ble.isFindingBike ? AppColors.red : AppColors.primary,
                                   side: BorderSide(
-                                    color: ble.isFindingBike ? const Color(0xFFEF4444) : const Color(0xFFBFDBFE),
+                                    color: ble.isFindingBike ? AppColors.red : AppColors.primarySoftBorder,
                                   ),
                                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                   minimumSize: Size.zero,
@@ -724,7 +727,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: const Color(0xFF94A3B8),
+                      color: AppColors.textMuted,
                       letterSpacing: 0.8,
                     ),
                   ),
@@ -732,9 +735,9 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: AppColors.panel,
                       borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: const Color(0xFFF1F5F9)),
+                      border: Border.all(color: AppColors.panelBorder),
                       boxShadow: const [
                         BoxShadow(
                           color: Color(0x040F172A),
@@ -758,20 +761,20 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                                     style: GoogleFonts.plusJakartaSans(
                                       fontSize: 13.5,
                                       fontWeight: FontWeight.w600,
-                                      color: const Color(0xFF0F172A),
+                                      color: AppColors.textPrimary,
                                     ),
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
                                     'An toàn & tiết kiệm thêm 15% pin',
-                                    style: GoogleFonts.plusJakartaSans(fontSize: 11.5, color: const Color(0xFF64748B)),
+                                    style: GoogleFonts.plusJakartaSans(fontSize: 11.5, color: AppColors.textSecondary),
                                   ),
                                 ],
                               ),
                             ),
                             Switch.adaptive(
                               value: ble.speedLimitMode == 1,
-                              activeTrackColor: const Color(0xFF2563EB),
+                              activeTrackColor: AppColors.primaryFill,
                               onChanged: (v) async {
                                 final res = await ref.read(bleProvider.notifier).setSafeSpeedLimit60(v);
                                 _heroSnack(res);
@@ -781,7 +784,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                           ],
                         ),
                         const SizedBox(height: 12),
-                        const Divider(color: Color(0xFFF8FAFC), height: 1, thickness: 1),
+                        Divider(color: AppColors.panelSecondary, height: 1, thickness: 1),
                         const SizedBox(height: 10),
 
                         // Chế độ Grab
@@ -796,20 +799,20 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                                     style: GoogleFonts.plusJakartaSans(
                                       fontSize: 13.5,
                                       fontWeight: FontWeight.w600,
-                                      color: const Color(0xFF0F172A),
+                                      color: AppColors.textPrimary,
                                     ),
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
                                     'Bật = mức 1, tắt = mức 0. Chỉ đổi khi xe đứng yên',
-                                    style: GoogleFonts.plusJakartaSans(fontSize: 11.5, color: const Color(0xFF64748B)),
+                                    style: GoogleFonts.plusJakartaSans(fontSize: 11.5, color: AppColors.textSecondary),
                                   ),
                                 ],
                               ),
                             ),
                             Switch.adaptive(
                               value: ble.grabMode >= 1,
-                              activeTrackColor: const Color(0xFF10B981),
+                              activeTrackColor: AppColors.tertiary,
                               onChanged: (v) async {
                                 ref.read(bleProvider.notifier).setGrabMode(v ? 1 : 0);
                                 final res = await ref.read(bleProvider.notifier).setFwGrabMode(v);
@@ -837,14 +840,14 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                       height: 48,
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
+                        color: AppColors.panelSecondary,
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        border: Border.all(color: AppColors.panelBorderBright),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.settings_outlined, size: 18, color: Color(0xFF2563EB)),
+                          Icon(Icons.settings_outlined, size: 18, color: AppColors.primary),
                           const SizedBox(width: 8),
                           Flexible(
                             child: Text(
@@ -853,14 +856,14 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 0.5,
-                                color: const Color(0xFF2563EB),
+                                color: AppColors.primary,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           const SizedBox(width: 6),
-                          const Icon(Icons.arrow_forward_rounded, size: 15, color: Color(0xFF2563EB)),
+                          Icon(Icons.arrow_forward_rounded, size: 15, color: AppColors.primary),
                         ],
                       ),
                     ),
@@ -907,7 +910,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w600,
-                    color: const Color(0xFF0F172A),
+                    color: AppColors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -915,7 +918,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                   subtitle,
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 11.5,
-                    color: const Color(0xFF64748B),
+                    color: AppColors.textSecondary,
                   ),
                 ),
               ],
@@ -923,7 +926,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
           ),
           Switch.adaptive(
             value: value,
-            activeTrackColor: const Color(0xFF2563EB),
+            activeTrackColor: AppColors.primaryFill,
             onChanged: onChanged,
           ),
         ],
@@ -944,10 +947,10 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            color: selected ? const Color(0xFFEFF6FF) : const Color(0xFFF8FAFC),
+            color: selected ? AppColors.primarySoft : AppColors.panelSecondary,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: selected ? const Color(0xFF2563EB) : const Color(0xFFE2E8F0),
+              color: selected ? AppColors.primary : AppColors.panelBorderBright,
               width: selected ? 1.5 : 1.0,
             ),
           ),
@@ -958,7 +961,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 12.5,
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-                  color: selected ? const Color(0xFF2563EB) : const Color(0xFF0F172A),
+                  color: selected ? AppColors.primary : AppColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 2),
@@ -967,7 +970,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 9.5,
                   fontWeight: FontWeight.w500,
-                  color: selected ? const Color(0xFF2563EB) : const Color(0xFF94A3B8),
+                  color: selected ? AppColors.primary : AppColors.textMuted,
                 ),
               ),
             ],
@@ -996,7 +999,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.panel,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -1028,7 +1031,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                     width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFCBD5E1),
+                      color: AppColors.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -1045,7 +1048,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
-                            color: const Color(0xFF0F172A),
+                            color: AppColors.textPrimary,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -1053,13 +1056,13 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                           'Chuyển đổi xe đang điều khiển hoặc thêm xe mới',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 12,
-                            color: const Color(0xFF64748B),
+                            color: AppColors.textSecondary,
                           ),
                         ),
                       ],
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
+                      icon: Icon(Icons.close_rounded, color: AppColors.textSecondary),
                       onPressed: () => Navigator.pop(ctx),
                     ),
                   ],
@@ -1070,9 +1073,9 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEFF6FF),
+                    color: AppColors.primarySoft,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFBFDBFE), width: 1.5),
+                    border: Border.all(color: AppColors.primarySoftBorder, width: 1.5),
                   ),
                   child: Row(
                     children: [
@@ -1080,7 +1083,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                         width: 44,
                         height: 44,
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: AppColors.panel,
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: const [
                             BoxShadow(color: Color(0x100F172A), blurRadius: 6, offset: Offset(0, 2)),
@@ -1090,7 +1093,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                         child: Image.asset(
                           'assets/images/bike_logo_3d.png',
                           fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => const Icon(Icons.two_wheeler_rounded, color: Color(0xFF2563EB), size: 24),
+                          errorBuilder: (_, _, _) => Icon(Icons.two_wheeler_rounded, color: AppColors.primary, size: 24),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -1105,14 +1108,14 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                                   style: GoogleFonts.plusJakartaSans(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w700,
-                                    color: const Color(0xFF0F172A),
+                                    color: AppColors.textPrimary,
                                   ),
                                 ),
                                 const SizedBox(width: 6),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF2563EB),
+                                    color: AppColors.primary,
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
@@ -1125,12 +1128,12 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                             const SizedBox(height: 2),
                             Text(
                               infoStr,
-                              style: GoogleFonts.plusJakartaSans(fontSize: 11.5, color: const Color(0xFF475569)),
+                              style: GoogleFonts.plusJakartaSans(fontSize: 11.5, color: AppColors.textDim),
                             ),
                           ],
                         ),
                       ),
-                      const Icon(Icons.check_circle_rounded, color: Color(0xFF2563EB), size: 22),
+                      Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 22),
                     ],
                   ),
                 ),
@@ -1149,18 +1152,18 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                   child: Container(
                     height: 48,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEFF6FF),
+                      color: AppColors.primarySoft,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFBFDBFE), width: 1.2),
+                      border: Border.all(color: AppColors.primarySoftBorder, width: 1.2),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.bluetooth_searching_rounded, size: 18, color: Color(0xFF2563EB)),
+                        Icon(Icons.bluetooth_searching_rounded, size: 18, color: AppColors.primary),
                         const SizedBox(width: 8),
                         Text(
                           'TÌM & GHÉP ĐÔI XE (BLUETOOTH BLE)',
-                          style: GoogleFonts.plusJakartaSans(fontSize: 12.5, fontWeight: FontWeight.w700, color: const Color(0xFF2563EB), letterSpacing: 0.5),
+                          style: GoogleFonts.plusJakartaSans(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.primary, letterSpacing: 0.5),
                         ),
                       ],
                     ),
@@ -1186,7 +1189,9 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
         ? telemetry.kmLeft.round()
         : (hasTelemetry ? ((percent / 100.0) * 270).round() : null);
     final percentDisplay = hasTelemetry ? '$percent' : '--';
-    final kmLeftDisplay = hasTelemetry ? '$kmLeftVal' : '--';
+    // Xe không báo km còn lại → số hiển thị là ƯỚC TÍNH (% pin × 270 km danh định).
+    final kmEstimated = hasTelemetry && telemetry.kmLeft <= 0;
+    final kmLeftDisplay = hasTelemetry ? (kmEstimated ? '~$kmLeftVal' : '$kmLeftVal') : '--';
     final speed = telemetry?.speed ?? 0.0;
     final isBikeOn = telemetry?.isBikeOn == true;
     final isLocked = ble.isLocked;
@@ -1201,7 +1206,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                 : (isBikeOn ? 'Sẵn sàng chạy (Ready)' : 'Đang đỗ (Parking)')));
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: AppColors.bg,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -1235,7 +1240,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                               child: Image.asset(
                                 'assets/images/bike_logo_3d.png',
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, _, _) => const Icon(Icons.two_wheeler_rounded, size: 18, color: Color(0xFF2563EB)),
+                                errorBuilder: (_, _, _) => Icon(Icons.two_wheeler_rounded, size: 18, color: AppColors.primary),
                               ),
                             ),
                             Flexible(
@@ -1245,13 +1250,13 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                                   fontSize: 18,
                                   fontWeight: FontWeight.w700,
                                   letterSpacing: -0.3,
-                                  color: const Color(0xFF0F172A),
+                                  color: AppColors.textPrimary,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
                             const SizedBox(width: 4),
-                            const Icon(Icons.swap_horiz_rounded, size: 18, color: Color(0xFF2563EB)),
+                            Icon(Icons.swap_horiz_rounded, size: 18, color: AppColors.primary),
                           ],
                         ),
                       ),
@@ -1261,22 +1266,8 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                   IconButton(
                     tooltip: 'Đồng hồ tốc độ Cockpit HUD',
                     visualDensity: VisualDensity.compact,
-                    icon: const Icon(Icons.speed_rounded, size: 21, color: Color(0xFF0F172A)),
+                    icon: Icon(Icons.speed_rounded, size: 21, color: AppColors.textPrimary),
                     onPressed: () => Navigator.of(context).pushNamed('/dashboard'),
-                  ),
-                  // Nút mở nhanh Nhật ký BLE
-                  IconButton(
-                    tooltip: 'Nhật ký Bluetooth',
-                    visualDensity: VisualDensity.compact,
-                    icon: const Icon(Icons.receipt_long_rounded, size: 20, color: Color(0xFF6366F1)),
-                    onPressed: () => Navigator.of(context).pushNamed('/logs'),
-                  ),
-                  // Nút mở nhanh Firmware Lab
-                  IconButton(
-                    tooltip: 'Phòng Lab Firmware',
-                    visualDensity: VisualDensity.compact,
-                    icon: const Icon(Icons.science_rounded, size: 20, color: Color(0xFF8B5CF6)),
-                    onPressed: () => Navigator.of(context).pushNamed('/lab'),
                   ),
                   const SizedBox(width: 2),
                   // Badge Bluetooth Connected hình viên thuốc trắng
@@ -1286,9 +1277,9 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: AppColors.panel,
                         borderRadius: BorderRadius.circular(22),
-                        border: Border.all(color: connected ? const Color(0xFFBFDBFE) : const Color(0xFFE2E8F0)),
+                        border: Border.all(color: connected ? AppColors.primarySoftBorder : AppColors.panelBorderBright),
                         boxShadow: const [
                           BoxShadow(
                             color: Color(0x080F172A),
@@ -1303,7 +1294,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                           Icon(
                             connected ? Icons.bluetooth_connected_rounded : Icons.bluetooth_disabled_rounded,
                             size: 15,
-                            color: connected ? const Color(0xFF2563EB) : const Color(0xFF94A3B8),
+                            color: connected ? AppColors.primary : AppColors.textMuted,
                           ),
                           const SizedBox(width: 4),
                           Text(
@@ -1311,7 +1302,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                             style: GoogleFonts.plusJakartaSans(
                               fontSize: 11.5,
                               fontWeight: FontWeight.w600,
-                              color: connected ? const Color(0xFF0F172A) : const Color(0xFF94A3B8),
+                              color: connected ? AppColors.textPrimary : AppColors.textMuted,
                             ),
                           ),
                         ],
@@ -1338,7 +1329,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                       fontSize: 54,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -1.0,
-                      color: const Color(0xFF0F172A),
+                      color: AppColors.textPrimary,
                       fontFeatures: const [FontFeature.tabularFigures()],
                     ),
                   ),
@@ -1348,9 +1339,13 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                     style: GoogleFonts.spaceGrotesk(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
-                      color: const Color(0xFF64748B),
+                      color: AppColors.textSecondary,
                     ),
                   ),
+                  if (kmEstimated) ...[
+                    const SizedBox(width: 8),
+                    const FreshnessBadge(freshness: DataFreshness.estimated),
+                  ],
                   const Spacer(),
                   if (hasTelemetry) ...[
                     // Huy hiệu Chân chống nếu đang hạ
@@ -1358,21 +1353,21 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFEF2F2),
+                          color: AppColors.redSoft,
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFFFECACA)),
+                          border: Border.all(color: AppColors.redSoftBorder),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.report_problem_rounded, size: 13, color: Color(0xFFEF4444)),
+                            const Icon(Icons.report_problem_rounded, size: 13, color: AppColors.red),
                             const SizedBox(width: 4),
                             Text(
                               'HẠ CHỐNG',
                               style: GoogleFonts.spaceGrotesk(
                                 fontSize: 10.5,
                                 fontWeight: FontWeight.w800,
-                                color: const Color(0xFFEF4444),
+                                color: AppColors.red,
                               ),
                             ),
                           ],
@@ -1384,16 +1379,16 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEFF6FF),
+                        color: AppColors.primarySoft,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFFBFDBFE)),
+                        border: Border.all(color: AppColors.primarySoftBorder),
                       ),
                       child: Text(
                         'MODE ${telemetry.drivingModeShort}',
                         style: GoogleFonts.spaceGrotesk(
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
-                          color: const Color(0xFF2563EB),
+                          color: AppColors.primary,
                         ),
                       ),
                     ),
@@ -1409,14 +1404,14 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                   // Điện năng hiện có: % Pin + Km
                   Row(
                     children: [
-                      const Icon(Icons.bolt_rounded, size: 17, color: Color(0xFF10B981)),
+                      const Icon(Icons.bolt_rounded, size: 17, color: AppColors.tertiary),
                       const SizedBox(width: 4),
                       Text(
                         hasTelemetry ? '$percentDisplay% Pin ($kmLeftDisplay km)' : '--% Pin (Chưa kết nối xe)',
                         style: GoogleFonts.spaceGrotesk(
                           fontSize: 13.5,
                           fontWeight: FontWeight.w600,
-                          color: const Color(0xFF0F172A),
+                          color: AppColors.textPrimary,
                         ),
                       ),
                     ],
@@ -1428,8 +1423,8 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                       Container(
                         width: 9,
                         height: 9,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF2563EB),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -1439,13 +1434,13 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                         style: GoogleFonts.spaceGrotesk(
                           fontSize: 13.5,
                           fontWeight: FontWeight.w600,
-                          color: const Color(0xFF0F172A),
+                          color: AppColors.textPrimary,
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(width: 10),
-                  const Icon(Icons.swap_horiz_rounded, size: 16, color: Color(0xFF94A3B8)),
+                  Icon(Icons.swap_horiz_rounded, size: 16, color: AppColors.textMuted),
                 ],
               ),
 
@@ -1462,7 +1457,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                     child: Container(
                       height: 4,
                       decoration: BoxDecoration(
-                        color: hasTelemetry ? const Color(0xFF10B981) : const Color(0xFFE2E8F0),
+                        color: hasTelemetry ? AppColors.tertiary : AppColors.panelBorderBright,
                         borderRadius: BorderRadius.circular(3),
                       ),
                     ),
@@ -1474,7 +1469,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                     child: Container(
                       height: 4,
                       decoration: BoxDecoration(
-                        color: hasTelemetry ? const Color(0xFF2563EB) : const Color(0xFFE2E8F0),
+                        color: hasTelemetry ? AppColors.primary : AppColors.panelBorderBright,
                         borderRadius: BorderRadius.circular(3),
                       ),
                     ),
@@ -1490,11 +1485,30 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
-                  color: const Color(0xFF64748B),
+                  color: AppColors.textSecondary,
                 ),
               ),
 
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
+
+              // Thẻ trạng thái: kết nối · pin · tốc độ gần nhất + dấu thời gian · cảnh báo
+              OverviewStatusCard(
+                phase: ble.phase,
+                lastTelemetryAt: ref.read(bleProvider.notifier).lastTelemetryAt,
+                percent: telemetry?.percent,
+                speedKmh: telemetry?.speed,
+                isLocked: ble.isLocked,
+                onConnect: () => Navigator.of(context)
+                    .push(MaterialPageRoute(builder: (_) => const ScanScreen())),
+              ),
+              const SizedBox(height: 12),
+              OverviewShortcuts(
+                onHud: () => Navigator.of(context).pushNamed('/dashboard'),
+                onCharging: () => Navigator.of(context).pushNamed('/charging'),
+                onTrips: () => _openTripHistorySheet(context),
+              ),
+
+              const SizedBox(height: 14),
 
               // ══════════════════════════════════════════════════════════════
               // 3. GIỮA MÀN HÌNH: ẢNH XE MÁY ĐIỆN DAT BIKE QUANTUM
@@ -1504,7 +1518,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                 height: 230,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(24),
-                  color: Colors.white,
+                  color: AppColors.panel,
                   boxShadow: const [
                     BoxShadow(
                       color: Color(0x080F172A),
@@ -1522,8 +1536,8 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                       fit: BoxFit.contain,
                       width: double.infinity,
                       height: double.infinity,
-                      errorBuilder: (context, error, stackTrace) => const Center(
-                        child: Icon(Icons.two_wheeler_rounded, size: 90, color: Color(0xFF2563EB)),
+                      errorBuilder: (context, error, stackTrace) => Center(
+                        child: Icon(Icons.two_wheeler_rounded, size: 90, color: AppColors.primary),
                       ),
                     ),
                     // Badge trạng thái xe đang Bật / Khóa
@@ -1534,9 +1548,9 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFDCFCE7),
+                            color: AppColors.greenSoft,
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: const Color(0xFF86EFAC)),
+                            border: Border.all(color: AppColors.greenSoftBorder),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -1544,8 +1558,8 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                               Container(
                                 width: 6,
                                 height: 6,
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFF16A34A),
+                                decoration: BoxDecoration(
+                                  color: AppColors.greenText,
                                   shape: BoxShape.circle,
                                 ),
                               ),
@@ -1555,7 +1569,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                                 style: GoogleFonts.plusJakartaSans(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w700,
-                                  color: const Color(0xFF16A34A),
+                                  color: AppColors.greenText,
                                 ),
                               ),
                             ],
@@ -1573,9 +1587,9 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFFEF2F2),
+                              color: AppColors.redSoft,
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: const Color(0xFFEF4444)),
+                              border: Border.all(color: AppColors.red),
                               boxShadow: const [
                                 BoxShadow(color: Color(0x20EF4444), blurRadius: 8, offset: Offset(0, 2)),
                               ],
@@ -1583,14 +1597,14 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.volume_off_rounded, size: 14, color: Color(0xFFEF4444)),
+                                const Icon(Icons.volume_off_rounded, size: 14, color: AppColors.red),
                                 const SizedBox(width: 4),
                                 Text(
                                   'ĐANG HÚ CÒI · BẤM TẮT',
                                   style: GoogleFonts.plusJakartaSans(
                                     fontSize: 10,
                                     fontWeight: FontWeight.w800,
-                                    color: const Color(0xFFEF4444),
+                                    color: AppColors.red,
                                   ),
                                 ),
                               ],
@@ -1615,9 +1629,9 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
               Container(
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.panel,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFFF1F5F9)),
+                  border: Border.all(color: AppColors.panelBorder),
                   boxShadow: const [
                     BoxShadow(
                       color: Color(0x060F172A),
@@ -1637,32 +1651,32 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                           _quickActionButton(
                             icon: isLocked
                                 ? GeelyIcons.lock(
-                                    color: const Color(0xFFEF4444),
+                                    color: AppColors.red,
                                     size: 24,
                                   )
                                 : GeelyIcons.lockOpen(
-                                    color: const Color(0xFF2563EB),
+                                    color: AppColors.primary,
                                     size: 24,
                                   ),
                             label: isLocked ? 'Mở Khóa' : 'Khóa Cổ',
                             onTap: _quickLockToggle,
                             active: isLocked,
-                            activeColor: const Color(0xFFFEF2F2),
-                            activeBorderColor: const Color(0xFFFECACA),
+                            activeColor: AppColors.redSoft,
+                            activeBorderColor: AppColors.redSoftBorder,
                           ),
 
                           // 2. Bật / Tắt Nguồn Xe Máy Điện (Keyless Power)
                           _quickActionButton(
                             icon: Icon(
                               Icons.power_settings_new_rounded,
-                              color: isBikeOn ? const Color(0xFF10B981) : const Color(0xFF64748B),
+                              color: isBikeOn ? AppColors.tertiary : AppColors.textSecondary,
                               size: 24,
                             ),
                             label: isBikeOn ? 'Tắt Máy' : 'Bật Xe',
                             onTap: _quickPowerToggle,
                             active: isBikeOn,
-                            activeColor: const Color(0xFFF0FDF4),
-                            activeBorderColor: const Color(0xFFBBF7D0),
+                            activeColor: AppColors.greenSoft,
+                            activeBorderColor: AppColors.greenSoftBorder,
                           ),
 
                           // 3. Tìm Xe Trong Bãi (Còi & Đèn Định Vị - Bật / Tắt 2 chiều)
@@ -1670,24 +1684,24 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                             icon: ble.isFindingBike
                                 ? const Icon(
                                     Icons.volume_off_rounded,
-                                    color: Color(0xFFEF4444),
+                                    color: AppColors.red,
                                     size: 24,
                                   )
                                 : GeelyIcons.findBike(
-                                    color: const Color(0xFF2563EB),
+                                    color: AppColors.primary,
                                     size: 24,
                                   ),
                             label: ble.isFindingBike ? 'Tắt Còi' : 'Tìm Xe',
                             onTap: _quickFindBike,
                             active: ble.isFindingBike,
-                            activeColor: const Color(0xFFFEF2F2),
-                            activeBorderColor: const Color(0xFFFECACA),
+                            activeColor: AppColors.redSoft,
+                            activeBorderColor: AppColors.redSoftBorder,
                           ),
 
                           // 4. Đồng bộ thời gian thực Taplo (RTC)
                           _quickActionButton(
                             icon: GeelyIcons.clock(
-                              color: const Color(0xFF0F172A),
+                              color: AppColors.textPrimary,
                               size: 24,
                             ),
                             label: 'Đồng bộ giờ',
@@ -1697,7 +1711,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                       ),
                     ),
 
-                    const Divider(color: Color(0xFFF1F5F9), height: 1, thickness: 1),
+                    Divider(color: AppColors.panelBorder, height: 1, thickness: 1),
 
                     // Remote controls >
                     InkWell(
@@ -1713,10 +1727,10 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                color: const Color(0xFF0F172A),
+                                color: AppColors.textPrimary,
                               ),
                             ),
-                            const Icon(Icons.chevron_right_rounded, size: 20, color: Color(0xFF94A3B8)),
+                            Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.textMuted),
                           ],
                         ),
                       ),
@@ -1755,9 +1769,9 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.panel,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFF1F5F9)),
+        border: Border.all(color: AppColors.panelBorder),
         boxShadow: const [
           BoxShadow(
             color: Color(0x060F172A),
@@ -1776,13 +1790,13 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEFF6FF),
+                  color: AppColors.primarySoft,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFDBEAFE)),
+                  border: Border.all(color: AppColors.primarySoftBorder),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.alt_route_rounded,
-                  color: Color(0xFF2563EB),
+                  color: AppColors.primary,
                   size: 20,
                 ),
               ),
@@ -1796,7 +1810,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
-                        color: const Color(0xFF0F172A),
+                        color: AppColors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -1805,7 +1819,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
-                        color: const Color(0xFF64748B),
+                        color: AppColors.textSecondary,
                       ),
                     ),
                   ],
@@ -1817,9 +1831,9 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
+                    color: AppColors.panelSecondary,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    border: Border.all(color: AppColors.panelBorderBright),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -1829,14 +1843,14 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: const Color(0xFF2563EB),
+                          color: AppColors.primary,
                         ),
                       ),
                       const SizedBox(width: 2),
-                      const Icon(
+                      Icon(
                         Icons.chevron_right_rounded,
                         size: 16,
-                        color: Color(0xFF2563EB),
+                        color: AppColors.primary,
                       ),
                     ],
                   ),
@@ -1853,7 +1867,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
               Expanded(
                 child: _tripMetricItem(
                   icon: Icons.straighten_rounded,
-                  iconColor: const Color(0xFF2563EB),
+                  iconColor: AppColors.primary,
                   label: 'Quãng đường',
                   value: trip.distanceKm.toStringAsFixed(1),
                   unit: 'km',
@@ -1877,7 +1891,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
               Expanded(
                 child: _tripMetricItem(
                   icon: Icons.electric_bolt_rounded,
-                  iconColor: const Color(0xFFD97706),
+                  iconColor: AppColors.amberText,
                   label: 'Tốc độ tối đa',
                   value: trip.maxSpeedKmh.toStringAsFixed(0),
                   unit: 'km/h',
@@ -1887,7 +1901,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
               Expanded(
                 child: _tripMetricItem(
                   icon: Icons.battery_charging_full_rounded,
-                  iconColor: const Color(0xFF059669),
+                  iconColor: AppColors.greenText,
                   label: 'Pin tiêu hao',
                   value: '-${trip.usedPercent}',
                   unit: '%',
@@ -1902,13 +1916,13 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: const Color(0xFFF0FDF4),
+              color: AppColors.greenSoft,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFDCFCE7)),
+              border: Border.all(color: AppColors.greenSoft),
             ),
             child: Row(
               children: [
-                const Icon(Icons.eco_rounded, size: 16, color: Color(0xFF16A34A)),
+                Icon(Icons.eco_rounded, size: 16, color: AppColors.greenText),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -1916,7 +1930,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 11.5,
                       fontWeight: FontWeight.w600,
-                      color: const Color(0xFF166534),
+                      color: AppColors.greenText,
                     ),
                   ),
                 ),
@@ -1950,14 +1964,14 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                     child: Row(
                       children: [
-                        const Icon(Icons.map_rounded, size: 14, color: Color(0xFF2563EB)),
+                        Icon(Icons.map_rounded, size: 14, color: AppColors.primary),
                         const SizedBox(width: 4),
                         Text(
                           'Bản đồ',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 11.5,
                             fontWeight: FontWeight.w700,
-                            color: const Color(0xFF2563EB),
+                            color: AppColors.primary,
                           ),
                         ),
                       ],
@@ -1972,14 +1986,14 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                     child: Row(
                       children: [
-                        const Icon(Icons.refresh_rounded, size: 14, color: Color(0xFF166534)),
+                        Icon(Icons.refresh_rounded, size: 14, color: AppColors.greenText),
                         const SizedBox(width: 4),
                         Text(
                           'Đặt lại',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 11.5,
                             fontWeight: FontWeight.w700,
-                            color: const Color(0xFF166534),
+                            color: AppColors.greenText,
                           ),
                         ),
                       ],
@@ -2004,9 +2018,9 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: AppColors.panelSecondary,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFF1F5F9)),
+        border: Border.all(color: AppColors.panelBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2021,7 +2035,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w500,
-                    color: const Color(0xFF64748B),
+                    color: AppColors.textSecondary,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -2039,7 +2053,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                 style: GoogleFonts.spaceGrotesk(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
-                  color: const Color(0xFF0F172A),
+                  color: AppColors.textPrimary,
                   letterSpacing: -0.5,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
@@ -2050,7 +2064,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: const Color(0xFF94A3B8),
+                  color: AppColors.textMuted,
                 ),
               ),
             ],
@@ -2069,14 +2083,14 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
           'Đặt Lại Chuyến Đi (Trip)',
           style: GoogleFonts.plusJakartaSans(
             fontWeight: FontWeight.w700,
-            color: const Color(0xFF0F172A),
+            color: AppColors.textPrimary,
           ),
         ),
         content: Text(
           'Hệ thống sẽ đặt lại quãng đường, thời gian lái và vận tốc trung bình của chuyến đi hiện tại về 0.',
           style: GoogleFonts.plusJakartaSans(
             fontSize: 14,
-            color: const Color(0xFF475569),
+            color: AppColors.textDim,
             height: 1.4,
           ),
         ),
@@ -2087,13 +2101,13 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
               'HỦY',
               style: GoogleFonts.plusJakartaSans(
                 fontWeight: FontWeight.w600,
-                color: const Color(0xFF64748B),
+                color: AppColors.textSecondary,
               ),
             ),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF2563EB),
+              backgroundColor: AppColors.primaryFill,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             onPressed: () => Navigator.pop(ctx, true),
@@ -2112,7 +2126,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.panel,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -2147,7 +2161,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                         width: 40,
                         height: 4,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFCBD5E1),
+                          color: AppColors.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
@@ -2164,7 +2178,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                                 style: GoogleFonts.plusJakartaSans(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w700,
-                                  color: const Color(0xFF0F172A),
+                                  color: AppColors.textPrimary,
                                 ),
                               ),
                               const SizedBox(height: 2),
@@ -2172,7 +2186,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                                 'Tổng hợp hành trình & hiệu suất xe máy điện',
                                 style: GoogleFonts.plusJakartaSans(
                                   fontSize: 12,
-                                  color: const Color(0xFF64748B),
+                                  color: AppColors.textSecondary,
                                 ),
                               ),
                             ],
@@ -2181,7 +2195,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                         if (history.isNotEmpty)
                           IconButton(
                             tooltip: 'Xóa lịch sử chuyến đi',
-                            icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFF94A3B8), size: 20),
+                            icon: Icon(Icons.delete_outline_rounded, color: AppColors.textMuted, size: 20),
                             onPressed: () async {
                               final confirm = await showDialog<bool>(
                                 context: context,
@@ -2195,10 +2209,10 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                                   actions: [
                                     TextButton(
                                       onPressed: () => Navigator.pop(c, false),
-                                      child: Text('HỦY', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600, color: const Color(0xFF64748B))),
+                                      child: Text('HỦY', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
                                     ),
                                     FilledButton(
-                                      style: FilledButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
+                                      style: FilledButton.styleFrom(backgroundColor: AppColors.red),
                                       onPressed: () => Navigator.pop(c, true),
                                       child: Text('XÓA HẾT', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
                                     ),
@@ -2211,7 +2225,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                             },
                           ),
                         IconButton(
-                          icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
+                          icon: Icon(Icons.close_rounded, color: AppColors.textSecondary),
                           onPressed: () => Navigator.pop(ctx),
                         ),
                       ],
@@ -2222,9 +2236,9 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: AppColors.panel,
                         borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: const Color(0xFFF1F5F9), width: 1),
+                        border: Border.all(color: AppColors.panelBorder, width: 1),
                         boxShadow: const [
                           BoxShadow(
                             color: Color(0x060F172A),
@@ -2243,27 +2257,27 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                                 style: GoogleFonts.plusJakartaSans(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
-                                  color: const Color(0xFF64748B),
+                                  color: AppColors.textSecondary,
                                   letterSpacing: 1.0,
                                 ),
                               ),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFECFDF5),
+                                  color: AppColors.greenSoft,
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: const Color(0xFFA7F3D0)),
+                                  border: Border.all(color: AppColors.greenSoftBorder),
                                 ),
                                 child: Row(
                                   children: [
-                                    const Icon(Icons.eco_rounded, size: 12, color: Color(0xFF059669)),
+                                    Icon(Icons.eco_rounded, size: 12, color: AppColors.greenText),
                                     const SizedBox(width: 4),
                                     Text(
                                       '-${savedCo2.toStringAsFixed(1)} kg CO₂',
                                       style: GoogleFonts.plusJakartaSans(
                                         fontSize: 11,
                                         fontWeight: FontWeight.w700,
-                                        color: const Color(0xFF059669),
+                                        color: AppColors.greenText,
                                       ),
                                     ),
                                   ],
@@ -2277,11 +2291,11 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                               Expanded(
                                 child: _summaryStat(label: 'Tổng quãng đường', value: weekDist.toStringAsFixed(1), unit: 'km'),
                               ),
-                              Container(width: 1, height: 32, color: const Color(0xFFF1F5F9)),
+                              Container(width: 1, height: 32, color: AppColors.surfaceContainer),
                               Expanded(
                                 child: _summaryStat(label: 'Số chuyến đi', value: '$weekCount', unit: 'chuyến'),
                               ),
-                              Container(width: 1, height: 32, color: const Color(0xFFF1F5F9)),
+                              Container(width: 1, height: 32, color: AppColors.surfaceContainer),
                               Expanded(
                                 child: _summaryStat(
                                   label: 'Tiết kiệm xăng',
@@ -2303,7 +2317,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: const Color(0xFF64748B),
+                        color: AppColors.textSecondary,
                         letterSpacing: 1.0,
                       ),
                     ),
@@ -2314,20 +2328,20 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFC),
+                          color: AppColors.panelSecondary,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          border: Border.all(color: AppColors.panelBorderBright),
                         ),
                         child: Column(
                           children: [
-                            const Icon(Icons.route_outlined, size: 44, color: Color(0xFF94A3B8)),
+                            Icon(Icons.route_outlined, size: 44, color: AppColors.textMuted),
                             const SizedBox(height: 12),
                             Text(
                               'Chưa có chuyến đi nào được lưu',
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
-                                color: const Color(0xFF475569),
+                                color: AppColors.textDim,
                               ),
                             ),
                             const SizedBox(height: 6),
@@ -2335,7 +2349,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                               'Hành trình sẽ tự động lưu khi xe di chuyển trên 50m\nhoặc khi bấm Đặt lại Trip / Tắt xe.',
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 12,
-                                color: const Color(0xFF94A3B8),
+                                color: AppColors.textMuted,
                                 height: 1.4,
                               ),
                               textAlign: TextAlign.center,
@@ -2408,7 +2422,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
               style: GoogleFonts.spaceGrotesk(
                 fontSize: 17,
                 fontWeight: FontWeight.w800,
-                color: const Color(0xFF0F172A),
+                color: AppColors.textPrimary,
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
@@ -2418,7 +2432,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 10.5,
                 fontWeight: FontWeight.w600,
-                color: const Color(0xFF64748B),
+                color: AppColors.textSecondary,
               ),
             ),
           ],
@@ -2428,7 +2442,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
           label,
           style: GoogleFonts.plusJakartaSans(
             fontSize: 10,
-            color: const Color(0xFF64748B),
+            color: AppColors.textSecondary,
           ),
           textAlign: TextAlign.center,
         ),
@@ -2449,10 +2463,10 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.panel,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isRecent ? const Color(0xFFBFDBFE) : const Color(0xFFF1F5F9),
+          color: isRecent ? AppColors.primarySoftBorder : AppColors.panelBorder,
         ),
         boxShadow: const [
           BoxShadow(
@@ -2471,13 +2485,13 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: isRecent ? const Color(0xFFEFF6FF) : const Color(0xFFF8FAFC),
+                  color: isRecent ? AppColors.primarySoft : AppColors.panelSecondary,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
                   Icons.two_wheeler_rounded,
                   size: 18,
-                  color: isRecent ? const Color(0xFF2563EB) : const Color(0xFF64748B),
+                  color: isRecent ? AppColors.primary : AppColors.textSecondary,
                 ),
               ),
               const SizedBox(width: 10),
@@ -2492,7 +2506,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 13.5,
                             fontWeight: FontWeight.w700,
-                            color: const Color(0xFF0F172A),
+                            color: AppColors.textPrimary,
                           ),
                         ),
                         const SizedBox(width: 6),
@@ -2500,16 +2514,16 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFECFDF5),
+                              color: AppColors.greenSoft,
                               borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: const Color(0xFFA7F3D0)),
+                              border: Border.all(color: AppColors.greenSoftBorder),
                             ),
                             child: Text(
                               'GPS',
                               style: GoogleFonts.spaceGrotesk(
                                 fontSize: 9,
                                 fontWeight: FontWeight.w800,
-                                color: const Color(0xFF059669),
+                                color: AppColors.greenText,
                               ),
                             ),
                           ),
@@ -2520,7 +2534,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                       time,
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 11.5,
-                        color: const Color(0xFF64748B),
+                        color: AppColors.textSecondary,
                       ),
                     ),
                   ],
@@ -2531,7 +2545,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                 style: GoogleFonts.spaceGrotesk(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
-                  color: const Color(0xFF0F172A),
+                  color: AppColors.textPrimary,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
@@ -2545,13 +2559,13 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
               _tripBadge(
                 icon: Icons.battery_std_rounded,
                 label: batteryUsed,
-                color: const Color(0xFF059669),
+                color: AppColors.greenText,
               ),
               const SizedBox(width: 8),
               _tripBadge(
                 icon: Icons.eco_rounded,
                 label: '-$co2Saved CO₂',
-                color: const Color(0xFF16A34A),
+                color: AppColors.greenText,
               ),
               const Spacer(),
               Row(
@@ -2562,14 +2576,14 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: const Color(0xFF2563EB),
+                      color: AppColors.primary,
                     ),
                   ),
                   const SizedBox(width: 2),
-                  const Icon(
+                  Icon(
                     Icons.chevron_right_rounded,
                     size: 16,
-                    color: Color(0xFF2563EB),
+                    color: AppColors.primary,
                   ),
                 ],
               ),
@@ -2583,26 +2597,26 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
   Widget _tripBadge({
     required IconData icon,
     required String label,
-    Color color = const Color(0xFF64748B),
+    Color? color,
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: AppColors.panelSecondary,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: AppColors.panelBorderBright),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12, color: color),
+          Icon(icon, size: 12, color: color ?? AppColors.textSecondary),
           const SizedBox(width: 4),
           Text(
             label,
             style: GoogleFonts.plusJakartaSans(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: const Color(0xFF334155),
+              color: AppColors.textDim,
             ),
           ),
         ],
@@ -2629,15 +2643,15 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
             height: 52,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: active ? (activeColor ?? const Color(0xFFEFF6FF)) : const Color(0xFFF8FAFC),
+              color: active ? (activeColor ?? AppColors.primarySoft) : AppColors.panelSecondary,
               border: Border.all(
-                color: active ? (activeBorderColor ?? const Color(0xFFBFDBFE)) : const Color(0xFFF1F5F9),
+                color: active ? (activeBorderColor ?? AppColors.primarySoftBorder) : AppColors.panelBorder,
                 width: 1,
               ),
               boxShadow: active
                   ? [
                       BoxShadow(
-                        color: (activeBorderColor ?? const Color(0xFF2563EB)).withValues(alpha: 0.15),
+                        color: (activeBorderColor ?? AppColors.primary).withValues(alpha: 0.15),
                         blurRadius: 10,
                         offset: const Offset(0, 3),
                       ),
@@ -2652,7 +2666,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
             style: GoogleFonts.plusJakartaSans(
               fontSize: 11.5,
               fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-              color: active ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+              color: active ? AppColors.textPrimary : AppColors.textSecondary,
               letterSpacing: 0.2,
             ),
           ),

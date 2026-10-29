@@ -22,6 +22,8 @@ import '../settings/vehicle_settings_screen.dart';
 import '../regen/regen_screen.dart';
 import '../logs/logs_screen.dart';
 import '../firmware_lab/firmware_lab_screen.dart';
+import '../../ui/app_theme.dart';
+import '../../ui/components.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -31,7 +33,7 @@ class ProfileScreen extends ConsumerWidget {
     final ble = ref.watch(bleProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: AppColors.bg,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -50,7 +52,7 @@ class ProfileScreen extends ConsumerWidget {
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 1.0,
-                      color: const Color(0xFF64748B),
+                      color: AppColors.textSecondary,
                     ),
                   ),
                   InkWell(
@@ -63,21 +65,21 @@ class ProfileScreen extends ConsumerWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEFF6FF),
+                        color: AppColors.primarySoft,
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFFBFDBFE)),
+                        border: Border.all(color: AppColors.primarySoftBorder),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.bluetooth_searching_rounded, size: 16, color: Color(0xFF2563EB)),
+                          Icon(Icons.bluetooth_searching_rounded, size: 16, color: AppColors.primary),
                           const SizedBox(width: 6),
                           Text(
                             'Tìm Xe BLE',
                             style: GoogleFonts.plusJakartaSans(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: const Color(0xFF2563EB),
+                              color: AppColors.primary,
                             ),
                           ),
                         ],
@@ -124,7 +126,7 @@ class ProfileScreen extends ConsumerWidget {
                   fontWeight: FontWeight.w800,
                   height: 1.15,
                   letterSpacing: -0.5,
-                  color: const Color(0xFF0F172A),
+                  color: AppColors.textPrimary,
                 ),
               ),
 
@@ -140,7 +142,7 @@ class ProfileScreen extends ConsumerWidget {
                 style: GoogleFonts.spaceGrotesk(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
-                  color: const Color(0xFF94A3B8),
+                  color: AppColors.textMuted,
                   letterSpacing: 0.3,
                 ),
               ),
@@ -161,14 +163,14 @@ class ProfileScreen extends ConsumerWidget {
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 14.5,
                           fontWeight: FontWeight.w600,
-                          color: const Color(0xFF2563EB),
+                          color: AppColors.primary,
                         ),
                       ),
                       const SizedBox(width: 6),
-                      const Icon(
+                      Icon(
                         Icons.edit_outlined,
                         size: 16,
-                        color: Color(0xFF2563EB),
+                        color: AppColors.primary,
                       ),
                     ],
                   ),
@@ -178,27 +180,51 @@ class ProfileScreen extends ConsumerWidget {
               const SizedBox(height: 32),
 
               // ══════════════════════════════════════════════════════════════
+              // 5b. GIAO DIỆN — Hệ thống / Sáng / Tối (lưu bền)
+              // ══════════════════════════════════════════════════════════════
+              Text(
+                'Giao diện',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const ThemeModeSelector(),
+              const SizedBox(height: 4),
+              Text(
+                'Chế độ "Hệ thống" tự đổi Sáng/Tối theo điện thoại.',
+                style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AppColors.textMuted),
+              ),
+              const SizedBox(height: 20),
+
+              Text(
+                'Xe, pin & dữ liệu',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // ══════════════════════════════════════════════════════════════
               // 6. DANH SÁCH CÀI ĐẶT THIẾT YẾU CHO XE MÁY ĐIỆN TRÊN NỀN TRẮNG
               // ══════════════════════════════════════════════════════════════
               Container(
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.panel,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFFF1F5F9)),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x060F172A),
-                      blurRadius: 16,
-                      offset: Offset(0, 4),
-                    ),
-                  ],
+                  border: Border.all(color: AppColors.panelBorder),
+                  boxShadow: AppColors.cardShadow,
                 ),
                 child: Column(
                   children: [
                     // 0. Quản lý xe & Ghép đôi xe Dat Bike
                     _profileListItem(
-                      icon: const Icon(Icons.bluetooth_searching_rounded, size: 22, color: Color(0xFF2563EB)),
+                      icon: Icon(Icons.bluetooth_searching_rounded, size: 22, color: AppColors.primary),
                       title: 'Ghép đôi xe mới',
                       onTap: () {
                         Navigator.of(context).push(
@@ -207,11 +233,11 @@ class ProfileScreen extends ConsumerWidget {
                       },
                     ),
 
-                    const Divider(color: Color(0xFFF1F5F9), height: 1, thickness: 1, indent: 56, endIndent: 20),
+                    Divider(color: AppColors.panelBorder, height: 1, thickness: 1, indent: 56, endIndent: 20),
 
                     // 1. Cài đặt xe & Phanh tái sinh
                     _profileListItem(
-                      icon: const Icon(Icons.tune_rounded, size: 22, color: Color(0xFF0F172A)),
+                      icon: Icon(Icons.tune_rounded, size: 22, color: AppColors.textPrimary),
                       title: 'Cài đặt xe & Phanh',
                       onTap: () {
                         Navigator.of(context).push(
@@ -220,11 +246,20 @@ class ProfileScreen extends ConsumerWidget {
                       },
                     ),
 
-                    const Divider(color: Color(0xFFF1F5F9), height: 1, thickness: 1, indent: 56, endIndent: 20),
+                    Divider(color: AppColors.panelBorder, height: 1, thickness: 1, indent: 56, endIndent: 20),
+
+                    // 1a. Sạc & Năng lượng (trước đây là tab riêng)
+                    _profileListItem(
+                      icon: Icon(Icons.bolt_rounded, size: 22, color: AppColors.amberText),
+                      title: 'Sạc & Năng lượng',
+                      onTap: () => Navigator.of(context).pushNamed('/charging'),
+                    ),
+
+                    Divider(color: AppColors.panelBorder, height: 1, thickness: 1, indent: 56, endIndent: 20),
 
                     // 1b. Regen (phanh tái sinh) — mô-đun có kiểm soát
                     _profileListItem(
-                      icon: const Icon(Icons.battery_charging_full_rounded, size: 22, color: Color(0xFF16A34A)),
+                      icon: Icon(Icons.battery_charging_full_rounded, size: 22, color: AppColors.greenText),
                       title: 'Phanh tái sinh (Regen)',
                       onTap: () {
                         Navigator.of(context).push(
@@ -233,11 +268,11 @@ class ProfileScreen extends ConsumerWidget {
                       },
                     ),
 
-                    const Divider(color: Color(0xFFF1F5F9), height: 1, thickness: 1, indent: 56, endIndent: 20),
+                    Divider(color: AppColors.panelBorder, height: 1, thickness: 1, indent: 56, endIndent: 20),
 
                     // 2. Bác Sĩ Pin & Chẩn đoán 24-Cell BMS
                     _profileListItem(
-                      icon: const Icon(Icons.medical_services_outlined, size: 22, color: Color(0xFF10B981)),
+                      icon: const Icon(Icons.medical_services_outlined, size: 22, color: AppColors.tertiary),
                       title: 'Bác sĩ pin & BMS',
                       onTap: () {
                         Navigator.of(context).push(
@@ -246,11 +281,11 @@ class ProfileScreen extends ConsumerWidget {
                       },
                     ),
 
-                    const Divider(color: Color(0xFFF1F5F9), height: 1, thickness: 1, indent: 56, endIndent: 20),
+                    Divider(color: AppColors.panelBorder, height: 1, thickness: 1, indent: 56, endIndent: 20),
 
                     // 3. Cập nhật phần mềm xe qua mạng (OTA)
                     _profileListItem(
-                      icon: const Icon(Icons.system_update_rounded, size: 22, color: Color(0xFF2563EB)),
+                      icon: Icon(Icons.system_update_rounded, size: 22, color: AppColors.primary),
                       title: 'Cập nhật phần mềm (OTA)',
                       onTap: () {
                         Navigator.of(context).push(
@@ -259,7 +294,7 @@ class ProfileScreen extends ConsumerWidget {
                       },
                     ),
 
-                    const Divider(color: Color(0xFFF1F5F9), height: 1, thickness: 1, indent: 56, endIndent: 20),
+                    Divider(color: AppColors.panelBorder, height: 1, thickness: 1, indent: 56, endIndent: 20),
 
                     // 4. Nhật ký BLE & Xuất Log
                     _profileListItem(
@@ -272,7 +307,7 @@ class ProfileScreen extends ConsumerWidget {
                       },
                     ),
 
-                    const Divider(color: Color(0xFFF1F5F9), height: 1, thickness: 1, indent: 56, endIndent: 20),
+                    Divider(color: AppColors.panelBorder, height: 1, thickness: 1, indent: 56, endIndent: 20),
 
                     // 5. Phòng Kiểm Nghiệm Firmware Lab
                     _profileListItem(
@@ -285,11 +320,11 @@ class ProfileScreen extends ConsumerWidget {
                       },
                     ),
 
-                    const Divider(color: Color(0xFFF1F5F9), height: 1, thickness: 1, indent: 56, endIndent: 20),
+                    Divider(color: AppColors.panelBorder, height: 1, thickness: 1, indent: 56, endIndent: 20),
 
                     // 6. Thông tin ứng dụng (About)
                     _profileListItem(
-                      icon: const Icon(Icons.info_outline_rounded, size: 22, color: Color(0xFF0F172A)),
+                      icon: Icon(Icons.info_outline_rounded, size: 22, color: AppColors.textPrimary),
                       title: 'Thông tin ứng dụng',
                       onTap: () {
                         showAboutDialog(
@@ -303,7 +338,7 @@ class ProfileScreen extends ConsumerWidget {
                               width: 44,
                               height: 44,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, _, _) => const Icon(Icons.two_wheeler_rounded, size: 36, color: Color(0xFF2563EB)),
+                              errorBuilder: (_, _, _) => Icon(Icons.two_wheeler_rounded, size: 36, color: AppColors.primary),
                             ),
                           ),
                           children: [
@@ -316,46 +351,29 @@ class ProfileScreen extends ConsumerWidget {
                       },
                     ),
 
-                    const Divider(color: Color(0xFFF1F5F9), height: 1, thickness: 1, indent: 56, endIndent: 20),
+                    Divider(color: AppColors.panelBorder, height: 1, thickness: 1, indent: 56, endIndent: 20),
 
                     // 7. Ngắt kết nối xe
                     _profileListItem(
-                      icon: const Icon(Icons.link_off_rounded, size: 22, color: Color(0xFFEF4444)),
+                      icon: const Icon(Icons.link_off_rounded, size: 22, color: AppColors.red),
                       title: 'Ngắt kết nối xe',
                       onTap: () {
-                        showDialog(
-                          context: context,
-                          builder: (ctx) => AlertDialog(
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                            title: Text('Ngắt Kết Nối Xe', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
-                            content: Text(
-                              'Bạn có chắc chắn muốn ngắt kết nối Bluetooth khỏi xe ${ble.bikeName ?? "Dat Bike"}?',
-                              style: GoogleFonts.plusJakartaSans(fontSize: 14),
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx),
-                                child: Text('HỦY', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600, color: const Color(0xFF64748B))),
-                              ),
-                              FilledButton(
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: const Color(0xFFEF4444),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                ),
-                                onPressed: () async {
-                                  Navigator.pop(ctx);
-                                  await ref.read(bleProvider.notifier).disconnect();
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Đã ngắt kết nối Bluetooth')),
-                                    );
-                                  }
-                                },
-                                child: Text('NGẮT KẾT NỐI', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
-                              ),
-                            ],
-                          ),
-                        );
+                        () async {
+                          final ok = await showConfirmDialog(
+                            context,
+                            title: 'Ngắt kết nối xe?',
+                            message:
+                                'Ngắt Bluetooth khỏi xe ${ble.bikeName ?? "Dat Bike"}? Bạn có thể kết nối lại bất cứ lúc nào.',
+                            confirmLabel: 'Ngắt kết nối',
+                            destructive: true,
+                            icon: Icons.link_off_rounded,
+                          );
+                          if (!ok) return;
+                          await ref.read(bleProvider.notifier).disconnect();
+                          if (context.mounted) {
+                            showAppSnack(context, 'Đã ngắt kết nối Bluetooth', kind: SnackKind.success);
+                          }
+                        }();
                       },
                     ),
                   ],
@@ -389,7 +407,7 @@ class ProfileScreen extends ConsumerWidget {
             children: [
               Text(
                 'Tên hiển thị chủ xe',
-                style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600, color: const Color(0xFF64748B)),
+                style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
               ),
               const SizedBox(height: 6),
               TextField(
@@ -403,7 +421,7 @@ class ProfileScreen extends ConsumerWidget {
               const SizedBox(height: 16),
               Text(
                 'Tên gọi của xe',
-                style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600, color: const Color(0xFF64748B)),
+                style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
               ),
               const SizedBox(height: 6),
               TextField(
@@ -418,7 +436,7 @@ class ProfileScreen extends ConsumerWidget {
                 const SizedBox(height: 8),
                 Text(
                   '💡 Tên xe sẽ được lưu vào flash xe qua cổng Bluetooth.',
-                  style: GoogleFonts.plusJakartaSans(fontSize: 11, color: const Color(0xFF10B981)),
+                  style: GoogleFonts.plusJakartaSans(fontSize: 11, color: AppColors.tertiary),
                 ),
               ],
             ],
@@ -429,12 +447,12 @@ class ProfileScreen extends ConsumerWidget {
             onPressed: () => Navigator.pop(ctx),
             child: Text(
               'HỦY',
-              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600, color: const Color(0xFF64748B)),
+              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600, color: AppColors.textSecondary),
             ),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF2563EB),
+              backgroundColor: AppColors.primaryFill,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             onPressed: () async {
@@ -496,16 +514,16 @@ class ProfileScreen extends ConsumerWidget {
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 14.5,
                   fontWeight: FontWeight.w500,
-                  color: const Color(0xFF0F172A),
+                  color: AppColors.textPrimary,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            const Icon(
+            Icon(
               Icons.chevron_right_rounded,
               size: 22,
-              color: Color(0xFF94A3B8),
+              color: AppColors.textMuted,
             ),
           ],
         ),

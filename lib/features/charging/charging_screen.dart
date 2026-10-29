@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/ble/ble_controller.dart';
 import '../battery/battery_diagnostics_screen.dart';
+import '../../ui/app_theme.dart';
 
 class ChargingScreen extends ConsumerStatefulWidget {
   const ChargingScreen({super.key});
@@ -21,7 +22,10 @@ class _ChargingScreenState extends ConsumerState<ChargingScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message, style: GoogleFonts.plusJakartaSans(fontSize: 13)),
+        content: Text(
+          message,
+          style: GoogleFonts.plusJakartaSans(fontSize: 13),
+        ),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         duration: const Duration(seconds: 3),
@@ -36,7 +40,8 @@ class _ChargingScreenState extends ConsumerState<ChargingScreen> {
     final telemetry = ble.lastTelemetry;
     final hasTelemetry = connected && telemetry != null;
 
-    final isCharging = hasTelemetry && (telemetry.charging != null || telemetry.phase > 0.5);
+    final isCharging =
+        hasTelemetry && (telemetry.charging != null || telemetry.phase > 0.5);
     final percent = telemetry?.percent;
     final percentStr = (hasTelemetry && percent != null) ? '$percent' : '--';
     final voltage = telemetry?.voltage ?? 0.0;
@@ -53,25 +58,31 @@ class _ChargingScreenState extends ConsumerState<ChargingScreen> {
         : '---';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: AppColors.bg,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: Color(0xFF0F172A)),
-          onPressed: () {
-            if (Navigator.of(context).canPop()) {
-              Navigator.of(context).pop();
-            }
-          },
-        ),
+        leading: !Navigator.of(context).canPop()
+            ? null
+            : IconButton(
+                icon: Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  size: 20,
+                  color: AppColors.textPrimary,
+                ),
+                onPressed: () {
+                  if (Navigator.of(context).canPop()) {
+                    Navigator.of(context).pop();
+                  }
+                },
+              ),
         centerTitle: true,
         title: Text(
           'Power Control',
           style: GoogleFonts.plusJakartaSans(
             fontSize: 18,
             fontWeight: FontWeight.w700,
-            color: const Color(0xFF0F172A),
+            color: AppColors.textPrimary,
           ),
         ),
       ),
@@ -97,7 +108,7 @@ class _ChargingScreenState extends ConsumerState<ChargingScreen> {
                       fontSize: 54,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -1.0,
-                      color: const Color(0xFF0F172A),
+                      color: AppColors.textPrimary,
                       fontFeatures: const [FontFeature.tabularFigures()],
                     ),
                   ),
@@ -107,7 +118,7 @@ class _ChargingScreenState extends ConsumerState<ChargingScreen> {
                     style: GoogleFonts.spaceGrotesk(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
-                      color: const Color(0xFF64748B),
+                      color: AppColors.textSecondary,
                     ),
                   ),
                 ],
@@ -123,7 +134,7 @@ class _ChargingScreenState extends ConsumerState<ChargingScreen> {
                 height: 235,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(24),
-                  color: Colors.white,
+                  color: AppColors.panel,
                   boxShadow: const [
                     BoxShadow(
                       color: Color(0x080F172A),
@@ -141,25 +152,39 @@ class _ChargingScreenState extends ConsumerState<ChargingScreen> {
                       fit: BoxFit.cover,
                       width: double.infinity,
                       height: double.infinity,
-                      errorBuilder: (context, error, stackTrace) => const Center(
-                        child: Icon(Icons.bolt_rounded, size: 80, color: Color(0xFF10B981)),
-                      ),
+                      errorBuilder: (context, error, stackTrace) =>
+                          const Center(
+                            child: Icon(
+                              Icons.bolt_rounded,
+                              size: 80,
+                              color: AppColors.tertiary,
+                            ),
+                          ),
                     ),
 
                     Positioned(
                       bottom: 24,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
-                          color: isCharging ? const Color(0xE622C55E) : const Color(0xE60F172A),
+                          color: isCharging
+                              ? const Color(0xE622C55E)
+                              : const Color(0xE60F172A),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: isCharging ? const Color(0xFF86EFAC) : const Color(0xFF334155),
+                            color: isCharging
+                                ? AppColors.greenSoftBorder
+                                : AppColors.textDim,
                             width: 1.5,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: isCharging ? const Color(0x6622C55E) : const Color(0x33000000),
+                              color: isCharging
+                                  ? const Color(0x6622C55E)
+                                  : const Color(0x33000000),
                               blurRadius: 16,
                               spreadRadius: 2,
                             ),
@@ -169,7 +194,9 @@ class _ChargingScreenState extends ConsumerState<ChargingScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              isCharging ? Icons.bolt_rounded : Icons.battery_charging_full_rounded,
+                              isCharging
+                                  ? Icons.bolt_rounded
+                                  : Icons.battery_charging_full_rounded,
                               size: 16,
                               color: Colors.white,
                             ),
@@ -181,7 +208,9 @@ class _ChargingScreenState extends ConsumerState<ChargingScreen> {
                                 fontWeight: FontWeight.w800,
                                 color: Colors.white,
                                 letterSpacing: 0.5,
-                                fontFeatures: const [FontFeature.tabularFigures()],
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures(),
+                                ],
                               ),
                             ),
                           ],
@@ -201,13 +230,19 @@ class _ChargingScreenState extends ConsumerState<ChargingScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   _statusBullet(
-                    color: isCharging ? const Color(0xFF22C55E) : const Color(0xFF94A3B8),
-                    label: isCharging ? 'Đang sạc an toàn' : (connected ? 'Chưa cắm sạc' : 'Chưa kết nối xe'),
+                    color: isCharging
+                        ? const Color(0xFF22C55E)
+                        : AppColors.textMuted,
+                    label: isCharging
+                        ? 'Đang sạc an toàn'
+                        : (connected ? 'Chưa cắm sạc' : 'Chưa kết nối xe'),
                   ),
                   const SizedBox(width: 18),
                   _statusBullet(
-                    color: const Color(0xFF2563EB),
-                    label: isCharging ? 'Cổng sạc Dat Charge' : 'Chuẩn sạc 72V Li-ion',
+                    color: AppColors.primary,
+                    label: isCharging
+                        ? 'Cổng sạc Dat Charge'
+                        : 'Chuẩn sạc 72V Li-ion',
                   ),
                 ],
               ),
@@ -221,9 +256,9 @@ class _ChargingScreenState extends ConsumerState<ChargingScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(22),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.panel,
                   borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: const Color(0xFFF1F5F9)),
+                  border: Border.all(color: AppColors.panelBorder),
                   boxShadow: const [
                     BoxShadow(
                       color: Color(0x060F172A),
@@ -240,7 +275,7 @@ class _ChargingScreenState extends ConsumerState<ChargingScreen> {
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
-                        color: const Color(0xFF0F172A),
+                        color: AppColors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -254,7 +289,7 @@ class _ChargingScreenState extends ConsumerState<ChargingScreen> {
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
-                            color: const Color(0xFF64748B),
+                            color: AppColors.textSecondary,
                           ),
                         ),
                         Text(
@@ -262,13 +297,17 @@ class _ChargingScreenState extends ConsumerState<ChargingScreen> {
                           style: GoogleFonts.spaceGrotesk(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: const Color(0xFF0F172A),
+                            color: AppColors.textPrimary,
                           ),
                         ),
                       ],
                     ),
 
-                    const Divider(color: Color(0xFFF1F5F9), height: 26, thickness: 1),
+                    Divider(
+                      color: AppColors.panelBorder,
+                      height: 26,
+                      thickness: 1,
+                    ),
 
                     // Hàng 2: Dòng điện, Áp, Công suất thật từ BMS
                     Row(
@@ -279,16 +318,21 @@ class _ChargingScreenState extends ConsumerState<ChargingScreen> {
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
-                            color: const Color(0xFF64748B),
+                            color: AppColors.textSecondary,
                           ),
                         ),
                         Row(
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 7,
+                                vertical: 3,
+                              ),
                               margin: const EdgeInsets.only(right: 8),
                               decoration: BoxDecoration(
-                                color: isCharging ? const Color(0xFFDCFCE7) : const Color(0xFFF1F5F9),
+                                color: isCharging
+                                    ? AppColors.greenSoft
+                                    : AppColors.surfaceContainer,
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
@@ -296,7 +340,9 @@ class _ChargingScreenState extends ConsumerState<ChargingScreen> {
                                 style: GoogleFonts.plusJakartaSans(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
-                                  color: isCharging ? const Color(0xFF16A34A) : const Color(0xFF64748B),
+                                  color: isCharging
+                                      ? AppColors.greenText
+                                      : AppColors.textSecondary,
                                 ),
                               ),
                             ),
@@ -307,7 +353,7 @@ class _ChargingScreenState extends ConsumerState<ChargingScreen> {
                               style: GoogleFonts.spaceGrotesk(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                color: const Color(0xFF0F172A),
+                                color: AppColors.textPrimary,
                               ),
                             ),
                           ],
@@ -315,7 +361,11 @@ class _ChargingScreenState extends ConsumerState<ChargingScreen> {
                       ],
                     ),
 
-                    const Divider(color: Color(0xFFF1F5F9), height: 26, thickness: 1),
+                    Divider(
+                      color: AppColors.panelBorder,
+                      height: 26,
+                      thickness: 1,
+                    ),
 
                     // Hàng 3: Nhiệt độ pack Pin
                     Row(
@@ -326,21 +376,27 @@ class _ChargingScreenState extends ConsumerState<ChargingScreen> {
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
-                            color: const Color(0xFF64748B),
+                            color: AppColors.textSecondary,
                           ),
                         ),
                         Text(
-                          hasTelemetry ? '${(telemetry.bmsTemp).toStringAsFixed(1)} °C' : '---',
+                          hasTelemetry
+                              ? '${(telemetry.bmsTemp).toStringAsFixed(1)} °C'
+                              : '---',
                           style: GoogleFonts.spaceGrotesk(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: const Color(0xFF0F172A),
+                            color: AppColors.textPrimary,
                           ),
                         ),
                       ],
                     ),
 
-                    const Divider(color: Color(0xFFF1F5F9), height: 26, thickness: 1),
+                    Divider(
+                      color: AppColors.panelBorder,
+                      height: 26,
+                      thickness: 1,
+                    ),
 
                     // Hàng 4: Chọn Profile sạc Era (8a2b0d10)
                     Text(
@@ -348,29 +404,59 @@ class _ChargingScreenState extends ConsumerState<ChargingScreen> {
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w600,
-                        color: const Color(0xFF0F172A),
+                        color: AppColors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 10),
                     Row(
                       children: [
-                        _profilePill('Tiêu Chuẩn', 'Standard', ble.chargingProfile == 0, connected, () async {
-                          ref.read(bleProvider.notifier).setChargingProfile(0);
-                          final res = await ref.read(bleProvider.notifier).setFwChargingProfile(0);
-                          _showSnack(res);
-                        }),
+                        _profilePill(
+                          'Tiêu Chuẩn',
+                          'Standard',
+                          ble.chargingProfile == 0,
+                          connected,
+                          () async {
+                            ref
+                                .read(bleProvider.notifier)
+                                .setChargingProfile(0);
+                            final res = await ref
+                                .read(bleProvider.notifier)
+                                .setFwChargingProfile(0);
+                            _showSnack(res);
+                          },
+                        ),
                         const SizedBox(width: 8),
-                        _profilePill('Sạc Nhanh', 'Fast', ble.chargingProfile == 1, connected, () async {
-                          ref.read(bleProvider.notifier).setChargingProfile(1);
-                          final res = await ref.read(bleProvider.notifier).setFwChargingProfile(1);
-                          _showSnack(res);
-                        }),
+                        _profilePill(
+                          'Sạc Nhanh',
+                          'Fast',
+                          ble.chargingProfile == 1,
+                          connected,
+                          () async {
+                            ref
+                                .read(bleProvider.notifier)
+                                .setChargingProfile(1);
+                            final res = await ref
+                                .read(bleProvider.notifier)
+                                .setFwChargingProfile(1);
+                            _showSnack(res);
+                          },
+                        ),
                         const SizedBox(width: 8),
-                        _profilePill('Tăng Tốc', 'Boost', ble.chargingProfile == 2, connected, () async {
-                          ref.read(bleProvider.notifier).setChargingProfile(2);
-                          final res = await ref.read(bleProvider.notifier).setFwChargingProfile(2);
-                          _showSnack(res);
-                        }),
+                        _profilePill(
+                          'Tăng Tốc',
+                          'Boost',
+                          ble.chargingProfile == 2,
+                          connected,
+                          () async {
+                            ref
+                                .read(bleProvider.notifier)
+                                .setChargingProfile(2);
+                            final res = await ref
+                                .read(bleProvider.notifier)
+                                .setFwChargingProfile(2);
+                            _showSnack(res);
+                          },
+                        ),
                       ],
                     ),
 
@@ -382,14 +468,17 @@ class _ChargingScreenState extends ConsumerState<ChargingScreen> {
                       height: 50,
                       child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF10B981),
+                          backgroundColor: AppColors.tertiary,
                           foregroundColor: Colors.white,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
                           ),
                         ),
-                        icon: const Icon(Icons.medical_services_outlined, size: 20),
+                        icon: const Icon(
+                          Icons.medical_services_outlined,
+                          size: 20,
+                        ),
                         label: Text(
                           'Bác Sĩ Pin & Chẩn Đoán 24 Cell',
                           style: GoogleFonts.plusJakartaSans(
@@ -400,7 +489,9 @@ class _ChargingScreenState extends ConsumerState<ChargingScreen> {
                         ),
                         onPressed: () {
                           Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const BatteryDiagnosticsScreen()),
+                            MaterialPageRoute(
+                              builder: (_) => const BatteryDiagnosticsScreen(),
+                            ),
                           );
                         },
                       ),
@@ -417,7 +508,13 @@ class _ChargingScreenState extends ConsumerState<ChargingScreen> {
     );
   }
 
-  Widget _profilePill(String label, String sub, bool selected, bool connected, VoidCallback onTap) {
+  Widget _profilePill(
+    String label,
+    String sub,
+    bool selected,
+    bool connected,
+    VoidCallback onTap,
+  ) {
     return Expanded(
       child: InkWell(
         onTap: connected ? onTap : null,
@@ -425,10 +522,10 @@ class _ChargingScreenState extends ConsumerState<ChargingScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
           decoration: BoxDecoration(
-            color: selected ? const Color(0xFFEFF6FF) : const Color(0xFFF8FAFC),
+            color: selected ? AppColors.primarySoft : AppColors.panelSecondary,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: selected ? const Color(0xFF2563EB) : const Color(0xFFE2E8F0),
+              color: selected ? AppColors.primary : AppColors.panelBorderBright,
               width: selected ? 1.5 : 1.0,
             ),
           ),
@@ -439,7 +536,7 @@ class _ChargingScreenState extends ConsumerState<ChargingScreen> {
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: selected ? const Color(0xFF2563EB) : const Color(0xFF0F172A),
+                  color: selected ? AppColors.primary : AppColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 2),
@@ -448,7 +545,7 @@ class _ChargingScreenState extends ConsumerState<ChargingScreen> {
                 style: GoogleFonts.spaceGrotesk(
                   fontSize: 10,
                   fontWeight: FontWeight.w500,
-                  color: selected ? const Color(0xFF2563EB) : const Color(0xFF64748B),
+                  color: selected ? AppColors.primary : AppColors.textSecondary,
                 ),
               ),
             ],
@@ -465,10 +562,7 @@ class _ChargingScreenState extends ConsumerState<ChargingScreen> {
         Container(
           width: 7,
           height: 7,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 6),
         Text(
@@ -476,7 +570,7 @@ class _ChargingScreenState extends ConsumerState<ChargingScreen> {
           style: GoogleFonts.plusJakartaSans(
             fontSize: 12.5,
             fontWeight: FontWeight.w500,
-            color: const Color(0xFF0F172A),
+            color: AppColors.textPrimary,
           ),
         ),
       ],
