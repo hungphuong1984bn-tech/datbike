@@ -52,7 +52,7 @@ class ConnectService : Service() {
 
         createNotificationChannel()
 
-        val title = intent?.getStringExtra(EXTRA_TITLE) ?: "My Bike"
+        val title = intent?.getStringExtra(EXTRA_TITLE) ?: "THBIKE"
         val text = intent?.getStringExtra(EXTRA_TEXT) ?: "Đang duy trì kết nối xe điện..."
 
         val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
@@ -64,7 +64,7 @@ class ConnectService : Service() {
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(text)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_stat_thbike)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
@@ -86,10 +86,10 @@ class ConnectService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "My Bike Kết Nối",
+                "THBIKE Kết nối",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Duy trì kết nối Bluetooth liên tục với xe My Bike"
+                description = "Duy trì kết nối Bluetooth liên tục với xe THBIKE"
             }
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(channel)

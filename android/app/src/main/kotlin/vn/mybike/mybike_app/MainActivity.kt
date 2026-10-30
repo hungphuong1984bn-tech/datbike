@@ -7,97 +7,88 @@ import android.provider.MediaStore
 import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
 
 class MainActivity : FlutterActivity() {
-    private val channelName = "vn.mybike/export"
+    // Dart dùng CẢ HAI tên kênh (lịch sử đặt tên): "vn.mybike/export" (cluster)
+    // và "vn.datbike/export" (Logs, ForegroundService). Trước đây "vn.datbike"
+    // chỉ có openMap nên exportToDownloads / startForegroundService ném
+    // MissingPluginException (xem app_errors.jsonl). Nay cả hai kênh dùng chung
+    // một handler.
+    private val channelNames = listOf("vn.mybike/export", "vn.datbike/export")
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName).setMethodCallHandler { call, result ->
-            when (call.method) {
-                "exportToDownloads" -> {
-                    val paths = call.argument<List<String>>("paths") ?: emptyList()
-                    try {
-                        val exported = exportToDownloads(paths)
-                        result.success(exported)
-                    } catch (e: Exception) {
-                        result.error("EXPORT_FAILED", e.message, null)
-                    }
-                }
-                "startForegroundService" -> {
-                    val title = call.argument<String>("title")
-                    val text = call.argument<String>("text")
-                    try {
-                        ConnectService.start(this, title, text)
-                        result.success(true)
-                    } catch (e: Exception) {
-                        result.error("FOREGROUND_START_FAILED", e.message, null)
-                    }
-                }
-                "stopForegroundService" -> {
-                    try {
-                        ConnectService.stop(this)
-                        result.success(true)
-                    } catch (e: Exception) {
-                        result.error("FOREGROUND_STOP_FAILED", e.message, null)
-                    }
-                }
-                "keepScreenOn" -> {
-                    val on = call.argument<Boolean>("on") ?: false
-                    runOnUiThread {
-                        if (on) {
-                            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                        } else {
-                            window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                        }
-                    }
-                    result.success(true)
-                }
-                "openMap" -> {
-                    val url = call.argument<String>("url")
-                    try {
-                        if (url != null) {
-                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
-                            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                            startActivity(intent)
-                            result.success(true)
-                        } else {
-                            result.error("URL_NULL", "URL is null", null)
-                        }
-                    } catch (e: Exception) {
-                        result.error("MAP_FAILED", e.message, null)
-                    }
-                }
-                else -> result.notImplemented()
-            }
+        for (name in channelNames) {
+            MethodChannel(flutterEngine.dartExecutor.binaryMessenger, name)
+                .setMethodCallHandler { call, result -> handleCall(call, result) }
         }
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "vn.datbike/export").setMethodCallHandler { call, result ->
-            when (call.method) {
-                "openMap" -> {
-                    val url = call.argument<String>("url")
-                    try {
-                        if (url != null) {
-                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
-                            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                            startActivity(intent)
-                            result.success(true)
-                        } else {
-                            result.error("URL_NULL", "URL is null", null)
-                        }
-                    } catch (e: Exception) {
-                        result.error("MAP_FAILED", e.message, null)
+    }
+
+    private fun handleCall(call: MethodCall, result: MethodChannel.Result) {
+        when (call.method) {
+            "exportToDownloads" -> {
+                val paths = call.argument<List<String>>("paths") ?: emptyList()
+                try {
+                    result.success(exportToDownloads(paths))
+                } catch (e: Exception) {
+                    result.error("EXPORT_FAILED", e.message, null)
+                }
+            }
+            "startForegroundService" -> {
+                val title = call.argument<String>("title")
+                val text = call.argument<String>("text")
+                try {
+                    ConnectService.start(this, title, text)
+                    result.success(true)
+                } catch (e: Exception) {
+                    result.error("FOREGROUND_START_FAILED", e.message, null)
+                }
+            }
+            "stopForegroundService" -> {
+                try {
+                    ConnectService.stop(this)
+                    result.success(true)
+                } catch (e: Exception) {
+                    result.error("FOREGROUND_STOP_FAILED", e.message, null)
+                }
+            }
+            "keepScreenOn" -> {
+                val on = call.argument<Boolean>("on") ?: false
+                runOnUiThread {
+                    if (on) {
+                        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    } else {
+                        window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                     }
                 }
-                else -> result.notImplemented()
+                result.success(true)
             }
+            "openMap" -> {
+                val url = call.argument<String>("url")
+                try {
+                    if (url != null) {
+                        val intent = android.content.Intent(
+                            android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        startActivity(intent)
+                        result.success(true)
+                    } else {
+                        result.error("URL_NULL", "URL is null", null)
+                    }
+                } catch (e: Exception) {
+                    result.error("MAP_FAILED", e.message, null)
+                }
+            }
+            else -> result.notImplemented()
         }
     }
 
     private fun exportToDownloads(paths: List<String>): List<String> {
         val exported = mutableListOf<String>()
-        val subDir = "MyBikeLogs"
+        val subDir = "THBIKE_Logs"
         for (path in paths) {
             val src = File(path)
             if (!src.exists()) continue
@@ -127,7 +118,7 @@ class MainActivity : FlutterActivity() {
             exported.add(src.name)
         }
         if (exported.isEmpty()) throw IllegalStateException("Không có file nào để export")
-        Log.i("DatBikeExport", "Exported ${exported.size} file(s) to Downloads/$subDir")
+        Log.i("THBIKEExport", "Exported ${exported.size} file(s) to Downloads/$subDir")
         return exported
     }
 }

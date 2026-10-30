@@ -1,17 +1,20 @@
 #!/usr/bin/env bash
-# Build release APK universal DUY NHẤT và bàn giao thành TH_Bike_Latest.apk.
+# Build release APK universal DUY NHẤT và bàn giao thành THBIKE-vX.Y.Z.apk
+# (X.Y.Z lấy từ `version:` trong pubspec.yaml).
 #
 #   tool/build_release_apk.sh            # build + chép + kiểm tra
 #   tool/build_release_apk.sh --install  # thêm: adb install -r nếu có thiết bị
 #
 # Thư mục bàn giao: $TH_BIKE_DELIVERY_DIR (mặc định: <repo>/dist).
 # Không đổi package ID, chữ ký, phiên bản. Build lỗi => thoát mã != 0 và KHÔNG
-# tạo TH_Bike_Latest.apk (không đổi tên file lỗi/cũ thành file hoàn chỉnh).
+# tạo file bàn giao (không đổi tên file lỗi/cũ thành file hoàn chỉnh).
 set -euo pipefail
 
 EXPECTED_PKG="vn.mybike.mybike_app"
-OUT_NAME="TH_Bike_Latest.apk"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+VER_NAME="$(grep -m1 '^version:' "$ROOT/pubspec.yaml" | awk '{print $2}' | cut -d+ -f1)"
+[[ "$VER_NAME" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "✗ LỖI: version trong pubspec không đúng dạng X.Y.Z: '$VER_NAME'" >&2; exit 1; }
+OUT_NAME="THBIKE-v${VER_NAME}.apk"
 DELIVERY="${TH_BIKE_DELIVERY_DIR:-$ROOT/dist}"
 SRC="$ROOT/build/app/outputs/flutter-apk/app-release.apk"
 DO_INSTALL=0
