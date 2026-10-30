@@ -407,9 +407,9 @@ class _Hero extends StatelessWidget {
           EnergyBattery(
             percent: connected ? soc : null,
             charging: charging && !full,
-            color: (soc != null && soc <= 15)
+            color: (soc ?? 101) <= 15
                 ? AppColors.red
-                : (soc != null && soc <= 30)
+                : (soc ?? 101) <= 30
                     ? AppColors.amber
                     : AppColors.tertiary,
           ),

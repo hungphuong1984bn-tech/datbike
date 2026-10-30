@@ -401,6 +401,9 @@ class AgeText extends StatefulWidget {
   final String prefix;
   const AgeText({super.key, required this.at, this.style, this.prefix = ''});
 
+  /// Định dạng "x giây trước" dùng chung (protection_view gọi AgeText.format).
+  static String format(DateTime at, DateTime now) => _AgeTextState.format(at, now);
+
   @override
   State<AgeText> createState() => _AgeTextState();
 }
