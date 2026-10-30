@@ -26,7 +26,7 @@ class GpxExporter {
     if (points.isEmpty) return null;
     final b = StringBuffer()
       ..writeln('<?xml version="1.0" encoding="UTF-8"?>')
-      ..writeln('<gpx version="1.1" creator="My Bike App" '
+      ..writeln('<gpx version="1.1" creator="THBIKE" '
           'xmlns="http://www.topografix.com/GPX/1/1">')
       ..writeln('  <metadata><name>${_esc(name)}</name>'
           '<time>${points.first.timestamp.toUtc().toIso8601String()}</time></metadata>')

@@ -96,7 +96,7 @@ class ConnectFailure implements Exception {
             '(Android 12+) hoặc "Vị trí" (Android 11 trở xuống) rồi thử lại.';
       case ConnectFailureKind.permissionPermanentlyDenied:
         return 'Quyền Bluetooth đã bị từ chối vĩnh viễn. Mở Cài đặt > Ứng '
-            'dụng > My Bike > Quyền để bật lại.';
+            'dụng > THBIKE > Quyền để bật lại.';
       case ConnectFailureKind.adapterOff:
         return 'Bluetooth của điện thoại đang tắt. Hãy bật Bluetooth.';
       case ConnectFailureKind.busy:

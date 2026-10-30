@@ -433,7 +433,7 @@ class BatteryDiagnosticsService {
             ? 'Phát hiện lỗi phần cứng IC lái cổng MOSFET (DRV830x). Biến tần đã tự ngắt để tránh nổ transistor.'
             : 'Mạch lái xung MOSFET hoạt động chính xác, điện áp kích cổng ổn định.',
         recommendation: isDrvFault
-            ? 'Tắt nguồn xe ngay lập tức. Đưa xe về Dat Bike Store hoặc trạm dịch vụ để kiểm tra bo mạch ECU.'
+            ? 'Tắt nguồn xe ngay lập tức. Đưa xe về cửa hàng/trạm dịch vụ chính hãng để kiểm tra bo mạch ECU.'
             : 'Mạch công suất hoạt động hoàn hảo.',
       ),
       ObdDiagnosticItem(

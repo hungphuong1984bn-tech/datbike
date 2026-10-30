@@ -31,7 +31,7 @@ class MapTileService {
         return TileLayer(
           urlTemplate: 'https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png',
           subdomains: const ['a', 'b', 'c'],
-          userAgentPackageName: 'com.datbike.app',
+          userAgentPackageName: 'vn.mybike.mybike_app',
           maxZoom: 20,
           tileProvider: offlineProvider,
         );
@@ -40,7 +40,7 @@ class MapTileService {
         return TileLayer(
           urlTemplate: 'https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png',
           subdomains: const ['a', 'b', 'c'],
-          userAgentPackageName: 'com.datbike.app',
+          userAgentPackageName: 'vn.mybike.mybike_app',
           maxZoom: 20,
           tileProvider: offlineProvider,
           tileBuilder: (context, tileWidget, tile) {
@@ -55,7 +55,7 @@ class MapTileService {
         return TileLayer(
           urlTemplate: 'https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png',
           subdomains: const ['a', 'b', 'c'],
-          userAgentPackageName: 'com.datbike.app',
+          userAgentPackageName: 'vn.mybike.mybike_app',
           maxZoom: 20,
           tileProvider: offlineProvider,
         );
@@ -63,7 +63,7 @@ class MapTileService {
       case MapTileStyle.osmStandard:
         return TileLayer(
           urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-          userAgentPackageName: 'com.datbike.app',
+          userAgentPackageName: 'vn.mybike.mybike_app',
           maxZoom: 19,
           tileProvider: offlineProvider,
         );

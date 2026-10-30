@@ -19,6 +19,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../proto/bike_log.dart';
+import '../proximity/proximity_controller.dart';
+import '../proximity/proximity_engine.dart';
 import '../models/trip_gps_point.dart';
 import '../services/foreground_service.dart';
 import '../services/trip_gps_tracker.dart';
@@ -166,6 +168,8 @@ class BleState {
   final Uint8List? sessionKey;
   final BikeLogMsg? lastTelemetry;
   final BatteryLogMsg? lastBattery;
+  /// Thời điểm app nhận gói BMS gần nhất (để phân biệt dữ liệu trực tiếp / cũ).
+  final DateTime? lastBatteryAt;
   final bool isFindingBike;
   final TripData trip;
   final List<TripRecord> tripHistory;
@@ -214,6 +218,7 @@ class BleState {
     this.sessionKey,
     this.lastTelemetry,
     this.lastBattery,
+    this.lastBatteryAt,
     this.isFindingBike = false,
     this.trip = const TripData(),
     this.tripHistory = const [],
@@ -263,6 +268,7 @@ class BleState {
     Uint8List? sessionKey,
     BikeLogMsg? lastTelemetry,
     BatteryLogMsg? lastBattery,
+    DateTime? lastBatteryAt,
     bool? isFindingBike,
     TripData? trip,
     List<TripRecord>? tripHistory,
@@ -311,6 +317,7 @@ class BleState {
         sessionKey: sessionKey ?? this.sessionKey,
         lastTelemetry: lastTelemetry ?? this.lastTelemetry,
         lastBattery: lastBattery ?? this.lastBattery,
+        lastBatteryAt: lastBatteryAt ?? this.lastBatteryAt,
         isFindingBike: isFindingBike ?? this.isFindingBike,
         trip: trip ?? this.trip,
         tripHistory: tripHistory ?? this.tripHistory,
@@ -420,7 +427,6 @@ class BleController extends Notifier<BleState> {
 
   final _rssiKalman = KalmanFilter1D(processNoise: 0.008, measurementNoise: 4.0);
   double? _smoothedRssi;
-  int _autoLockCounter = 0;
 
   /// Thời điểm nhận khung telemetry hợp lệ gần nhất. Dùng để KHÔNG đưa ra
   /// quyết định an toàn (tắt xe tự động) dựa trên tốc độ cũ.
@@ -437,7 +443,6 @@ class BleController extends Notifier<BleState> {
   /// Dùng cho UI hiển thị dấu thời gian/độ mới của dữ liệu.
   DateTime? get lastTelemetryAt => _lastTelemetryAt;
   int _theftCounter = 0;
-  int _unlockNearCounter = 0;
   bool _autoSecureBusy = false; // đang chạy chuỗi tắt→ARM (chống chạy chồng)
   DateTime? _lastUserCommandAt; // user-intent-first: ngừng automation 10s sau thao tác chủ động
   int _antiForgetCounter = 0;
@@ -1509,7 +1514,9 @@ class BleController extends Notifier<BleState> {
   /// BẬT KHÓA AN TOÀN (ARM eec8fd7f).
   /// AN TOÀN: KHÔNG có ngoại lệ — không bao giờ tự tắt nguồn khi xe đang chạy
   /// hoặc khi chưa có telemetry mới (kể cả chế độ chống trộm).
-  Future<void> _runAutoSecureSequence({
+  /// Trả về true khi lệnh ARM đã được xe nhận ghi (KHÔNG phải xác nhận trạng
+  /// thái khóa — giao thức không có đọc lại trạng thái khóa).
+  Future<bool> _runAutoSecureSequence({
     required bool theft,
     required double speed,
     required double rssi,
@@ -1521,7 +1528,7 @@ class BleController extends Notifier<BleState> {
         'telemetry_fresh': _telemetryFresh,
         'theft': theft,
       });
-      return;
+      return false;
     }
     _autoSecureBusy = true;
     try {
@@ -1534,17 +1541,23 @@ class BleController extends Notifier<BleState> {
           await turnOffBike();
         } catch (e) {
           BleLogger.instance.event('auto_secure_power_off_err', {'error': '$e'});
-          return; // không ARM nếu không tắt được — tránh khóa khi xe đang cấp nguồn
+          return false; // không ARM nếu không tắt được — tránh khóa khi xe đang cấp nguồn
         }
         await Future.delayed(const Duration(seconds: 2));
       }
       // 2. Bật khóa an toàn
-      await setImmobilizer(true);
-      state = state.copyWith(
-        message: theft
-            ? '🚨 CHỐNG TRỘM: thiết bị ở cách xa — xe đã TẮT và KHÓA AN TOÀN.'
-            : '🔒 Xe đã TẮT và TỰ KHÓA AN TOÀN (bạn đã rời xa xe).',
-      );
+      final msg = await setImmobilizer(true);
+      final ok = msg.startsWith('Đã ghi');
+      if (ok) {
+        state = state.copyWith(
+          message: theft
+              ? '🚨 CHỐNG TRỘM: thiết bị ở cách xa — đã gửi lệnh TẮT và KHÓA AN TOÀN.'
+              : '🔒 Đã gửi lệnh TẮT xe và KHÓA AN TOÀN (bạn đã rời xa xe).',
+        );
+      } else {
+        state = state.copyWith(message: '⚠️ Tự khóa chưa thành công: $msg');
+      }
+      return ok;
     } finally {
       _autoSecureBusy = false;
     }
@@ -1570,7 +1583,7 @@ class BleController extends Notifier<BleState> {
   }
 
   /// Walk-up: tự MỞ khóa an toàn & tùy chọn BẬT XE SẴN khi user tới gần
-  Future<void> _runWalkUpUnlockAndPower(double rssi) async {
+  Future<bool> _runWalkUpUnlockAndPower(double rssi) async {
     BleLogger.instance.event('walk_up_triggered', {
       'rssi': rssi,
       'auto_power': state.walkUpAutoPowerOn,
@@ -1579,7 +1592,11 @@ class BleController extends Notifier<BleState> {
     try {
       final wasLocked = state.isLocked;
       if (wasLocked) {
-        await unlockBike();
+        final msg = await unlockBike();
+        if (!msg.startsWith('Đã ghi')) {
+          state = state.copyWith(message: '⚠️ Tự mở khóa chưa thành công: $msg');
+          return false;
+        }
       }
 
       if (state.walkUpAutoPowerOn) {
@@ -1590,17 +1607,19 @@ class BleController extends Notifier<BleState> {
           }
           await turnOnBike();
           state = state.copyWith(
-            message: '⚡ Đã tự MỞ KHÓA & BẬT XE SẴN — Sẵn sàng khởi hành!',
+            message: '⚡ Đã gửi lệnh MỞ KHÓA & BẬT XE SẴN — chờ xe phản hồi.',
           );
-          return;
+          return true;
         }
       }
 
       state = state.copyWith(
-        message: '👋 Đã tự MỞ KHÓA AN TOÀN — sẵn sàng. Bấm BẬT XE để khởi động.',
+        message: '👋 Đã gửi lệnh MỞ KHÓA AN TOÀN. Bấm BẬT XE để khởi động.',
       );
+      return true;
     } catch (e) {
       BleLogger.instance.event('walk_up_err', {'error': '$e'});
+      return false;
     }
   }
 
@@ -1982,7 +2001,7 @@ class BleController extends Notifier<BleState> {
     _writeCounter = 0;
     state = BleState(phase: BlePhase.connecting, device: device, bikeName: name);
     unawaited(ForegroundService.start(
-      title: 'Dat Bike',
+      title: 'THBIKE',
       text: 'Đang kết nối với ${name ?? device.platformName}...',
     ));
     await BleLogger.instance.startSession();
@@ -2072,7 +2091,7 @@ class BleController extends Notifier<BleState> {
     state = state.copyWith(
         phase: BlePhase.connected, isAuthorized: true, message: null);
     unawaited(ForegroundService.start(
-      title: 'Dat Bike: ${state.bikeName ?? device.platformName}',
+      title: 'THBIKE: ${state.bikeName ?? device.platformName}',
       text: 'Đã kết nối Bluetooth — Sẵn sàng điều khiển',
     ));
     _failStreak = 0;
@@ -2655,6 +2674,49 @@ class BleController extends Notifier<BleState> {
     } catch (_) {}
   }
 
+  /// Số lái (đang ở chế độ có thể chạy). Chỉ P/STANDBY/OFF/LOCK mới coi là an
+  /// toàn để tự khóa.
+  bool _isDriveGear(BikeState st) =>
+      st == BikeState.drive ||
+      st == BikeState.super_ ||
+      st == BikeState.cruiseControl ||
+      st == BikeState.reverse ||
+      st == BikeState.turtle;
+
+  Future<void> _execProximityUnlock(double rssi) async {
+    var ok = false;
+    var detail = 'lệnh không được xe nhận ghi';
+    try {
+      ok = await _runWalkUpUnlockAndPower(rssi);
+    } catch (e) {
+      detail = '$e';
+    }
+    ref.read(proximityProvider.notifier).reportResult(
+          ProximityAction.unlock,
+          ok,
+          ok ? 'xe nhận ghi lệnh' : detail,
+          unlockEnabled: state.walkUpUnlock,
+          lockEnabled: state.autoLockWalkAway,
+        );
+  }
+
+  Future<void> _execProximityLock(double rssi, double speed) async {
+    var ok = false;
+    var detail = 'bị chặn bởi cổng an toàn hoặc xe không nhận lệnh';
+    try {
+      ok = await _runAutoSecureSequence(theft: false, speed: speed, rssi: rssi);
+    } catch (e) {
+      detail = '$e';
+    }
+    ref.read(proximityProvider.notifier).reportResult(
+          ProximityAction.lock,
+          ok,
+          ok ? 'xe nhận ghi lệnh tắt + khóa' : detail,
+          unlockEnabled: state.walkUpUnlock,
+          lockEnabled: state.autoLockWalkAway,
+        );
+  }
+
   void _checkAutoLockAndAlert() {
     // LAB MODE: đang kiểm nghiệm char — TẤT TẢI mọi lệnh tự động (auto-lock,
     // anti-forget) phải ngừng để không chen lệnh '0' vào giữa chuỗi test
@@ -2691,44 +2753,42 @@ class BleController extends Notifier<BleState> {
       _theftCounter = 0;
     }
 
-    // (a) AUTO-SECURE rời xa: RSSI ≤ ngưỡng cài đặt bền 3 chu kỳ (~3s) + xe BẬT +
-    //     ĐỨNG YÊN → tắt xe → đợi 2s → BẬT khóa an toàn.
-    if (state.autoLockWalkAway && safeToPowerOff && isBikeOn) {
+    // (a)+(b) SMART UNLOCK / AUTO LOCK — quyết định do ProximityEngine đưa ra
+    // (lọc trung vị + Kalman, hysteresis, dwell, armed, giới hạn tần suất).
+    // RSSI lấy từ CHÍNH kết nối đã xác thực với xe đã ghép đôi nên thiết bị BLE
+    // khác không tác động được. Lệnh vẫn đi qua các hàm đã có (unlockBike /
+    // _runAutoSecureSequence) với đầy đủ cổng an toàn cũ.
+    final rawRssi = state.rssi;
+    if (rawRssi != null) {
+      final bike = state.lastTelemetry;
       const lockThresholds = [-75.0, -83.0, -90.0];
-      final targetThreshold = state.autoLockRssiThreshold ??
-          lockThresholds[state.autoLockDistance.clamp(0, 2)];
-      if (rssi <= targetThreshold) {
-        _autoLockCounter++;
-        if (_autoLockCounter >= 3) {
-          _autoLockCounter = 0;
-          unawaited(_runAutoSecureSequence(theft: false, speed: speed, rssi: rssi));
-        }
-      } else {
-        _autoLockCounter = 0;
+      final ctx = ProximityContext(
+        connected: state.phase == BlePhase.connected,
+        authorized: state.isAuthorized && _sessionKey != null,
+        telemetryFresh: _telemetryFresh,
+        speedKmh: bike?.speed,
+        bikeOn: isBikeOn,
+        bikeLocked: state.isLocked,
+        bikeInDriveGear: bike != null && _isDriveGear(bike.state),
+        autoPowerOn: state.walkUpAutoPowerOn,
+        commandBusy: _isCommandBusy || _autoSecureBusy,
+        userRecentlyActed: userRecent,
+        labMode: _labModeActive,
+      );
+      final decision = ref.read(proximityProvider.notifier).onSample(
+            rssi: rawRssi.toDouble(),
+            unlockEnabled: state.walkUpUnlock,
+            lockEnabled: state.autoLockWalkAway,
+            legacyNear: state.walkUpRssiThreshold ?? -55.0,
+            legacyFar: state.autoLockRssiThreshold ??
+                lockThresholds[state.autoLockDistance.clamp(0, 2)],
+            ctx: ctx,
+          );
+      if (decision.action == ProximityAction.unlock) {
+        unawaited(_execProximityUnlock(rssi));
+      } else if (decision.action == ProximityAction.lock) {
+        unawaited(_execProximityLock(rssi, speed));
       }
-    } else {
-      _autoLockCounter = 0;
-    }
-
-    // (b) WALK-UP UNLOCK & BẬT XE SẴN KHI TỚI GẦN
-    if (state.walkUpUnlock && autoAllowed) {
-      final nearThreshold = state.walkUpRssiThreshold ?? -55.0;
-      final needsAction = state.isLocked || (state.walkUpAutoPowerOn && !isBikeOn);
-      if (needsAction) {
-        if (rssi >= nearThreshold) {
-          _unlockNearCounter++;
-          if (_unlockNearCounter >= 2) {
-            _unlockNearCounter = 0;
-            unawaited(_runWalkUpUnlockAndPower(rssi));
-          }
-        } else {
-          _unlockNearCounter = 0;
-        }
-      } else {
-        _unlockNearCounter = 0;
-      }
-    } else {
-      _unlockNearCounter = 0;
     }
 
     // 2. Walk-Up Proximity: Khi bước lại gần -> thông báo sẵn sàng
@@ -2816,7 +2876,8 @@ class BleController extends Notifier<BleState> {
     try {
       final directMsg = decodeBatteryLogMsg(payload);
       if (directMsg.cellVols.isNotEmpty || directMsg.voltage > 0) {
-        state = state.copyWith(lastBattery: directMsg);
+        state = state.copyWith(
+            lastBattery: directMsg, lastBatteryAt: DateTime.now());
         BleLogger.instance.event('battery_log_received_plain', {
           'voltage': directMsg.voltage,
           'current': directMsg.current,
@@ -2839,7 +2900,8 @@ class BleController extends Notifier<BleState> {
         );
         if (decrypted.isNotEmpty) {
           final bMsg = decodeBatteryLogMsg(decrypted);
-          state = state.copyWith(lastBattery: bMsg);
+          state = state.copyWith(
+              lastBattery: bMsg, lastBatteryAt: DateTime.now());
           BleLogger.instance.event('battery_log_received_decrypted', {
             'voltage': bMsg.voltage,
             'current': bMsg.current,
@@ -3063,7 +3125,7 @@ class BleController extends Notifier<BleState> {
         }
       } catch (_) {}
 
-      final name = _readStringPref(prefs, _kLastBikeName) ?? 'Xe Dat Bike';
+      final name = _readStringPref(prefs, _kLastBikeName) ?? 'Xe điện';
       BluetoothDevice device = BluetoothDevice.fromId(id);
       final connectedMatch = FlutterBluePlus.connectedDevices
           .where((d) => d.remoteId.str == id)
@@ -3086,7 +3148,7 @@ class BleController extends Notifier<BleState> {
           _watchConnection(device);
           state = state.copyWith(phase: BlePhase.connected, reconnectAttempt: 0, message: null);
           unawaited(ForegroundService.start(
-            title: 'Dat Bike: $name',
+            title: 'THBIKE: $name',
             text: 'Đã kết nối Bluetooth — Sẵn sàng điều khiển',
           ));
           return true;
@@ -3313,6 +3375,7 @@ class BleController extends Notifier<BleState> {
   ///    kết nối) để mở. Còi hú khi xe bị động vào (đá chống).
   Future<String> lockBike() async {
     _lastUserCommandAt = DateTime.now();
+    ref.read(proximityProvider.notifier).noteUserCommand(locked: true);
     final device = _device;
     if (device == null || state.phase != BlePhase.connected) {
       return 'Xe chưa được kết nối Bluetooth!';
@@ -4209,7 +4272,7 @@ class BleController extends Notifier<BleState> {
         _decodeFailStreak = 0;
         _smoothedRssi = null;
         _rssiKalman.reset();
-        _autoLockCounter = 0;
+        ref.read(proximityProvider.notifier).resetLink('mất kết nối');
         _antiForgetCounter = 0;
         _walkUpTriggered = false;
         _batteryChar = null;
@@ -4275,7 +4338,7 @@ class BleController extends Notifier<BleState> {
       message: 'Mất kết nối — thử lại sau ${delay}s (lần $_reconnectAttempts/$_maxReconnect)',
     );
     unawaited(ForegroundService.start(
-      title: 'Dat Bike: ${state.bikeName ?? device.platformName}',
+      title: 'THBIKE: ${state.bikeName ?? device.platformName}',
       text: 'Đang thử kết nối lại (lần $_reconnectAttempts/$_maxReconnect)...',
     ));
     BleLogger.instance
@@ -4291,7 +4354,7 @@ class BleController extends Notifier<BleState> {
           _reconnectAttempts = 0;
           state = state.copyWith(phase: BlePhase.connected, reconnectAttempt: 0, message: null);
           unawaited(ForegroundService.start(
-            title: 'Dat Bike: ${state.bikeName ?? device.platformName}',
+            title: 'THBIKE: ${state.bikeName ?? device.platformName}',
             text: 'Đã kết nối Bluetooth — Sẵn sàng điều khiển',
           ));
           _failStreak = 0;

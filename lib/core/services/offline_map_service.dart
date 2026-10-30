@@ -384,7 +384,7 @@ class OfflineMapService {
         try {
           final res = await http.get(
             Uri.parse(url),
-            headers: {'User-Agent': 'DatBikeApp/2.6.4 (offline-cache)'},
+            headers: {'User-Agent': 'THBIKE/2.10.0 (offline-cache)'},
           ).timeout(const Duration(seconds: 8));
 
           if (res.statusCode == 200 && res.bodyBytes.isNotEmpty) {

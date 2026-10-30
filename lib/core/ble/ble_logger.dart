@@ -11,10 +11,11 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
+import '../brand/app_info.dart' show kAppBuildTag;
 import 'connect_diagnostics.dart';
 
 /// Bump mỗi lần build release — để đối chiếu log với code chính xác.
-const appBuild = '20261029-diag1';
+const appBuild = kAppBuildTag;
 
 class BleLogger {
   BleLogger._();
@@ -40,7 +41,7 @@ class BleLogger {
     _sink = _file!.openWrite(mode: FileMode.append);
     _eventCount = 0;
     event('session_start', {
-      'app': 'datbike_flutter',
+      'app': 'thbike_flutter',
       'platform': Platform.operatingSystem,
       'build': appBuild,
     });
