@@ -366,7 +366,7 @@ class _TripRouteScreenState extends State<TripRouteScreen> with SingleTickerProv
                             final t = _currentTrip;
                             final stamp = t.startTime.toIso8601String().replaceAll(RegExp(r'[^0-9T]'), '');
                             final msg = await GpxExporter.exportAndShare(
-                              name: 'MyBike_$stamp',
+                              name: 'THBIKE_$stamp',
                               points: t.route,
                             );
                             if (!mounted) return;

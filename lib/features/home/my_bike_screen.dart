@@ -19,10 +19,11 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/ble/ble_controller.dart';
 import '../../core/services/trip_gps_tracker.dart';
+import '../navigation/charge_finder_screen.dart';
 import '../scan/scan_screen.dart';
 import '../settings/vehicle_settings_screen.dart';
 import '../../ui/geely_icons.dart';
-import '../../ui/components.dart';
+import 'home_hero.dart';
 import 'overview_status.dart';
 import 'trip_route_screen.dart';
 import '../../ui/app_theme.dart';
@@ -1104,7 +1105,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                             Row(
                               children: [
                                 Text(
-                                  ble.bikeName ?? 'Dat Bike Quantum S1',
+                                  ble.bikeName ?? 'Xe điện',
                                   style: GoogleFonts.plusJakartaSans(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w700,
@@ -1183,27 +1184,34 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
     final ble = ref.watch(bleProvider);
     final connected = ble.phase == BlePhase.connected;
     final telemetry = ble.lastTelemetry;
-    final hasTelemetry = connected && telemetry != null;
-    final percent = telemetry?.percent ?? 0;
-    final kmLeftVal = (telemetry != null && telemetry.kmLeft > 0)
+    // Có telemetry từng nhận → vẫn hiển thị giá trị cuối (gắn nhãn "Dữ liệu cũ"
+    // khi mất kết nối). Chưa từng nhận → "--".
+    final hasValues = telemetry != null;
+    final percent = telemetry?.percent;
+    final kmReported = (telemetry != null && telemetry.kmLeft > 0)
         ? telemetry.kmLeft.round()
-        : (hasTelemetry ? ((percent / 100.0) * 270).round() : null);
-    final percentDisplay = hasTelemetry ? '$percent' : '--';
+        : null;
     // Xe không báo km còn lại → số hiển thị là ƯỚC TÍNH (% pin × 270 km danh định).
-    final kmEstimated = hasTelemetry && telemetry.kmLeft <= 0;
-    final kmLeftDisplay = hasTelemetry ? (kmEstimated ? '~$kmLeftVal' : '$kmLeftVal') : '--';
+    final kmEstimated = hasValues && kmReported == null;
+    final kmLeftVal = hasValues
+        ? (kmReported ?? ((percent! / 100.0) * 270).round())
+        : null;
     final speed = telemetry?.speed ?? 0.0;
     final isBikeOn = telemetry?.isBikeOn == true;
     final isLocked = ble.isLocked;
+    final volt = (telemetry != null && telemetry.voltage > 0) ? telemetry.voltage : null;
+    final powerW = volt != null ? volt * telemetry!.phase.abs() : null;
+    final bmsTemp = (telemetry != null && telemetry.bmsTemp > 0) ? telemetry.bmsTemp : null;
 
     // Trạng thái vận hành thực tế của xe máy điện
     final statusText = !connected
-        ? 'Chưa kết nối xe — Bấm để kết nối'
+        ? (hasValues ? 'Mất kết nối — hiển thị giá trị gần nhất' : 'Chưa kết nối xe')
         : (isLocked
-            ? 'Đang khóa an toàn (Locked)'
+            ? 'Đang khóa an toàn'
             : (speed > 0.5
                 ? 'Đang chạy (${speed.toStringAsFixed(0)} km/h)'
-                : (isBikeOn ? 'Sẵn sàng chạy (Ready)' : 'Đang đỗ (Parking)')));
+                : (isBikeOn ? 'Sẵn sàng chạy' : 'Đang đỗ')));
+
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -1214,292 +1222,35 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ══════════════════════════════════════════════════════════════
-              // 1. HEADER: Tên xe máy điện + Nút 1-chạm HUD/Logs/Lab + Badge BLE
+              // 1. THẺ TỔNG QUAN XE (Design System v3): tên xe · kết nối · SOC ·
+              //    quãng đường · ảnh xe · cảnh báo · tốc độ/công suất/nhiệt độ/điện áp.
+              //    Chỉ số liệu thật từ xe; thiếu dữ liệu → "--".
               // ══════════════════════════════════════════════════════════════
-              Row(
-                children: [
-                  Expanded(
-                    child: InkWell(
-                      onTap: () => _openBikeSwitcherSheet(context),
-                      borderRadius: BorderRadius.circular(12),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 26,
-                              height: 26,
-                              margin: const EdgeInsets.only(right: 8),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(7),
-                                boxShadow: const [
-                                  BoxShadow(color: Color(0x180F172A), blurRadius: 4, offset: Offset(0, 1)),
-                                ],
-                              ),
-                              clipBehavior: Clip.antiAlias,
-                              child: Image.asset(
-                                'assets/images/bike_logo_3d.png',
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, _, _) => Icon(Icons.two_wheeler_rounded, size: 18, color: AppColors.primary),
-                              ),
-                            ),
-                            Flexible(
-                              child: Text(
-                                ble.bikeName ?? 'Dat Bike Quantum S1',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: -0.3,
-                                  color: AppColors.textPrimary,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Icon(Icons.swap_horiz_rounded, size: 18, color: AppColors.primary),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Nút mở nhanh Cockpit HUD
-                  IconButton(
-                    tooltip: 'Đồng hồ tốc độ Cockpit HUD',
-                    visualDensity: VisualDensity.compact,
-                    icon: Icon(Icons.speed_rounded, size: 21, color: AppColors.textPrimary),
-                    onPressed: () => Navigator.of(context).pushNamed('/dashboard'),
-                  ),
-                  const SizedBox(width: 2),
-                  // Badge Bluetooth Connected hình viên thuốc trắng
-                  InkWell(
-                    onTap: connected ? null : () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ScanScreen())),
-                    borderRadius: BorderRadius.circular(22),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AppColors.panel,
-                        borderRadius: BorderRadius.circular(22),
-                        border: Border.all(color: connected ? AppColors.primarySoftBorder : AppColors.panelBorderBright),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x080F172A),
-                            blurRadius: 8,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            connected ? Icons.bluetooth_connected_rounded : Icons.bluetooth_disabled_rounded,
-                            size: 15,
-                            color: connected ? AppColors.primary : AppColors.textMuted,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            connected ? 'Online' : 'Offline',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w600,
-                              color: connected ? AppColors.textPrimary : AppColors.textMuted,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 18),
-
-              // ══════════════════════════════════════════════════════════════
-              // 2. CỤM THÔNG SỐ: Quãng đường còn lại của xe máy điện (Font rộng)
-              //    - Quãng đường: số thật từ ECU xe hoặc '--' khi chưa kết nối
-              //    - Huy hiệu Mode lái D/S/R và cảnh báo chân chống
-              // ══════════════════════════════════════════════════════════════
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  Text(
-                    kmLeftDisplay,
-                    style: GoogleFonts.spaceGrotesk(
-                      fontSize: 54,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -1.0,
-                      color: AppColors.textPrimary,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'km',
-                    style: GoogleFonts.spaceGrotesk(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  if (kmEstimated) ...[
-                    const SizedBox(width: 8),
-                    const FreshnessBadge(freshness: DataFreshness.estimated),
-                  ],
-                  const Spacer(),
-                  if (hasTelemetry) ...[
-                    // Huy hiệu Chân chống nếu đang hạ
-                    if (telemetry.isSideStandDown) ...[
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.redSoft,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: AppColors.redSoftBorder),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.report_problem_rounded, size: 13, color: AppColors.red),
-                            const SizedBox(width: 4),
-                            Text(
-                              'HẠ CHỐNG',
-                              style: GoogleFonts.spaceGrotesk(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.red,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                    ],
-                    // Huy hiệu Mode lái D / S / R
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppColors.primarySoft,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppColors.primarySoftBorder),
-                      ),
-                      child: Text(
-                        'MODE ${telemetry.drivingModeShort}',
-                        style: GoogleFonts.spaceGrotesk(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-
-              const SizedBox(height: 8),
-
-              // Dải thông số năng lượng xe máy điện: ⚡ Dung lượng pin · 🔋 Quãng đường đầy
-              Row(
-                children: [
-                  // Điện năng hiện có: % Pin + Km
-                  Row(
-                    children: [
-                      const Icon(Icons.bolt_rounded, size: 17, color: AppColors.tertiary),
-                      const SizedBox(width: 4),
-                      Text(
-                        hasTelemetry ? '$percentDisplay% Pin ($kmLeftDisplay km)' : '--% Pin (Chưa kết nối xe)',
-                        style: GoogleFonts.spaceGrotesk(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(width: 20),
-                  // Quãng đường tiêu chuẩn tối đa khi đầy pin: 270 km
-                  Row(
-                    children: [
-                      Container(
-                        width: 9,
-                        height: 9,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '270 km Max',
-                        style: GoogleFonts.spaceGrotesk(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(width: 10),
-                  Icon(Icons.swap_horiz_rounded, size: 16, color: AppColors.textMuted),
-                ],
-              ),
-
-              const SizedBox(height: 8),
-
-              // 2 thanh progress nhỏ cho xe máy điện:
-              // - Thanh 1: Tiến trình dung lượng Pin khả dụng (xanh lá)
-              // - Thanh 2: Quãng đường còn lại / Dự phòng (xanh dương)
-              Row(
-                children: [
-                  // Thanh Pin khả dụng (xanh lá)
-                  Expanded(
-                    flex: hasTelemetry && percent > 0 ? percent : 1,
-                    child: Container(
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: hasTelemetry ? AppColors.tertiary : AppColors.panelBorderBright,
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  // Thanh Quãng đường dự phòng (xanh dương)
-                  Expanded(
-                    flex: hasTelemetry ? (100 - percent).clamp(5, 100).toInt() : 1,
-                    child: Container(
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: hasTelemetry ? AppColors.primary : AppColors.panelBorderBright,
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 8),
-
-              // Trạng thái vận hành xe máy điện (Parking / Ready / Driving)
-              Text(
-                statusText,
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              // Thẻ trạng thái: kết nối · pin · tốc độ gần nhất + dấu thời gian · cảnh báo
-              OverviewStatusCard(
+              HomeHeroCard(
                 phase: ble.phase,
                 lastTelemetryAt: ref.read(bleProvider.notifier).lastTelemetryAt,
-                percent: telemetry?.percent,
+                bikeName: ble.bikeName ?? 'Xe điện',
+                percent: percent,
+                kmLeft: kmLeftVal,
+                kmEstimated: kmEstimated,
                 speedKmh: telemetry?.speed,
-                isLocked: ble.isLocked,
+                voltageV: volt,
+                powerW: powerW,
+                bmsTempC: bmsTemp,
+                statusText: statusText,
+                drivingModeShort: telemetry?.drivingModeShort,
+                isBikeOn: isBikeOn && !isLocked,
+                isLocked: isLocked,
+                isCharging: telemetry?.charging != null,
+                chargePowerW: telemetry?.charging?.power.toDouble(),
+                isSideStandDown: telemetry?.isSideStandDown ?? false,
+                errorCode: telemetry?.error ?? 0,
+                isFindingBike: ble.isFindingBike,
+                onSwitchBike: () => _openBikeSwitcherSheet(context),
+                onHud: () => Navigator.of(context).pushNamed('/dashboard'),
                 onConnect: () => Navigator.of(context)
                     .push(MaterialPageRoute(builder: (_) => const ScanScreen())),
+                onStopFind: _quickFindBike,
               ),
               const SizedBox(height: 12),
               OverviewShortcuts(
@@ -1508,113 +1259,6 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                 onTrips: () => _openTripHistorySheet(context),
               ),
 
-              const SizedBox(height: 14),
-
-              // ══════════════════════════════════════════════════════════════
-              // 3. GIỮA MÀN HÌNH: ẢNH XE MÁY ĐIỆN DAT BIKE QUANTUM
-              // ══════════════════════════════════════════════════════════════
-              Container(
-                width: double.infinity,
-                height: 230,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  color: AppColors.panel,
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x080F172A),
-                      blurRadius: 20,
-                      offset: Offset(0, 6),
-                    ),
-                  ],
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Image.asset(
-                      'assets/images/bike_hero_3d.jpg',
-                      fit: BoxFit.contain,
-                      width: double.infinity,
-                      height: double.infinity,
-                      errorBuilder: (context, error, stackTrace) => Center(
-                        child: Icon(Icons.two_wheeler_rounded, size: 90, color: AppColors.primary),
-                      ),
-                    ),
-                    // Badge trạng thái xe đang Bật / Khóa
-                    if (isBikeOn)
-                      Positioned(
-                        top: 14,
-                        left: 14,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: AppColors.greenSoft,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: AppColors.greenSoftBorder),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 6,
-                                height: 6,
-                                decoration: BoxDecoration(
-                                  color: AppColors.greenText,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'XE SẴN SÀNG',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.greenText,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    // Badge Đang hú còi tìm xe (kèm nút 1 chạm để Tắt ngay)
-                    if (ble.isFindingBike)
-                      Positioned(
-                        top: 14,
-                        right: 14,
-                        child: InkWell(
-                          onTap: _quickFindBike,
-                          borderRadius: BorderRadius.circular(20),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: AppColors.redSoft,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: AppColors.red),
-                              boxShadow: const [
-                                BoxShadow(color: Color(0x20EF4444), blurRadius: 8, offset: Offset(0, 2)),
-                              ],
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.volume_off_rounded, size: 14, color: AppColors.red),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'ĐANG HÚ CÒI · BẤM TẮT',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.red,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
 
               const SizedBox(height: 16),
 
@@ -1706,6 +1350,22 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                             ),
                             label: 'Đồng bộ giờ',
                             onTap: _quickSyncTime,
+                          ),
+
+                          // 5. Tìm trạm sạc gần bạn (bản đồ + danh sách)
+                          _quickActionButton(
+                            icon: Icon(
+                              Icons.ev_station_rounded,
+                              color: AppColors.tertiary,
+                              size: 24,
+                            ),
+                            label: 'Tìm trạm sạc',
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(builder: (_) => const ChargeFinderScreen()),
+                            ),
+                            active: true,
+                            activeColor: AppColors.greenSoft,
+                            activeBorderColor: AppColors.greenSoftBorder,
                           ),
                         ],
                       ),

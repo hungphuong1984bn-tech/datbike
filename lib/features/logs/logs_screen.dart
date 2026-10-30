@@ -125,7 +125,7 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
 
   Future<void> _share(File f) async {
     await SharePlus.instance.share(
-      ShareParams(files: [XFile(f.path)], text: 'BLE session log — Dat Bike'),
+      ShareParams(files: [XFile(f.path)], text: 'Nhật ký phiên Bluetooth — THBIKE'),
     );
   }
 
@@ -156,7 +156,7 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Đã export ${exported?.length ?? 0} file → Downloads/DatBikeLogs'),
+          content: Text('Đã export ${exported?.length ?? 0} file → Downloads/THBIKE_Logs'),
           backgroundColor: AppColors.tertiary,
         ),
       );
@@ -281,7 +281,7 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
                       ),
                       const Spacer(),
                       StatusPill(
-                        label: '${_files.length} FILES',
+                        label: '${_files.length} tệp',
                         color: AppColors.secondary,
                       ),
                     ],
@@ -313,7 +313,7 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
                           )
                         : const Icon(Icons.download_rounded, size: 18),
                     label: Text(
-                      'Export toàn bộ → Downloads/DatBikeLogs',
+                      'Export toàn bộ → Downloads/THBIKE_Logs',
                       style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w600, fontSize: 13),
                     ),
                     onPressed: _files.isEmpty || _exporting ? null : _exportAll,

@@ -254,7 +254,7 @@ class _VehicleSettingsScreenState extends ConsumerState<VehicleSettingsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      ble.bikeName ?? 'Dat Bike EV',
+                      ble.bikeName ?? 'Xe điện',
                       style: GoogleFonts.spaceGrotesk(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
@@ -1044,7 +1044,7 @@ class _VehicleSettingsScreenState extends ConsumerState<VehicleSettingsScreen> {
                     : AppColors.textDim,
               ),
               StatusPill(
-                label: 'SPEED: ${ble.speedLimitMode}',
+                label: 'Giới hạn: ${const ['Không', '50 km/h', '30 km/h'][ble.speedLimitMode.clamp(0, 2)]}',
                 color: ble.speedLimitMode == 1
                     ? AppColors.primary
                     : AppColors.textDim,
@@ -1945,7 +1945,7 @@ class _VehicleSettingsScreenState extends ConsumerState<VehicleSettingsScreen> {
                                 backgroundColor: AppColors.errorFill,
                               ),
                               onPressed: () => Navigator.pop(ctx, true),
-                              child: const Text('Reset'),
+                              child: const Text('Đặt lại'),
                             ),
                           ],
                         ),

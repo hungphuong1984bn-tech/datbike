@@ -244,7 +244,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             const SizedBox(width: 8),
             Flexible(
               child: Text(
-                (ble.bikeName ?? 'Dat Bike EV').toUpperCase(),
+                (ble.bikeName ?? 'Xe điện').toUpperCase(),
                 style: GoogleFonts.spaceGrotesk(
                   fontWeight: FontWeight.w700,
                   fontSize: 16,

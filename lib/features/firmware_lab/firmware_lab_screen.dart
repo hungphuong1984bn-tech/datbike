@@ -522,12 +522,12 @@ class _FirmwareLabScreenState extends ConsumerState<FirmwareLabScreen> {
               const SizedBox(width: 6),
               Expanded(child: FilledButton.tonal(
                 onPressed: connected && !_customBusy ? () => _runCustom('write_plain') : null,
-                child: const Text('GHI PLAIN', style: TextStyle(fontSize: 11)),
+                child: const Text('GHI THƯỜNG', style: TextStyle(fontSize: 11)),
               )),
               const SizedBox(width: 6),
               Expanded(child: FilledButton(
                 onPressed: connected && !_customBusy ? () => _runCustom('write_protected') : null,
-                child: const Text('GHI PROTECTED', style: TextStyle(fontSize: 11)),
+                child: const Text('GHI BẢO VỆ', style: TextStyle(fontSize: 11)),
               )),
             ],
           ),
@@ -704,7 +704,7 @@ class _FirmwareLabScreenState extends ConsumerState<FirmwareLabScreen> {
                           child: ChoiceChip(
                             padding: const EdgeInsets.symmetric(horizontal: 2),
                             labelPadding: EdgeInsets.zero,
-                            label: Center(child: Text('PROT', style: GoogleFonts.spaceGrotesk(fontSize: 9.5))),
+                            label: Center(child: Text('BẢO VỆ', style: GoogleFonts.spaceGrotesk(fontSize: 9.5))),
                             selected: !defaultPlain,
                             onSelected: (_) => setState(() => s.modeOverride = LabWriteMode.protected),
                           ),
@@ -714,7 +714,7 @@ class _FirmwareLabScreenState extends ConsumerState<FirmwareLabScreen> {
                           child: ChoiceChip(
                             padding: const EdgeInsets.symmetric(horizontal: 2),
                             labelPadding: EdgeInsets.zero,
-                            label: Center(child: Text('PLAIN', style: GoogleFonts.spaceGrotesk(fontSize: 9.5))),
+                            label: Center(child: Text('THƯỜNG', style: GoogleFonts.spaceGrotesk(fontSize: 9.5))),
                             selected: defaultPlain,
                             onSelected: (_) => setState(() => s.modeOverride = LabWriteMode.plain),
                           ),

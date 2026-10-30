@@ -172,9 +172,9 @@ class _OtaScreenState extends ConsumerState<OtaScreen> {
                           ),
                         ),
                         if (fw.isBeta)
-                          StatusPill(label: 'BETA', color: AppColors.amber)
+                          StatusPill(label: 'Bản thử nghiệm', color: AppColors.amber)
                         else
-                          StatusPill(label: 'OFFICIAL', color: AppColors.tertiary),
+                          StatusPill(label: 'Bản chính thức', color: AppColors.tertiary),
                       ],
                     ),
                     const SizedBox(height: 16),

@@ -88,7 +88,7 @@ class _ConnectingScreenState extends ConsumerState<ConnectingScreen> {
                 ),
                 const SizedBox(height: 28),
                 Text(
-                  ble.bikeName ?? 'Xe Dat Bike',
+                  ble.bikeName ?? 'Xe điện',
                   style: GoogleFonts.spaceGrotesk(
                     fontSize: 22,
                     fontWeight: FontWeight.w700,

@@ -286,7 +286,7 @@ class OverviewShortcuts extends StatelessWidget {
         Expanded(
           child: _Tile(
             icon: Icons.speed_rounded,
-            label: 'Cockpit HUD',
+            label: 'Đồng hồ lái (HUD)',
             onTap: onHud,
             highlighted: true,
           ),

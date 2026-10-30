@@ -139,7 +139,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
         : r.device.platformName;
     Navigator.of(context).pushReplacementNamed('/connecting', arguments: {
       'device': r.device,
-      'name': name.isEmpty ? 'Dat Bike' : name,
+      'name': name.isEmpty ? 'Xe điện' : name,
     });
   }
 
@@ -149,7 +149,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
     final dev = BluetoothDevice.fromId(_lastBikeId!);
     Navigator.of(context).pushReplacementNamed('/connecting', arguments: {
       'device': dev,
-      'name': _lastBikeName ?? 'Dat Bike',
+      'name': _lastBikeName ?? 'Xe điện',
     });
   }
 
