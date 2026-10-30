@@ -1,6 +1,6 @@
-# ⚡ My Bike App
+# ⚡ THBIKE
 
-Ứng dụng mã nguồn mở (Open Source) điều khiển xe điện thông minh và bảng đồng hồ Cockpit HUD thời gian thực, được phát triển bằng Flutter.
+THBIKE — ứng dụng (nhà phát triển: Vũ Thái Hùng) điều khiển xe điện thông minh và bảng đồng hồ Cockpit HUD thời gian thực, được phát triển bằng Flutter.
 
 ---
 

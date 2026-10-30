@@ -1,7 +1,7 @@
 name: mybike_app
-description: "My Bike App — Smart electric vehicle dashboard and controller."
+description: "THBIKE — Ứng dụng xe điện thông minh (dashboard, pin/BMS, sạc, chẩn đoán)."
 publish_to: 'none'
-version: 2.8.0+53
+version: 2.10.0+55
 environment:
   sdk: ^3.13.2
 dependencies:
@@ -38,5 +38,6 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
+    - assets/images/real/
     - assets/icon/
 

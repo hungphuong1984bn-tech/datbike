@@ -12,7 +12,7 @@
 3. [Phân Tích Chi Tiết 2 Quy Trình Kết Nối (Pairing vs Auto-Reconnect)](#3-phân-tích-chi-tiết-2-quy-trình-kết-nối-pairing-vs-auto-reconnect)
 4. [Đặc Tả Toán Học & Thuật Toán Mật Mã (Cryptographic Specifications)](#4-đặc-tả-toán-học--thuật-toán-mật-mã-cryptographic-specifications)
 5. [Cấu Trúc Khung Tin & Giao Thức Đọc/Ghi Dữ Liệu (Frame Protocols)](#5-cấu-trúc-khung-tin--giao-thức-đọcghi-dữ-liệu-frame-protocols)
-6. [Định Dạng Gói Tin Telemetry Dashboard 41-Byte](#6-định-dạng-gói-tin-telemetry-dashboard-41-byte)
+6. [Định Dạng Gói Tin Telemetry Dashboard](#6-định-dạng-gói-tin-telemetry-dashboard-đã-sửa-30102026)
 7. [Tập Lệnh Điều Khiển Xe (Power Switch, Buzzer Alert, Safety Interlocks)](#7-tập-lệnh-điều-khiển-xe-power-switch-buzzer-alert-safety-interlocks)
 8. [Phân Tích Nguyên Nhân Gốc Rễ (Root Cause Analysis - Post Mortem)](#8-phân-tích-nguyên-nhân-gốc-rễ-root-cause-analysis---post-mortem)
 9. [Hướng Dẫn Tích Hợp & Triển Khai Chuẩn Cho Client Flutter](#9-hướng-dẫn-tích-hợp--triển-khai-chuẩn-cho-client-flutter)
@@ -69,7 +69,7 @@ Bản đồ GATT dưới đây đã được đối chiếu và xác thực 100%
 | **`APP_AUTH_CHAR`** | `c8eaf27b-9fb7-4bc3-b11a-bf68c97b1b1f` | `0x000c` | Char | Read, Write | **Cổng Xác Thực Ứng Dụng & Quản lý Password.**<br>• Đọc: 4 bytes Challenge raw.<br>• Ghi Challenge: 64 bytes ASCII hex SHA-256.<br>• Ghi Password mới: 12 bytes ASCII chuỗi ngẫu nhiên. |
 | **`AUTHORIZATION_CHAR`** | `5e9a2c71-0b3d-4f86-a1c2-7d4e8f0b9a63` | `0x0012` | Char | Read, Write | **Cổng Bắt Tay Phase 1 Nonce / Status.**<br>• Đọc: 16 bytes (`15B nonce` + `1B status 0x00/0x01`).<br>• Ghi: 16 bytes HMAC-SHA256 response. |
 | **`DASHBOARD_SERVICE_UUID`** | `cf6900a7-4520-4a4c-977c-82979e8baccf` | `0x001a` | Service | - | **Dịch vụ Dữ liệu Động Lực & Đồng Hồ.** |
-| **`DASHBOARD_CHAR`** | `6d2eb205-6f9b-4ecf-bb1b-a5fad127c66c` | `0x001e` | Char | Read | **Telemetry Struct 41 byte (Poll 700ms - 1s).**<br>• Payload mã hóa Protected Read (XOR keystream).<br>• Không hỗ trợ Notify trên firmware xe thương mại. |
+| **`DASHBOARD_CHAR`** | `6d2eb205-6f9b-4ecf-bb1b-a5fad127c66c` | `0x001e` | Char | Read | **Telemetry 45 byte = 4B counter + 41B struct (Poll 700ms - 1s).**<br>• Payload mã hóa Protected Read (XOR keystream).<br>• Không hỗ trợ Notify trên firmware xe thương mại. |
 | **`BIKE_LOG_CHAR`** | `018e6a6f-4bda-7b07-8586-1298248a8d5c` | `0x0026` | Char | Read | Log chẩn đoán xe 108 bytes (Protobuf/Struct). |
 | **`BATTERY_LOG_CHAR`** | `84c7be0b-7619-45c1-a503-95f4ff8736ed` | `0x002c` | Char | Read | Log BMS 207 bytes (Điện áp 24 cell pin). |
 | **`INFO_SERVICE_UUID`** | `d4905f67-8931-4faa-8c61-86ec7490f3c5` | `0x0030` | Service | - | **Dịch vụ Thông Tin Định Danh & Khóa Xe.** |
@@ -255,27 +255,34 @@ $$\text{Plaintext}[j] = \text{Ciphertext}[j] \oplus \text{Keystream}[j]$$
 
 ---
 
-## 6. Định Dạng Gói Tin Telemetry Dashboard 41-Byte
+## 6. Định Dạng Gói Tin Telemetry Dashboard (ĐÃ SỬA 30/10/2026)
 
-Sau khi giải mã Protected Read từ đặc tính `6d2eb205`, dữ liệu là một Struct C nhị phân 41 bytes (Little-Endian):
+> **Đính chính:** bản trước của mục này mô tả struct `uint16 speed/10`… và đó là
+> **không đúng** với dữ liệu thật. Log thực tế (session 29/10/2026, báo cáo kết
+> nối `len=45, giải mã hợp lệ`) và decoder đang chạy tốt trong app
+> (`decodeDashboardStruct`, `lib/core/proto/bike_log.dart`) cho thấy:
+> đọc được **45 byte = 4 byte counter + 41 byte payload mã hóa**; payload giải
+> mã là struct dưới đây (Little-Endian, `float32` IEEE-754).
 
-```cpp
-struct __attribute__((packed)) BikeDashboardTelemetry {
-    uint32_t counter;       // Byte 0-3: Bộ đếm gói tin (tăng dần)
-    uint16_t speed;         // Byte 4-5: Tốc độ hiện tại (chia 10 -> km/h, ví dụ 355 = 35.5 km/h)
-    uint32_t odo;           // Byte 6-9: Tổng quãng đường ODO (chia 10 -> km, ví dụ 12504 = 1250.4 km)
-    uint16_t voltage;       // Byte 10-11: Điện áp pack pin (chia 10 -> V, ví dụ 784 = 78.4V)
-    uint8_t  batteryPct;    // Byte 12: Dung lượng pin (0 - 100%)
-    uint16_t kmLeft;        // Byte 13-14: Quãng đường ước tính còn lại (chia 10 -> km)
-    uint8_t  bikeState;     // Byte 15: Trạng thái xe (0: Tắt, 1: Chờ/Standby, 2: Sẵn sàng/Ready, 3: Đang sạc, 4: Lỗi)
-    int16_t  phaseCurrent;  // Byte 16-17: Dòng điện pha động cơ (chia 10 -> A, âm khi phanh tái sinh)
-    int8_t   motorTemp;     // Byte 18: Nhiệt độ động cơ (°C)
-    int8_t   ecuTemp;       // Byte 19: Nhiệt độ bộ điều khiển VCU/Inverter (°C)
-    uint8_t  tripMode;      // Byte 20: Chế độ lái (0: Eco, 1: Normal, 2: Sport)
-    uint32_t errorCode;     // Byte 21-24: Mã lỗi chẩn đoán OBD/BMS
-    uint8_t  reserved[16];  // Byte 25-40: Dữ liệu mở rộng tương lai
-};
-```
+| Offset | Kiểu | Trường | Ghi chú |
+|---|---|---|---|
+| 0–3 | float32 | `odo` | km |
+| 4–7 | float32 | `speed` | km/h |
+| 8–11 | float32 | `phase` | dòng pha động cơ (A) |
+| 12 | u8 | `left` | xi-nhan trái |
+| 13 | u8 | `right` | xi-nhan phải |
+| 14 | u8 | `parking` | chân chống |
+| 15–18 | float32 | `voltage` | V |
+| 19 | u8 | `percent` | % pin |
+| 20–23 | float32 | `bmsTemp` | °C |
+| 24–27 | float32 | `motor` | °C |
+| 28–31 | float32 | `ecu` | °C |
+| 32 | u8 | `state` | enum `BikeState` |
+| 33–36 | u32 | `error` | mã lỗi |
+| 37–40 | float32 | `kmLeft` | km còn lại (xe ước tính) |
+
+**Không có** trong struct: đèn pha, ga, chế độ lái riêng, cờ Bluetooth. App
+phải hiển thị "--" cho các giá trị này (xem `resolveDash`).
 
 ---
 
