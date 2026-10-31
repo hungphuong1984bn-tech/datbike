@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/ble/ble_controller.dart';
 import '../battery/battery_diagnostics_screen.dart';
+import '../ble_diagnostics/ble_diagnostics_screen.dart';
 import '../ota/ota_screen.dart';
 import '../scan/scan_screen.dart';
 import '../settings/vehicle_settings_screen.dart';
@@ -75,6 +76,8 @@ class ProfileScreen extends ConsumerWidget {
         [
           _Item(Icons.health_and_safety_rounded, () => AppColors.red, 'Trung tâm chẩn đoán',
               'Lỗi, lịch sử lỗi, nhật ký hoạt động', (c) => Navigator.of(c).pushNamed('/diagnostics')),
+          _Item(Icons.bluetooth_searching_rounded, () => AppColors.primary, 'Chẩn đoán Bluetooth (BLE)',
+              'Trạng thái liên kết, gói dữ liệu, bằng chứng giao thức', (c) => _push(c, const BleDiagnosticsScreen())),
           _Item(Icons.receipt_long_rounded, () => AppColors.accentDim, 'Tệp nhật ký Bluetooth',
               'Xem, chia sẻ, xuất nhật ký kỹ thuật', (c) => Navigator.of(c).pushNamed('/logs')),
           _Item(Icons.system_update_rounded, () => AppColors.primary, 'Cập nhật phần mềm (OTA)',
