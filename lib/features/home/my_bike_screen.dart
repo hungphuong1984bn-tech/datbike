@@ -24,6 +24,7 @@ import '../scan/scan_screen.dart';
 import '../settings/vehicle_settings_screen.dart';
 import '../../ui/geely_icons.dart';
 import 'home_hero.dart';
+import 'overview_energy.dart';
 import 'overview_status.dart';
 import 'trip_route_screen.dart';
 import '../../ui/app_theme.dart';
@@ -1258,7 +1259,13 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                 onCharging: () => Navigator.of(context).pushNamed('/charging'),
                 onTrips: () => _openTripHistorySheet(context),
               ),
+              const SizedBox(height: 16),
 
+              // Dòng xả · dòng nạp · công suất · thời gian sạc · thông tin xe.
+              // Chỉ số liệu thật từ xe; thiếu dữ liệu → "--".
+              OverviewEnergySection(
+                onOpenCharging: () => Navigator.of(context).pushNamed('/charging'),
+              ),
 
               const SizedBox(height: 16),
 
