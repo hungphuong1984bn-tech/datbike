@@ -10,6 +10,8 @@ import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../brand/app_info.dart' show kAppVersion;
+
 /// Thông tin tiến độ tải bản đồ offline
 class DownloadProgress {
   final int current;
@@ -384,7 +386,7 @@ class OfflineMapService {
         try {
           final res = await http.get(
             Uri.parse(url),
-            headers: {'User-Agent': 'THBIKE/2.10.0 (offline-cache)'},
+            headers: {'User-Agent': 'THBIKE/$kAppVersion (offline-cache)'},
           ).timeout(const Duration(seconds: 8));
 
           if (res.statusCode == 200 && res.bodyBytes.isNotEmpty) {

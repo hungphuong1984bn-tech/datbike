@@ -10,6 +10,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 
+import '../brand/app_info.dart' show kAppVersion;
+
 class PlaceHit {
   final String name;
   final LatLng position;
@@ -49,7 +51,7 @@ class PlaceSearchService {
     if (t.length < 2) return const [];
     try {
       final res = await http
-          .get(buildUri(t), headers: {'User-Agent': 'THBIKE/2.10 (tim-tram-sac)'})
+          .get(buildUri(t), headers: {'User-Agent': 'THBIKE/$kAppVersion (tim-tram-sac)'})
           .timeout(const Duration(seconds: 12));
       if (res.statusCode != 200) {
         throw Exception('Máy chủ tìm địa điểm trả lỗi ${res.statusCode}.');

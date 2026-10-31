@@ -1,4 +1,4 @@
-// Dat Bike — app điều khiển xe điện (thay app gốc 4.5.0).
+// THBIKE — ứng dụng điều khiển & giám sát xe điện.
 // Không có đăng nhập: mở app là thấy xe. Phase 1 = kết nối ổn định + dashboard
 // + OTA metadata; Phase 2 = session handshake + lệnh điều khiển + OTA BLE.
 
@@ -14,16 +14,28 @@ import 'features/scan/connecting_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
 import 'features/battery/battery_diagnostics_screen.dart';
 import 'features/charging/charging_screen.dart';
+import 'features/operations/operations_screen.dart';
 import 'features/settings/vehicle_settings_screen.dart';
 import 'features/regen/regen_screen.dart';
 import 'features/home/home_shell.dart';
 import 'features/cluster/cluster_screen.dart';
+import 'features/proximity/proximity_screen.dart';
+import 'features/dashboard_studio/dashboard_studio_screen.dart';
+import 'features/dashboard_studio/dashboard_live_screen.dart';
 import 'features/navigation/charge_finder_screen.dart';
+import 'core/charging/charge_provider.dart';
+import 'core/telemetry/ops_provider.dart';
 import 'core/config/cluster_config.dart';
 import 'core/config/ui_prefs.dart';
 import 'features/logs/logs_screen.dart';
+import 'features/diagnostics/diagnostics_screen.dart';
+import 'features/settings/app_settings_screen.dart';
+import 'core/diagnostics/diag_provider.dart';
 import 'features/firmware_lab/firmware_lab_screen.dart';
 import 'ui/app_theme.dart';
+import 'core/brand/app_info.dart';
+import 'features/about/about_screen.dart';
+import 'features/splash/splash_overlay.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -121,11 +133,15 @@ class _MyBikeAppState extends ConsumerState<MyBikeApp> with WidgetsBindingObserv
     );
     // Nạp cấu hình đã lưu ngay khi app mở (để biết người dùng có bật xoay không).
     ref.watch(clusterConfigProvider);
+    // Giữ bộ ghi phiên sạc chạy nền (chỉ đọc telemetry); select hằng số nên không làm dựng lại gốc.
+    ref.watch(chargeProvider.select((_) => 0));
+    ref.watch(opsProvider.select((_) => 0)); // ghi lịch sử vận hành nền cho biểu đồ
+    ref.watch(diagProvider.select((_) => 0)); // ghi lịch sử lỗi/nhật ký chẩn đoán nền (chỉ đọc)
     final mode = ref.watch(themeModeProvider);
     AppColors.apply(_effective(mode)); // đảm bảo khớp ngay cả ở lần dựng đầu
 
     return MaterialApp(
-      title: 'My Bike',
+      title: kAppName,
       debugShowCheckedModeBanner: false,
       theme: _lightTheme,
       darkTheme: _darkTheme,
@@ -139,7 +155,7 @@ class _MyBikeAppState extends ConsumerState<MyBikeApp> with WidgetsBindingObserv
             systemNavigationBarColor: AppColors.panel,
             systemNavigationBarIconBrightness: dark ? Brightness.light : Brightness.dark,
           ),
-          child: child ?? const SizedBox.shrink(),
+          child: ThBikeSplashOverlay(child: child ?? const SizedBox.shrink()),
         );
       },
       initialRoute: '/',
@@ -149,13 +165,20 @@ class _MyBikeAppState extends ConsumerState<MyBikeApp> with WidgetsBindingObserv
         '/connecting': (_) => const ConnectingScreen(),
         '/dashboard': (_) => const DashboardScreen(),
         '/cluster': (_) => const ClusterScreen(),
+        '/proximity': (_) => const ProximityScreen(),
+        '/studio': (_) => const DashboardStudioScreen(),
+        '/dash-live': (_) => const DashboardLiveScreen(),
         '/charge-finder': (_) => const ChargeFinderScreen(),
         '/battery': (_) => const BatteryDiagnosticsScreen(),
         '/charging': (_) => const ChargingScreen(),
+        '/operations': (_) => const OperationsScreen(),
         '/settings': (_) => const VehicleSettingsScreen(),
         '/regen': (_) => const RegenScreen(),
         '/logs': (_) => const LogsScreen(),
+        '/diagnostics': (_) => const DiagnosticsScreen(),
+        '/app-settings': (_) => const AppSettingsScreen(),
         '/lab': (_) => const FirmwareLabScreen(),
+        '/about': (_) => const AboutScreen(),
       },
     );
   }

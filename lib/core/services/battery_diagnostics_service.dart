@@ -108,7 +108,9 @@ class BatteryHealthReport {
   final double avgCellVoltage;
   final double deltaVoltageMv;
   final CellBalanceGrade balanceGrade;
-  final int healthPercentage; // SOH 0-100%
+  /// Điểm ước tính nội bộ từ số chu kỳ và ΔV. KHÔNG phải SOH: BMS không gửi SOH và
+  /// thuật toán này chưa được xác minh, nên UI không được hiển thị nó như SOH.
+  final int healthPercentage;
   final double packVoltage;
   final double currentAmp;
   final bool isBalancing;

@@ -12,8 +12,12 @@
 //   6. Ghi pairingToken UTF-8 lên sessionUuid (87efab0d)
 //   7. Đọc dashboard làm oracle (plain protobuf hoặc keystream decrypt)
 //
-// ⚠️ computeAuthResponse hiện là placeholder CHƯA VERIFY — probe sẽ dừng
-// an toàn ở bước 3 với status 00 cho tới khi crack xong công thức thật.
+// Ghi chú (2.11.0): comment cũ ở đây nói computeAuthResponse là "placeholder
+// CHƯA VERIFY" — đã LỖI THỜI. computeAuthResponse có test với 3 cặp vector
+// lấy từ btsnoop thật (test/session_crypto_test.dart). Nếu probe dừng ở bước 3
+// với status 00, theo docs/BLE_PROTOCOL_SPEC.md một nguyên nhân có thể là xe
+// chưa mở cờ isAppVerified (cần quẹt thẻ NFC) — chưa xác nhận trên xe thật. Xem
+// lib/core/ble/protocol_evidence.dart để biết mức bằng chứng từng phần.
 
 import 'dart:async';
 import 'dart:typed_data';

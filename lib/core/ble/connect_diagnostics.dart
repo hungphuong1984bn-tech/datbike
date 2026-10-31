@@ -511,6 +511,12 @@ class Redactor {
     return _sanitize(data, strict: isStrictEvent(type));
   }
 
+  /// Che NGHIÊM NGẶT bất kể loại event — dùng khi xuất log để chia sẻ (kể cả
+  /// event không thuộc luồng xác thực nhưng có ghi hex của gói thô).
+  static Map<String, Object?> sanitizeStrict(Map<String, Object?> data) {
+    return _sanitize(data, strict: true);
+  }
+
   static Map<String, Object?> _sanitize(Map<String, Object?> data,
       {required bool strict}) {
     final out = <String, Object?>{};

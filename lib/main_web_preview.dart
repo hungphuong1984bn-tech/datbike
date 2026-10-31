@@ -118,18 +118,18 @@ void main() {
       overrides: [
         bleProvider.overrideWith(PreviewBleController.new),
       ],
-      child: const DatBikePreviewApp(),
+      child: const ThBikePreviewApp(),
     ),
   );
 }
 
-class DatBikePreviewApp extends StatelessWidget {
-  const DatBikePreviewApp({super.key});
+class ThBikePreviewApp extends StatelessWidget {
+  const ThBikePreviewApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Dat Bike — Web Preview',
+      title: 'THBIKE — Web Preview',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.light(),

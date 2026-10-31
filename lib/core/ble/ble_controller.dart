@@ -26,6 +26,7 @@ import '../services/foreground_service.dart';
 import '../services/trip_gps_tracker.dart';
 import '../session/bike_session_crypto.dart';
 import '../utils/kalman_filter.dart';
+import 'ble_diag_stats.dart';
 import 'ble_logger.dart';
 import 'ble_permissions.dart';
 import 'connect_diagnostics.dart';
@@ -1743,6 +1744,10 @@ class BleController extends Notifier<BleState> {
   static const Duration _firstProtectedOpTimeout = Duration(seconds: 30);
 
   ConnectFailure? get lastConnectFailure => _lastConnectFailure;
+
+  /// Chỉ-đọc: bước kết nối đang chạy gần nhất (null = chưa có). Chỉ có ý nghĩa
+  /// khi phase đang là connecting; dùng cho trang chẩn đoán BLE.
+  ConnectStage? get currentConnectStage => _diag.current;
   String? get lastDiagnosticReport => _lastDiagnosticReport;
   int get negotiatedMtu => _negotiatedMtu;
 
@@ -2072,6 +2077,8 @@ class BleController extends Notifier<BleState> {
   Future<void> _failConnect(ConnectFailure f, {required int attempts}) async {
     _lastConnectFailure = f;
     _stageFail(f);
+    BleDiagStats.instance
+        .recordConnectFailure(stage: f.stage.name, kind: f.kind.name, code: f.code);
     BleLogger.instance.event('connect_failed', {
       'stage': f.stage.name,
       'kind': f.kind.name,
@@ -2398,11 +2405,13 @@ class BleController extends Notifier<BleState> {
     _writeCounter = 0;
     BleLogger.instance.event('establish_start',
         {'device_id': device.remoteId.str, 'build': appBuild});
+    BleDiagStats.instance.recordConnectAttempt();
 
     // 1) GATT connect
     _stageStart(ConnectStage.gattConnect);
     await _connectWithCachePrime(device);
     BleLogger.instance.event('connected', {'device_id': device.remoteId.str});
+    BleDiagStats.instance.recordConnected();
     _stageOk(ConnectStage.gattConnect);
     _beginSetupWatch(device);
 
@@ -2571,6 +2580,8 @@ class BleController extends Notifier<BleState> {
         BleLogger.instance.event('notify_subscribed', {
           'uuid': c.uuid.str128.toLowerCase(),
         });
+        BleDiagStats.instance
+            .recordNotify(c.uuid.str128, NotifyOutcome.subscribed);
         _notifySub?.cancel();
         _notifySub = c.lastValueStream.listen((List<int> raw) {
           BleLogger.instance.event('notify', {
@@ -2584,11 +2595,15 @@ class BleController extends Notifier<BleState> {
       } on ConnectFailure catch (f) {
         if (f.kind == ConnectFailureKind.linkLostDuringSetup) rethrow;
         // Không chặn: đã có poll đọc định kỳ.
+        BleDiagStats.instance.recordNotify(dash.uuid.str128, NotifyOutcome.failed,
+            detail: f.kind.name);
         _stageWarn(ConnectStage.notifications,
             'setNotify thất bại (${f.kind.name}), dùng poll',
             code: f.code);
       }
     } else {
+      BleDiagStats.instance
+          .recordNotify(dash.uuid.str128, NotifyOutcome.unsupported);
       _stageOk(ConnectStage.notifications,
           'dashboard không hỗ trợ notify — poll ${Gatt.dashboardPollMs}ms');
     }
@@ -2878,6 +2893,7 @@ class BleController extends Notifier<BleState> {
       if (directMsg.cellVols.isNotEmpty || directMsg.voltage > 0) {
         state = state.copyWith(
             lastBattery: directMsg, lastBatteryAt: DateTime.now());
+        BleDiagStats.instance.recordPacket('battery');
         BleLogger.instance.event('battery_log_received_plain', {
           'voltage': directMsg.voltage,
           'current': directMsg.current,
@@ -2902,6 +2918,7 @@ class BleController extends Notifier<BleState> {
           final bMsg = decodeBatteryLogMsg(decrypted);
           state = state.copyWith(
               lastBattery: bMsg, lastBatteryAt: DateTime.now());
+          BleDiagStats.instance.recordPacket('battery');
           BleLogger.instance.event('battery_log_received_decrypted', {
             'voltage': bMsg.voltage,
             'current': bMsg.current,
@@ -3053,9 +3070,12 @@ class BleController extends Notifier<BleState> {
       state = state.copyWith(lastTelemetry: msg, trip: currentTrip, frameSerial: autoSerial);
       _lastTelemetryAt = DateTime.now();
       _telemetry.add(BikeTelemetry(msg, _lastTelemetryAt!));
+      BleDiagStats.instance.recordPacket('dashboard', _lastTelemetryAt);
     } catch (e) {
       _decodeFailStreak++;
       dk = 'parse_fail: $e';
+      BleDiagStats.instance
+          .recordPacketError('dashboard_parse', detail: Redactor.scrubText('$e'));
       if (_decodeFailStreak >= 3) {
         state = state.copyWith(dashboardEncrypted: true);
       }
@@ -3659,6 +3679,7 @@ class BleController extends Notifier<BleState> {
   /// khi status != 0x01 — không spam ghi, không gửi lệnh khi chưa xác thực.
   bool _authFail(ConnectFailure f) {
     _lastAuthFailure = _stageFail(f);
+    BleDiagStats.instance.recordAuth(AuthObserved.failed);
     return false;
   }
 
@@ -4096,6 +4117,7 @@ class BleController extends Notifier<BleState> {
         );
 
         BleLogger.instance.event('auto_handshake_success');
+        BleDiagStats.instance.recordAuth(AuthObserved.accepted);
         if (postAuthRefresh) {
           unawaited(refreshFwSettings());
           unawaited(fetchVehicleDiagnostics());
@@ -4258,6 +4280,7 @@ class BleController extends Notifier<BleState> {
           'device_id': device.remoteId.str,
           'manual': _manualDisconnect,
         });
+        BleDiagStats.instance.recordDisconnect(manual: _manualDisconnect);
         // HỦY NGAY subscription watcher để không bị trigger lặp lại khi các lệnh reconnect thất bại
         _connSub?.cancel();
         _connSub = null;

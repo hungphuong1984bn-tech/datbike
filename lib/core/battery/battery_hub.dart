@@ -14,6 +14,7 @@ import 'balancing_monitor.dart';
 import 'battery_analytics.dart';
 import 'battery_config.dart';
 import 'battery_history.dart';
+import 'battery_history_store.dart';
 import 'battery_sessions.dart';
 import 'cell_model.dart';
 import 'cell_protection_engine.dart';
@@ -136,6 +137,9 @@ class BatteryHub extends Notifier<BatteryHubState> {
   static const Duration _telemetryMaxAge = Duration(seconds: 6);
 
   final BatteryHistory history = BatteryHistory();
+  // Lịch sử bền vững (mẫu thưa, chỉ từ gói BMS thật còn mới). Không bị xóa bởi "Đặt lại phiên".
+  final BatteryHistoryStore _store = BatteryHistoryStore();
+  final BatteryHistorySampler _sampler = BatteryHistorySampler();
   final BalancingMonitor _balancing = BalancingMonitor();
   final ActivityTracker _activity = ActivityTracker();
 
@@ -208,6 +212,9 @@ class BatteryHub extends Notifier<BatteryHubState> {
 
     if (live) {
       _balancing.onPack(snap);
+      if (_sampler.shouldRecord(at)) {
+        unawaited(_store.append(BatteryHistoryRecord.fromSnapshot(snap)));
+      }
       final ble = ref.read(bleProvider);
       final tele = _freshTelemetry(ble, at);
       double? soc = snap.socPercent > 0 ? snap.socPercent : null;
