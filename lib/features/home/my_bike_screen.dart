@@ -751,78 +751,42 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Giới hạn tốc độ ECE 60
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Giới hạn tốc độ 60 km/h',
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 13.5,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.textPrimary,
+                        // Grab / ECE / Regen: không còn công tắc ghi trực tiếp ở đây.
+                        // Lệnh đổi cấu hình chỉ đi qua Trung tâm điều khiển vận hành
+                        // (cổng an toàn + xác nhận + đọc lại từ xe).
+                        InkWell(
+                          key: const Key('mybike_open_control_center'),
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            Navigator.of(context).pushNamed('/control-center');
+                          },
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Chế độ vận hành (Grab · ECE · Regen)',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.textPrimary,
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'An toàn & tiết kiệm thêm 15% pin',
-                                    style: GoogleFonts.plusJakartaSans(fontSize: 11.5, color: AppColors.textSecondary),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Switch.adaptive(
-                              value: ble.speedLimitMode == 1,
-                              activeTrackColor: AppColors.primaryFill,
-                              onChanged: (v) async {
-                                final res = await ref.read(bleProvider.notifier).setSafeSpeedLimit60(v);
-                                _heroSnack(res);
-                                setSheetState(() {});
-                              },
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Divider(color: AppColors.panelSecondary, height: 1, thickness: 1),
-                        const SizedBox(height: 10),
-
-                        // Chế độ Grab
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Regen (phanh tái sinh)',
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 13.5,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.textPrimary,
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Điều khiển thủ công, chỉ khi xe đứng yên, đọc lại từ xe để xác nhận',
+                                      style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 11.5, color: AppColors.textSecondary),
                                     ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'Bật = mức 1, tắt = mức 0. Chỉ đổi khi xe đứng yên',
-                                    style: GoogleFonts.plusJakartaSans(fontSize: 11.5, color: AppColors.textSecondary),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
-                            Switch.adaptive(
-                              value: ble.grabMode >= 1,
-                              activeTrackColor: AppColors.tertiary,
-                              onChanged: (v) async {
-                                ref.read(bleProvider.notifier).setGrabMode(v ? 1 : 0);
-                                final res = await ref.read(bleProvider.notifier).setFwGrabMode(v);
-                                _heroSnack(res);
-                                setSheetState(() {});
-                              },
-                            ),
-                          ],
+                              Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
+                            ],
+                          ),
                         ),
                       ],
                     ),

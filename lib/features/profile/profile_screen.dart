@@ -65,8 +65,10 @@ class ProfileScreen extends ConsumerWidget {
               'Phiên sạc, công suất, thời gian còn lại', (c) => Navigator.of(c).pushNamed('/charging')),
           _Item(Icons.speed_rounded, () => AppColors.primary, 'Thông số vận hành',
               'Biểu đồ tốc độ, điện áp, dòng điện, nhiệt độ', (c) => Navigator.of(c).pushNamed('/operations')),
+          _Item(Icons.tune_rounded, () => AppColors.primary, 'Trung tâm điều khiển vận hành',
+              'Grab, ECE, Regen — điều khiển thủ công, đọc lại từ xe', (c) => Navigator.of(c).pushNamed('/control-center')),
           _Item(Icons.battery_charging_full_rounded, () => AppColors.greenText, 'Phanh tái sinh (Regen)',
-              'Thu hồi năng lượng khi giảm tốc', (c) => _push(c, const RegenScreen())),
+              'Giám sát số liệu thu hồi năng lượng (chỉ đọc)', (c) => _push(c, const RegenScreen())),
           _Item(Icons.medical_services_outlined, () => AppColors.greenText, 'Bác sĩ pin và BMS',
               'Điện áp từng cell, cân bằng, cảnh báo', (c) => _push(c, const BatteryDiagnosticsScreen())),
         ]

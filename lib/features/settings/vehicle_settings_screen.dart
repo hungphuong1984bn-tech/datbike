@@ -982,274 +982,40 @@ class _VehicleSettingsScreenState extends ConsumerState<VehicleSettingsScreen> {
   }
 
   // ========== THẺ 3: GIỚI HẠN TỐC ĐỘ AN TOÀN & VẬN HÀNH ĐỘNG CƠ ==========
+  /// Grab / ECE / Regen KHÔNG còn công tắc ghi trực tiếp ở đây: mọi lệnh đổi
+  /// cấu hình đi qua Trung tâm điều khiển vận hành (cổng an toàn + xác nhận +
+  /// đọc lại từ xe). Thẻ này chỉ là lối vào, không hiển thị trạng thái cache.
   Widget _buildSpeedLimiterCard(BleState ble) {
-    final connected = ble.phase == BlePhase.connected;
     return Panel(
       padding: const EdgeInsets.all(18),
       borderRadius: 20,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            margin: const EdgeInsets.only(bottom: 12),
-            decoration: BoxDecoration(
-              color: AppColors.tertiary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: AppColors.tertiary.withValues(alpha: 0.35),
-              ),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(
-                  Icons.verified_rounded,
-                  color: AppColors.tertiary,
-                  size: 20,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    '✅ Đã verify trên xe 24/10: ECE là "cổng" của giới hạn — cần bật ECE thì trần 60 km/h mới có hiệu lực. App luôn ghi đồng bộ cả ECE + SpeedLimit.',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.tertiary,
-                      height: 1.4,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
           Text(
-            connected
-                ? 'Tùy chọn tốc độ an toàn (ghi xuống xe ngay):'
-                : 'Kết nối xe để ghi giới hạn tốc độ xuống firmware:',
+            'Chế độ vận hành (Grab · ECE · Regen)',
+            style: GoogleFonts.spaceGrotesk(fontSize: 14, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Mọi thay đổi được điều khiển thủ công, chỉ khi xe đứng yên, có xác nhận '
+            'trước khi gửi và đọc lại từ xe để kiểm chứng. Trạng thái hiển thị là '
+            'giá trị đọc thật từ xe, không phải giá trị đã lưu trên ứng dụng.',
             style: GoogleFonts.plusJakartaSans(
-              fontSize: 12.5,
+              fontSize: 12,
+              height: 1.4,
               color: AppColors.textDim,
             ),
           ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 6,
-            runSpacing: 4,
-            children: [
-              StatusPill(
-                label: 'ECE: ${ble.eceMode}',
-                color: ble.eceMode == 1
-                    ? AppColors.tertiary
-                    : AppColors.textDim,
-              ),
-              StatusPill(
-                label: 'Giới hạn: ${const ['Không', '50 km/h', '30 km/h'][ble.speedLimitMode.clamp(0, 2)]}',
-                color: ble.speedLimitMode == 1
-                    ? AppColors.primary
-                    : AppColors.textDim,
-              ),
-              if (ble.fwSpeedLimitRaw != null)
-                StatusPill(
-                  label: 'RAW: ${ble.fwSpeedLimitRaw}',
-                  color: AppColors.secondary,
-                ),
-            ],
-          ),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              _buildSegmentOption(
-                label: 'Không giới hạn',
-                desc: 'Full Power',
-                isSelected: ble.speedLimitMode == 0,
-                onTap: () async {
-                  if (ble.speedLimitMode == 0) return;
-                  final confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      backgroundColor: AppColors.panel,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      title: Row(
-                        children: [
-                          const Icon(
-                            Icons.warning_amber_rounded,
-                            color: AppColors.amber,
-                            size: 22,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Tắt Giới Hạn Tốc Độ?',
-                              style: GoogleFonts.spaceGrotesk(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      content: Text(
-                        'Khi muốn tắt giới hạn về Full Power, bạn cần tắt máy xe và bật lại để bộ điều tốc VESC giải phóng bộ nhớ RAM.\n\n'
-                        'App sẽ gửi lệnh tắt giới hạn tốc độ và chế độ ECE ngay bây giờ. Sau khi tắt, xe sẽ cho chuyển mode lái trở lại (khi ECE bật, xe KHÔNG cho chuyển mode — verified 24/10).',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 13,
-                          height: 1.45,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx, false),
-                          child: Text(
-                            'HỦY',
-                            style: GoogleFonts.spaceGrotesk(
-                              color: AppColors.textDim,
-                            ),
-                          ),
-                        ),
-                        FilledButton(
-                          style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.primaryFill,
-                          ),
-                          onPressed: () => Navigator.pop(ctx, true),
-                          child: Text(
-                            'XÁC NHẬN TẮT',
-                            style: GoogleFonts.spaceGrotesk(
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                  if (confirm != true) return;
-                  final res = await ref
-                      .read(bleProvider.notifier)
-                      .setSafeSpeedLimit60(false);
-                  _showResult(res);
-                },
-              ),
-              const SizedBox(width: 8),
-              _buildSegmentOption(
-                label: 'Giới hạn 60 km/h',
-                desc: 'An toàn đô thị',
-                isSelected: ble.speedLimitMode == 1,
-                onTap: () async {
-                  if (ble.speedLimitMode == 1) return;
-                  final res = await ref
-                      .read(bleProvider.notifier)
-                      .setSafeSpeedLimit60(true);
-                  _showResult(res);
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppColors.amber.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.amber.withValues(alpha: 0.3)),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              key: const Key('open_control_center'),
+              onPressed: () => Navigator.of(context).pushNamed('/control-center'),
+              icon: const Icon(Icons.tune_rounded),
+              label: const Text('Mở Trung tâm điều khiển vận hành'),
             ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(
-                  Icons.info_outline_rounded,
-                  color: AppColors.amber,
-                  size: 16,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    '📌 ECE = cổng của giới hạn (verified 24/10): cần bật ECE mới limit được 60 km/h. Khi ECE đang bật, xe KHÔNG cho chuyển mode lái — tắt giới hạn này để chuyển mode. Muốn về Full Power hoàn toàn, tắt giới hạn rồi TẮT/MỞ lại xe (VESC xóa trần trong RAM).',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.amber,
-                      height: 1.35,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          Divider(color: AppColors.panelBorder, height: 1),
-          const SizedBox(height: 14),
-
-          // Chế độ Grab / Chở tải (a1d8e7c4 — MASTER_CONFIG_SERVICE)
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'REGEN (PHANH TÁI SINH)',
-                      style: GoogleFonts.spaceGrotesk(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Đổi mức phanh tái sinh trên xe (kênh 0xa1d8e7c4, tên firmware GRAB_MODE). Chỉ đổi khi xe đứng yên. Nhiều mức hơn: màn Regen trong Hồ sơ.',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 11,
-                        color: AppColors.textDim,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              StatusPill(
-                label: 'REGEN: MỨC ${ble.grabMode}',
-                color: ble.grabMode >= 1
-                    ? AppColors.tertiary
-                    : AppColors.textDim,
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              _buildSegmentOption(
-                label: 'Mức 0',
-                desc: 'Giá trị 0',
-                isSelected: ble.grabMode == 0,
-                onTap: connected
-                    ? () async {
-                        ref.read(bleProvider.notifier).setGrabMode(0);
-                        _showResult(
-                          await ref
-                              .read(bleProvider.notifier)
-                              .setFwGrabMode(false),
-                        );
-                      }
-                    : null,
-              ),
-              const SizedBox(width: 8),
-              _buildSegmentOption(
-                label: 'Mức 1',
-                desc: 'Giá trị 1',
-                isSelected: ble.grabMode >= 1,
-                onTap: connected
-                    ? () async {
-                        ref.read(bleProvider.notifier).setGrabMode(1);
-                        _showResult(
-                          await ref
-                              .read(bleProvider.notifier)
-                              .setFwGrabMode(true),
-                        );
-                      }
-                    : null,
-              ),
-            ],
           ),
         ],
       ),
