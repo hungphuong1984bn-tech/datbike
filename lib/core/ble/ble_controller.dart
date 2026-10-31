@@ -21,6 +21,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../proto/bike_log.dart';
 import '../proximity/proximity_controller.dart';
 import '../proximity/proximity_engine.dart';
+import '../control/mode_types.dart';
 import '../models/trip_gps_point.dart';
 import '../services/foreground_service.dart';
 import '../services/trip_gps_tracker.dart';
@@ -417,9 +418,6 @@ class BleController extends Notifier<BleState> {
   static const _kFindBikePattern = 'find_bike_pattern';
   static const _kRecupLevel = 'recup_level';
   static const _kThrottleResponse = 'throttle_response';
-  static const _kSpeedLimitMode = 'speed_limit_mode';
-  static const _kEceMode = 'fw_ece_mode';
-  static const _kGrabMode = 'fw_grab_mode';
   static const _kIdlingTurnOff = 'fw_idling_turn_off';
   static const _kDistanceMode = 'fw_distance_mode';
   static const _kChargingProfile = 'fw_charging_profile';
@@ -493,9 +491,8 @@ class BleController extends Notifier<BleState> {
     final findBikePat = prefs.getInt(_kFindBikePattern) ?? 0;
     final recup = prefs.getInt(_kRecupLevel) ?? 1;
     final throttle = prefs.getInt(_kThrottleResponse) ?? 1;
-    final speedLimit = prefs.getInt(_kSpeedLimitMode) ?? 0;
-    final eceM = prefs.getInt(_kEceMode) ?? 0;
-    final grabM = prefs.getInt(_kGrabMode) ?? 0;
+    // Cờ ECE / SpeedLimit / Grab KHÔNG được nạp từ cache cục bộ: trạng thái của
+    // chúng chỉ được lấy từ lần đọc thật từ xe (xem lib/core/control).
     final idlingOff = prefs.getBool(_kIdlingTurnOff) ?? false;
     final distM = prefs.getInt(_kDistanceMode) ?? 0;
     final chargeP = prefs.getInt(_kChargingProfile) ?? 0;
@@ -529,9 +526,6 @@ class BleController extends Notifier<BleState> {
       findBikePattern: findBikePat,
       recupLevel: recup,
       throttleResponse: throttle,
-      speedLimitMode: speedLimit,
-      eceMode: eceM,
-      grabMode: grabM,
       idlingTurnOff: idlingOff,
       distanceMode: distM,
       chargingProfile: chargeP,
@@ -646,8 +640,10 @@ class BleController extends Notifier<BleState> {
     state = state.copyWith(findBikePattern: val);
   }
 
-  /// Lưu hồ sơ mức phanh tái sinh RECUP cá nhân trên ứng dụng.
-  /// LƯU Ý: Firmware v1.14.0 hiện tại chưa hỗ trợ ghi cấu hình RECUP qua BLE xuống xe.
+  /// HỒ SƠ CỤC BỘ — chỉ lưu trong SharedPreferences của điện thoại.
+  /// KHÔNG được ghi xuống xe và KHÔNG phản ánh cấu hình thực tế của xe
+  /// (fw 1.14.0 chưa có đường ghi RECUP qua BLE). UI không được hiển thị giá
+  /// trị này như một thông số của xe.
   Future<void> setRecupLevel(int val) async {
     final prefs = await _prefs;
     await prefs.setInt(_kRecupLevel, val);
@@ -662,22 +658,6 @@ class BleController extends Notifier<BleState> {
     await prefs.setInt(_kThrottleResponse, val);
     state = state.copyWith(throttleResponse: val);
     BleLogger.instance.event('driver_profile_throttle_set_local', {'response': val});
-  }
-
-  /// Lưu hồ sơ giới hạn tốc độ khuyến nghị cá nhân trên ứng dụng.
-  /// CẢNH BÁO: Firmware v1.14.0 KHÔNG hỗ trợ khóa tốc độ xe từ Bluetooth!
-  /// Cài đặt này chỉ mang tính tham khảo trên giao diện và KHÔNG hãm tốc độ thực tế của xe.
-  /// Cache local cho UI (ghi thật xuống xe = setFwEceMode).
-  Future<void> setEceMode(int val) async {
-    final prefs = await _prefs;
-    await prefs.setInt(_kEceMode, val);
-    state = state.copyWith(eceMode: val);
-  }
-
-  Future<void> setGrabMode(int val) async {
-    final prefs = await _prefs;
-    await prefs.setInt(_kGrabMode, val);
-    state = state.copyWith(grabMode: val);
   }
 
   Future<void> setIdlingTurnOff(bool val) async {
@@ -696,13 +676,6 @@ class BleController extends Notifier<BleState> {
     final prefs = await _prefs;
     await prefs.setInt(_kDistanceMode, val);
     state = state.copyWith(distanceMode: val);
-  }
-
-  Future<void> setSpeedLimitMode(int val) async {
-    final prefs = await _prefs;
-    await prefs.setInt(_kSpeedLimitMode, val);
-    state = state.copyWith(speedLimitMode: val);
-    BleLogger.instance.event('driver_profile_speed_mode_set_local', {'mode': val});
   }
 
   // ------------------------------------------------------------------
@@ -850,41 +823,6 @@ class BleController extends Notifier<BleState> {
     });
   }
 
-  /// Giới hạn tốc độ an toàn (60 km/h) — kết hợp ECE + SpeedLimit.
-  /// CƠ CHẾ VERIFIED 24/10 (LAB + chạy thật): ECE là "CỔNG" của giới hạn —
-  /// SpeedLimit chỉ có hiệu lực khi ECE=1. Khi ECE đang BẬT, xe KHÔNG cho
-  /// chuyển mode lái (S/D...); muốn chuyển mode phải tắt ECE (= tắt giới hạn).
-  /// Khi tắt: ghi cả 2 về '0' (nên power-cycle xe để VESC xóa trần ERPM RAM).
-  Future<String> setSafeSpeedLimit60(bool on) async {
-    if (state.phase != BlePhase.connected) {
-      state = state.copyWith(
-        speedLimitMode: on ? 1 : 0,
-        eceMode: on ? 1 : 0,
-        fwSpeedLimitRaw: on ? 1 : 0,
-      );
-      if (on) {
-        return '⚠️ Xe chưa kết nối. Đã lưu tùy chọn giới hạn tốc độ 60 km/h trên ứng dụng.';
-      } else {
-        return '⚠️ Xe chưa kết nối. Đã lưu tùy chọn tắt giới hạn trên ứng dụng.\n💡 Khi kết nối lại, app sẽ ghi xuống xe. Nên tắt/mở nguồn xe để VESC xóa trần tốc độ khỏi RAM.';
-      }
-    }
-    final msg1 = await _writeSetting(Gatt.speedLimitChar, [on ? 0x31 : 0x30], 'giới hạn tốc độ');
-    await Future.delayed(const Duration(milliseconds: 120));
-    final msg2 = await _writeSetting(Gatt.eceModeChar, [on ? 0x31 : 0x30], 'chế độ ECE (60 km/h)');
-    state = state.copyWith(
-      speedLimitMode: on ? 1 : 0,
-      eceMode: on ? 1 : 0,
-      fwSpeedLimitRaw: on ? 1 : 0,
-    );
-    if (on) {
-      return '⚡ Đã bật Giới hạn tốc độ 60 km/h (ECE + SpeedLimit).\n'
-          '📌 Lưu ý: khi ECE đang bật, xe KHÔNG cho chuyển mode lái — muốn chuyển mode thì tắt giới hạn này.\n$msg1\n$msg2';
-    } else {
-      return '🔓 Đã tắt giới hạn tốc độ & ECE — xe đã chuyển mode lái được trở lại.\n'
-          '⚠️ Nên TẮT XE RỒI BẬT LẠI (Power-Cycle) để VESC giải phóng trần 60 km/h khỏi RAM.\n$msg1\n$msg2';
-    }
-  }
-
   /// KHÓA AN TOÀN (ARM) — char eec8fd7f (LAB 23/10 đêm xác minh thực tế):
   /// protected '1' = khóa an toàn: xe khóa, BẮT BUỘC quẹt thẻ NFC mới kết nối
   /// lại được, còi hú khi đá chống; '0' = mở khóa. (Nhãn cũ "immobilizer qua
@@ -933,74 +871,80 @@ class BleController extends Notifier<BleState> {
   /// thái khóa theo dõi app-side (đặt khi bấm khóa/mở).
   Future<bool?> readLockStatus() async => null;
 
-  /// Giới hạn tốc độ đơn lẻ — firmware 1.14.0 parse BOOLEAN (disasm onWriteSpeedLimit
-  /// @0x40153d50: payload[0]-'1'==0 ? 1 : 0). '2'/'3' bị hiểu là TẮT.
-  /// Read trả raw u8 (NVS 'speed-limit', default 1).
-  Future<String> setFwSpeedLimit(bool on) =>
-      _writeSetting(Gatt.speedLimitChar, [on ? 0x31 : 0x30], 'giới hạn tốc độ');
-
-  /// Chế độ ECE — BOOLEAN '0'/'1' (disasm onWriteEceMode @0x40153bd0).
-  Future<String> setFwEceMode(bool on) =>
-      _writeSetting(Gatt.eceModeChar, [on ? 0x31 : 0x30], 'chế độ ECE');
-
-  /// Chế độ Grab — BOOLEAN '0'/'1' (disasm onWriteGrabMode @0x40153e30).
+  /// GHI MỘT cờ boolean ('0'/'1' ASCII) xuống một characteristic cấu hình rồi
+  /// ĐỌC LẠI một lần. KHÔNG thử lại. Trả về kết quả có cấu trúc (không phải chuỗi).
   ///
-  /// Grab đã được người dùng xác nhận là làm đổi dòng nạp ngược (Regen), nên
-  /// chỉ đổi khi xe đứng yên và có telemetry mới (< 4 giây).
-  Future<String> setFwGrabMode(bool on) async {
-    final reason = grabBlockReason();
-    if (reason != null) {
-      BleLogger.instance.event('grab_write_blocked', {'reason': reason});
-      unawaited(resyncGrabFromBike()); // UI đã đổi tạm → kéo lại giá trị thật
-      return 'Đã chặn: $reason';
-    }
-    return _writeSetting(Gatt.grabModeChar, [on ? 0x31 : 0x30], 'chế độ Regen');
-  }
-
-  /// Lý do KHÔNG được đổi Grab/Regen lúc này, null nếu được phép.
-  /// "Chưa biết tốc độ" KHÔNG được coi là 0.
-  String? grabBlockReason() {
+  /// Đây là đường ghi DUY NHẤT cho Grab/ECE/SpeedLimit từ Trung tâm điều khiển
+  /// vận hành (lib/core/control). Caller PHẢI đã qua cổng an toàn
+  /// (regenBlockReason) và hộp thoại xác nhận của người dùng.
+  Future<SettingWriteOutcome> writeBoolSettingVerified(
+    String uuid,
+    bool on,
+    String label, {
+    required String cmdId,
+  }) async {
     if (state.phase != BlePhase.connected || !state.isAuthorized) {
-      return 'Xe chưa kết nối/xác thực.';
+      return const SettingWriteOutcome(sent: false, error: 'Xe chưa kết nối/xác thực.');
     }
-    final spd = state.lastTelemetry?.speed;
-    if (!_telemetryFresh || spd == null) {
-      return 'Chưa có dữ liệu tốc độ mới (< 4 giây) nên không xác nhận được xe đang đứng yên.';
+    final c = _findCharacteristic(uuid);
+    if (c == null) {
+      BleLogger.instance.event('mode_write_err', {
+        'cmd': cmdId, 'char': uuid, 'label': label, 'error': 'char not found',
+      });
+      return SettingWriteOutcome(sent: false, error: 'Xe không expose characteristic $label.');
     }
-    if (spd > 0.5) {
-      return 'Xe đang chạy (${spd.toStringAsFixed(1)} km/h) — đổi Regen khi đang chạy không được phép, hãy dừng hẳn xe.';
+    final key = _sessionKey;
+    if (key == null) {
+      return const SettingWriteOutcome(sent: false, error: 'Chưa có session key.');
     }
-    return null;
-  }
-
-  /// Đọc mức Grab thô (u8) từ xe; null nếu không đọc được. Không ghi gì.
-  Future<int?> readGrabRaw() async {
-    final dec = await readFwSettingRaw(Gatt.grabModeChar, 'Regen');
-    if (dec.isEmpty) return null;
-    noteGrabLevel(dec[0]);
-    return dec[0];
-  }
-
-  /// Cập nhật BleState theo giá trị Grab thật vừa đọc từ xe.
-  void noteGrabLevel(int raw) {
-    state = state.copyWith(grabMode: raw < 0 ? 0 : (raw > 9 ? 9 : raw));
-  }
-
-  Future<void> resyncGrabFromBike() async {
-    try {
-      await readGrabRaw();
-    } catch (_) {}
-  }
-
-  /// Ghi mức Grab thô 0..9 (ASCII '0'..'9'). Với 0/1 đã xác minh (parser
-  /// boolean). Mức >= 2 chỉ dùng cho bước dò có kiểm soát (RegenController).
-  /// true = ghi xuống xe không lỗi (CHƯA phải xác nhận — phải đọc lại).
-  /// Caller PHẢI đã qua cổng an toàn.
-  Future<bool> writeGrabLevelRaw(int level) async {
-    if (level < 0 || level > 9) return false;
-    final msg = await _writeSetting(
-        Gatt.grabModeChar, [0x30 + level], 'Regen mức $level');
-    return msg.startsWith('Đã ghi');
+    return _enqueueGatt<SettingWriteOutcome>(() async {
+      try {
+        final counter = _writeCounter++;
+        final frame = BikeSessionCrypto.buildProtectedWrite(
+          sessionKey: key,
+          counter: counter,
+          characteristicUuid: uuid,
+          data: [on ? 0x31 : 0x30],
+        );
+        await c.write(frame, withoutResponse: false);
+        BleLogger.instance.event('mode_write', {
+          'cmd': cmdId,
+          'char': uuid,
+          'label': label,
+          'data': on ? '1' : '0',
+          'counter': counter,
+        });
+      } catch (e) {
+        BleLogger.instance.event('mode_write_err', {
+          'cmd': cmdId, 'char': uuid, 'label': label, 'error': '$e',
+        });
+        return SettingWriteOutcome(sent: false, error: 'Lỗi ghi $label: $e');
+      }
+      // Firmware cần ~150 ms để parse xong rồi mới trả giá trị mới.
+      await Future.delayed(const Duration(milliseconds: 150));
+      int? readBack;
+      try {
+        final re = await c.read().timeout(
+            const Duration(milliseconds: 1200), onTimeout: () => Uint8List(0));
+        if (re.length >= 4) {
+          final dec = BikeSessionCrypto.decryptProtectedRead(
+            sessionKey: key,
+            characteristicUuid: uuid,
+            response: re,
+            expectedLength: expectedLengthForUuid(uuid),
+          );
+          if (dec.isNotEmpty) readBack = dec[0];
+        }
+        BleLogger.instance.event('mode_write_readback', {
+          'cmd': cmdId, 'char': uuid, 'label': label, 'readback': readBack,
+        });
+      } catch (e) {
+        BleLogger.instance.event('mode_write_readback_err', {
+          'cmd': cmdId, 'char': uuid, 'label': label, 'error': '$e',
+        });
+      }
+      return SettingWriteOutcome(sent: true, readBack: readBack);
+    });
   }
 
   /// Tự tắt xe khi đỗ — '1' bật / '0' tắt.

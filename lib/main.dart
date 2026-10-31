@@ -16,6 +16,7 @@ import 'features/battery/battery_diagnostics_screen.dart';
 import 'features/charging/charging_screen.dart';
 import 'features/operations/operations_screen.dart';
 import 'features/settings/vehicle_settings_screen.dart';
+import 'features/control_center/control_center_screen.dart';
 import 'features/regen/regen_screen.dart';
 import 'features/home/home_shell.dart';
 import 'features/cluster/cluster_screen.dart';
@@ -174,6 +175,7 @@ class _MyBikeAppState extends ConsumerState<MyBikeApp> with WidgetsBindingObserv
         '/operations': (_) => const OperationsScreen(),
         '/settings': (_) => const VehicleSettingsScreen(),
         '/regen': (_) => const RegenScreen(),
+        '/control-center': (_) => const ControlCenterScreen(),
         '/logs': (_) => const LogsScreen(),
         '/diagnostics': (_) => const DiagnosticsScreen(),
         '/app-settings': (_) => const AppSettingsScreen(),

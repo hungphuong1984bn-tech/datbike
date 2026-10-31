@@ -5,12 +5,14 @@
 // xác minh là đọc/ghi mức Regen. Vì vậy [RegenProtocolSpec.unverified] là mặc
 // định: không có UUID, không có mức, và KHÔNG có đường ghi nào được mở.
 //
-// Khi (và chỉ khi) có bằng chứng, xem docs/REGEN_VERIFICATION.md, cập nhật
-// [RegenProtocolSpec.verified] và cung cấp một [RegenTransport] thật.
+// Char Grab (a1d8e7c4) KHÔNG được coi là Regen: nó là điều khiển Grab riêng
+// (lib/core/control). Người dùng quan sát đổi Grab làm đổi dòng nạp ngược, nhưng
+// đó là một ảnh hưởng chéo chưa đo, không phải bằng chứng về một char Regen.
+//
+// Khi (và chỉ khi) có bằng chứng, xem docs/REGEN_VERIFICATION.md, thay
+// provider spec bằng [RegenProtocolSpec] verified và cung cấp [RegenTransport] thật.
 
 import 'package:flutter/foundation.dart';
-
-import '../ble/gatt.dart';
 
 /// Một mức Regen ĐÃ XÁC MINH trên xe.
 @immutable
@@ -60,34 +62,6 @@ class RegenProtocolSpec {
     requiresStandstill: true,
     evidence: 'Chưa tìm thấy characteristic Regen trong fw 1.14.0 / btsnoop.',
   );
-
-  /// Regen qua char Grab (a1d8e7c4).
-  /// Bằng chứng: (1) Lab 23/10: ghi '1' đọc lại 01 (parser boolean, Ghidra
-  /// onWriteGrabMode @0x40153e30); (2) người dùng xác nhận 28/10/2026: đổi Grab
-  /// làm dòng nạp ngược thay đổi. CHƯA biết mức nào mạnh/yếu hơn.
-  /// Mức 0/1 là đã xác minh; mức >= 2 chỉ có khi bước dò ([maxLevel]) cho thấy
-  /// xe ghi và đọc lại được đúng giá trị, và luôn gắn cờ experimental.
-  static RegenProtocolSpec grab({int maxLevel = 1}) {
-    final top = maxLevel < 1 ? 1 : (maxLevel > 9 ? 9 : maxLevel);
-    return RegenProtocolSpec(
-      verified: true,
-      characteristicUuid: Gatt.grabModeChar,
-      requiresStandstill: true,
-      evidence: 'Grab a1d8e7c4: parser boolean (Ghidra) + người dùng xác nhận '
-          'đổi Grab làm đổi dòng nạp ngược. Mức >= 2 chưa xác minh hiệu ứng.',
-      levels: [
-        for (var i = 0; i <= top; i++)
-          RegenLevel(
-            index: i,
-            rawValue: i,
-            experimental: i >= 2,
-            label: i == 0
-                ? 'Regen mức 0'
-                : (i == 1 ? 'Regen mức 1' : 'Regen mức $i (thử nghiệm)'),
-          ),
-      ],
-    );
-  }
 
   RegenLevel? levelByRaw(int raw) {
     for (final l in levels) {

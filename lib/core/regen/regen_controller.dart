@@ -3,61 +3,22 @@
 // Không chạm tới phanh cơ, ga, giới hạn công suất hay chức năng an toàn khác.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../ble/ble_controller.dart';
 import '../ble/ble_logger.dart';
 import 'regen_protocol.dart';
 
-/// Mức Grab cao nhất mà bước dò đã chứng minh xe ghi + đọc lại đúng.
-/// Mặc định 1 (chỉ 0/1 — đã xác minh). Lưu cục bộ trên điện thoại.
-final grabMaxLevelProvider =
-    NotifierProvider<GrabMaxLevelNotifier, int>(GrabMaxLevelNotifier.new);
+/// Giao thức Regen hiện hành: CHƯA xác minh characteristic Regen độc lập nào.
+/// (Char Grab a1d8e7c4 được điều khiển riêng ở lib/core/control — ở đó nó là
+/// "Grab", không phải "mức Regen".) Vì vậy mô-đun này KHÓA mọi thao tác ghi.
+/// Khi có bằng chứng (docs/REGEN_VERIFICATION.md §3), thay provider này bằng
+/// RegenProtocolSpec(verified: true, ...) và cung cấp RegenTransport thật.
+final regenSpecProvider =
+    Provider<RegenProtocolSpec>((ref) => RegenProtocolSpec.unverified);
 
-class GrabMaxLevelNotifier extends Notifier<int> {
-  static const _key = 'regen_grab_max_level';
-
-  @override
-  int build() {
-    _load();
-    return 1;
-  }
-
-  Future<void> _load() async {
-    try {
-      final v = (await SharedPreferences.getInstance()).getInt(_key);
-      if (v != null && v >= 1 && v <= 9) state = v;
-    } catch (_) {}
-  }
-
-  Future<void> set(int v) async {
-    final nv = v < 1 ? 1 : (v > 9 ? 9 : v);
-    state = nv;
-    try {
-      await (await SharedPreferences.getInstance()).setInt(_key, nv);
-    } catch (_) {}
-  }
-}
-
-/// Giao thức Regen hiện hành: Grab (a1d8e7c4), các mức đã xác minh.
-final regenSpecProvider = Provider<RegenProtocolSpec>(
-    (ref) => RegenProtocolSpec.grab(maxLevel: ref.watch(grabMaxLevelProvider)));
-
-/// Đường tới xe: đọc/ghi char Grab qua BleController (protected write + đọc lại).
+/// Không có đường tới xe cho Regen độc lập.
 final regenTransportProvider =
-    Provider<RegenTransport>((ref) => GrabRegenTransport(ref));
-
-class GrabRegenTransport implements RegenTransport {
-  final Ref _ref;
-  GrabRegenTransport(this._ref);
-
-  @override
-  Future<int?> readRaw() => _ref.read(bleProvider.notifier).readGrabRaw();
-
-  @override
-  Future<bool> writeRaw(int raw) =>
-      _ref.read(bleProvider.notifier).writeGrabLevelRaw(raw);
-}
+    Provider<RegenTransport>((ref) => const UnavailableRegenTransport());
 
 /// Thời gian chờ xe áp dụng trước khi đọc lại.
 final regenReadbackDelayProvider =
@@ -205,102 +166,6 @@ class RegenController extends Notifier<RegenState> {
         message: 'Lỗi giao tiếp khi gửi lệnh: $e. Trạng thái trên xe chưa được xác nhận.',
       );
     } finally {
-      _busy = false;
-    }
-  }
-
-  /// DÒ CÓ KIỂM SOÁT: xem xe có ghi + đọc lại được mức Grab >= 2 không.
-  /// - Chỉ chạy khi qua cổng an toàn (đứng yên, telemetry mới).
-  /// - Dừng ngay ở mức đầu tiên xe không đọc lại đúng.
-  /// - LUÔN khôi phục mức ban đầu rồi đọc lại xác nhận.
-  /// - Kết quả chỉ nói "xe lưu được giá trị"; KHÔNG chứng minh hiệu ứng Regen.
-  Future<void> probeHigherLevels({int maxCandidate = 4}) async {
-    if (_busy) return;
-    final spec = ref.read(regenSpecProvider);
-    if (!spec.verified) return;
-    final reason = regenBlockReason(
-      ref.read(regenLinkReaderProvider)(),
-      requiresStandstill: true,
-    );
-    if (reason != null) {
-      state = state.copyWith(status: RegenSyncStatus.failed, message: 'Không dò: $reason');
-      return;
-    }
-    _busy = true;
-    final transport = ref.read(regenTransportProvider);
-    final delay = ref.read(regenReadbackDelayProvider);
-    int? original;
-    var best = 1;
-    String finding = '';
-    try {
-      state = state.copyWith(status: RegenSyncStatus.writing, message: 'Đang dò mức Regen cao hơn…');
-      original = await transport.readRaw();
-      if (original == null) {
-        state = state.copyWith(
-          status: RegenSyncStatus.failed,
-          message: 'Không đọc được mức hiện tại nên dừng dò (không ghi gì).',
-        );
-        return;
-      }
-      for (var c = 2; c <= maxCandidate; c++) {
-        if (!ref.read(regenLinkReaderProvider)().connected) {
-          finding = 'Mất kết nối khi dò — dừng.';
-          break;
-        }
-        _log('probe_write', {'raw': c});
-        final ok = await transport.writeRaw(c);
-        if (!ok) {
-          finding = 'Xe từ chối ghi mức $c — dừng dò.';
-          break;
-        }
-        await Future<void>.delayed(delay);
-        final r = await transport.readRaw();
-        _log('probe_readback', {'wrote': c, 'read': r});
-        if (r == c) {
-          best = c;
-        } else {
-          finding = 'Ghi mức $c nhưng xe đọc lại ${r ?? "không đọc được"} '
-              '— firmware có vẻ không hỗ trợ mức này.';
-          break;
-        }
-      }
-    } catch (e) {
-      finding = 'Lỗi giao tiếp khi dò: $e';
-    } finally {
-      // Luôn khôi phục mức ban đầu.
-      String restore = '';
-      if (original != null) {
-        try {
-          final ok = await transport.writeRaw(original);
-          await Future<void>.delayed(delay);
-          final r = await transport.readRaw();
-          restore = (ok && r == original)
-              ? 'Đã khôi phục mức ban đầu ($original) và đọc lại xác nhận.'
-              : '⚠️ KHÔNG xác nhận được việc khôi phục mức ban đầu ($original), '
-                  'xe đọc lại ${r ?? "không đọc được"}. Hãy đặt lại mức Regen thủ công rồi '
-                  'tắt/bật nguồn xe.';
-          _log('probe_restore', {'original': original, 'read': r, 'ok': ok});
-        } catch (e) {
-          restore = '⚠️ Lỗi khi khôi phục mức ban đầu ($original): $e. '
-              'Đặt lại mức Regen thủ công rồi tắt/bật nguồn xe.';
-        }
-        if (best > ref.read(grabMaxLevelProvider)) {
-          await ref.read(grabMaxLevelProvider.notifier).set(best);
-        }
-        state = state.copyWith(
-          status: restore.startsWith('⚠️') ? RegenSyncStatus.failed : RegenSyncStatus.unknown,
-          currentIndex: null,
-          currentRaw: null,
-          selectedIndex: null,
-          message: [
-            best >= 2
-                ? 'Xe ghi và đọc lại được tới mức $best (hiệu ứng Regen các mức ≥ 2 CHƯA xác minh — hãy đo).'
-                : 'Chỉ mức 0/1 được xác nhận.',
-            if (finding.isNotEmpty) finding,
-            restore,
-          ].join('\n'),
-        );
-      }
       _busy = false;
     }
   }
