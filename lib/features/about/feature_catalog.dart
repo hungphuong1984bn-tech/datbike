@@ -35,6 +35,8 @@ const List<FeatureGroup> kFeatureCatalog = [
   FeatureGroup('A', 'Quản lý xe điện', Icons.two_wheeler_rounded, [
     FeatureItem('Kết nối xe qua Bluetooth (BLE)', FeatureStatus.limited,
         'Quét, ghép đôi, tự kết nối lại. Giao thức xây dựng từ phân tích, không có tài liệu chính thức; xe chỉ nhận một kết nối cùng lúc.'),
+    FeatureItem('Chẩn đoán Bluetooth (BLE)', FeatureStatus.inDev,
+        'Trang mới ở 2.11.0: trạng thái liên kết, bảng GATT, thống kê gói/lỗi, độ mới dữ liệu, xuất nhật ký JSON/CSV đã che dữ liệu nhạy cảm. Chưa kiểm thử trên xe thật.'),
     FeatureItem('Theo dõi trạng thái kết nối', FeatureStatus.done,
         'Hiển thị các pha kết nối và chẩn đoán lý do khi kết nối thất bại.'),
     FeatureItem('Thông tin xe (tên, mẫu, số khung, phần mềm, ODO)', FeatureStatus.limited,

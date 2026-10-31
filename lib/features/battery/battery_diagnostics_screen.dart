@@ -1,6 +1,6 @@
 // Battery Management System (BMS) — màn hình quản lý pin cao cấp.
 //
-// Tab: Sức khỏe · Cell · Bảo vệ · Cân bằng · Chẩn đoán (OBD/nhiệt).
+// Tab: Sức khỏe · Cell · Bảo vệ · Cân bằng · Lịch sử · Chẩn đoán (OBD/nhiệt).
 // Chỉ ĐỌC dữ liệu từ BleController (không ghi lệnh xuống BMS/xe). Mọi số liệu cell
 // lấy từ gói BatteryLogMsg thật; không có dữ liệu giả lập.
 
@@ -15,6 +15,7 @@ import '../../core/services/battery_diagnostics_service.dart';
 import 'bms_theme.dart';
 import 'views/balancing_view.dart';
 import 'views/health_view.dart';
+import 'views/history_view.dart';
 import 'views/obd_view.dart';
 import 'views/protection_view.dart';
 import 'widgets/cell_pack_view.dart';
@@ -67,7 +68,7 @@ class _BatteryDiagnosticsScreenState
     final canPop = Navigator.of(context).canPop();
 
     return DefaultTabController(
-      length: 5,
+      length: 6,
       child: Scaffold(
         backgroundColor: Bms.bg,
         appBar: AppBar(
@@ -110,6 +111,7 @@ class _BatteryDiagnosticsScreenState
               Tab(text: 'Cell'),
               Tab(text: 'Bảo vệ'),
               Tab(text: 'Cân bằng'),
+              Tab(text: 'Lịch sử'),
               Tab(text: 'Chẩn đoán'),
             ],
           ),
@@ -123,6 +125,7 @@ class _BatteryDiagnosticsScreenState
                 _tab(const _CellsTab()),
                 _tab(const ProtectionView()),
                 _tab(const BalancingView()),
+                _tab(const BatteryHistoryView()),
                 _tab(const _ObdTab()),
               ],
             ),

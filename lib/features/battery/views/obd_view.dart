@@ -20,6 +20,11 @@ class ObdThermalView extends StatelessWidget {
       children: [
         const SectionHeader('Bản đồ nhiệt độ 3 điểm'),
         _buildThermalRadarCard(report),
+        const SizedBox(height: 6),
+        Text(
+          'Mốc nhiệt độ là mặc định của ứng dụng, không phải thông số nhà sản xuất hay giới hạn bảo vệ chính thức của xe/BMS.',
+          style: Bms.body(11, Bms.textFaint),
+        ),
         const SizedBox(height: 16),
         const SectionHeader('Chẩn đoán hệ thống phần cứng OBD'),
         _buildObdDiagnosticsCard(report),
@@ -131,7 +136,7 @@ class ObdThermalView extends StatelessWidget {
                   ),
                   const Spacer(),
                   Text(
-                    'Cảnh báo: ${zone.warningTemp.round()}°C',
+                    'Mốc cảnh báo (mặc định app): ${zone.warningTemp.round()}°C',
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 10.5,
                       color: Bms.textDim,
