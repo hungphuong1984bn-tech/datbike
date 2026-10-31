@@ -67,3 +67,16 @@ Cho tới lúc đó app **không gửi bất kỳ lệnh Regen nào**.
 
 **Quy trình đo một mức:** kê chống/đứng yên → chọn mức → Gửi xuống xe → thấy "Đã xác nhận từ xe" →
 Reset đỉnh → chạy chậm nơi vắng ~15–20 km/h → nhả ga (không phanh) → ghi đỉnh nạp ngược và quãng giảm tốc.
+
+
+---
+
+## 5. Cập nhật 31/10/2026 — tách Grab khỏi Regen
+
+Mục 4 ở trên coi char Grab (`a1d8e7c4`) là "Regen mức 0/1" và có nút "Dò thêm mức". Đã **thay đổi**:
+
+* Grab được điều khiển riêng ở Trung tâm điều khiển vận hành (`docs/CONTROL_CENTER.md`) với đúng hai giá trị 0/1.
+* Mô-đun Regen **khoá hoàn toàn** (`regenSpecProvider` = `unverified`): không có đường ghi, không bộ chọn mức.
+* **Đã gỡ** nút/hàm "Dò thêm mức Grab" (ghi 2, 3, 4 xuống xe) và mức Grab tối đa 9 — chưa có bằng chứng và rủi ro làm VESC hành xử ngoài dự kiến.
+* Quan sát "đổi Grab làm đổi dòng nạp ngược" được giữ như một **ảnh hưởng chéo chưa đo**, không phải bằng chứng có kênh Regen.
+* Bảng "Đo hiệu ứng" giờ là thẻ chỉ đọc: dòng pha, điện áp, công suất V×I và hai cực trị (không giả định dấu — xem CONTROL_CENTER.md §1).
