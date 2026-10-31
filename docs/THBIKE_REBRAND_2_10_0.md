@@ -23,3 +23,9 @@ mô tả trong Firmware Lab, hướng dẫn đối chiếu với "app gốc", ch
 ## Chưa kiểm chứng trong môi trường tạo bản sửa này
 Không có Flutter SDK/thiết bị: chưa chạy `flutter analyze`, `flutter test`, build APK hay cài lên điện thoại.
 Cần chạy các lệnh đó (hoặc CI) trước khi phát hành.
+
+## Nâng cấp tab Tổng quan
+- Ảnh xe: `assets/images/real/quantum_s1.png` (ảnh do chủ app cung cấp). `BikeImage` ưu tiên ảnh thật nên nhãn "ẢNH MINH HỌA" tự biến mất.
+- `lib/features/home/overview_energy.dart`: thêm 3 khối dưới thẻ Tổng quan — Dòng điện & công suất (dòng xả, dòng nạp, công suất xả/nạp),
+  Sạc pin (đã sạc, còn lại để đầy kèm nguồn: bộ sạc báo / ước tính, pin tăng, năng lượng đã nạp, lần sạc gần nhất), Thông tin xe (ODO, chế độ lái, nhiệt độ động cơ/bộ điều khiển).
+- Chỉ đọc `bleProvider`/`chargeProvider`; không đổi giao thức BLE, không đổi logic pin/sạc. Thiếu dữ liệu hiển thị "--".
