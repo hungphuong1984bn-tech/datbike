@@ -68,48 +68,9 @@ void main() {
   });
 
 
-  group('Immobilizer & Safe Speed Limit 60 km/h Logic Tests', () {
-    test('setSafeSpeedLimit60(true) sets both speedLimitMode and eceMode to 1', () async {
-      final controller = TestBleController(
-        const BleState(phase: BlePhase.idle),
-      );
-      final container = ProviderContainer(
-        overrides: [
-          bleProvider.overrideWith(() => controller),
-        ],
-      );
-      addTearDown(container.dispose);
-
-      final notifier = container.read(bleProvider.notifier);
-      final msg = await notifier.setSafeSpeedLimit60(true);
-
-      final state = container.read(bleProvider);
-      expect(state.speedLimitMode, 1);
-      expect(state.eceMode, 1);
-      expect(state.fwSpeedLimitRaw, 1);
-      expect(msg, contains('giới hạn tốc độ 60 km/h'));
-    });
-
-    test('setSafeSpeedLimit60(false) sets both to 0 and warns about VESC RAM power-cycle', () async {
-      final controller = TestBleController(
-        const BleState(phase: BlePhase.idle, speedLimitMode: 1, eceMode: 1, fwSpeedLimitRaw: 1),
-      );
-      final container = ProviderContainer(
-        overrides: [
-          bleProvider.overrideWith(() => controller),
-        ],
-      );
-      addTearDown(container.dispose);
-
-      final notifier = container.read(bleProvider.notifier);
-      final msg = await notifier.setSafeSpeedLimit60(false);
-      final state = container.read(bleProvider);
-      expect(state.speedLimitMode, 0);
-      expect(state.eceMode, 0);
-      expect(state.fwSpeedLimitRaw, 0);
-      expect(msg, contains('VESC'));
-      expect(msg, contains('RAM'));
-    });
+  group('Immobilizer Logic Tests', () {
+    // Các test setSafeSpeedLimit60 đã bị gỡ cùng hàm: nó từng đổi trạng thái giả khi
+    // mất kết nối. Logic ECE mới được test ở test/control_center_test.dart.
 
     test('setImmobilizer(true) sets isLocked to true when speed <= 0.5 km/h', () async {
       final controller = TestBleController(

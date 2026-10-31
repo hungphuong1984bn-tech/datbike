@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mybike_app/core/ble/ble_controller.dart';
-import 'package:mybike_app/core/ble/gatt.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mybike_app/core/regen/regen_controller.dart';
 import 'package:mybike_app/core/regen/regen_protocol.dart';
 import 'package:mybike_app/features/regen/regen_screen.dart';
@@ -108,14 +106,21 @@ void main() {
       expect(c.read(regenProvider).status, RegenSyncStatus.unsupported);
     });
 
-    test('spec Grab mặc định: chỉ 0/1, mức >= 2 đánh dấu thử nghiệm', () {
-      final spec = RegenProtocolSpec.grab();
-      expect(spec.verified, isTrue);
-      expect(spec.characteristicUuid, Gatt.grabModeChar);
-      expect(spec.levels.length, 2);
-      final s4 = RegenProtocolSpec.grab(maxLevel: 4);
-      expect(s4.levels.length, 5);
-      expect(s4.levels.where((l) => l.experimental).map((l) => l.index), [2, 3, 4]);
+    test('spec mặc định của app KHÔNG nối vào Grab và không có mức nào', () {
+      final c = ProviderContainer();
+      addTearDown(c.dispose);
+      final spec = c.read(regenSpecProvider);
+      expect(spec.verified, isFalse);
+      expect(spec.characteristicUuid, isNull);
+      expect(spec.levels, isEmpty);
+    });
+
+    test('transport mặc định không có đường tới xe', () async {
+      final c = ProviderContainer();
+      addTearDown(c.dispose);
+      final t = c.read(regenTransportProvider);
+      expect(await t.readRaw(), isNull);
+      expect(await t.writeRaw(1), isFalse);
     });
   });
 
@@ -240,85 +245,23 @@ void main() {
     });
   });
 
-  group('Dò mức Grab có kiểm soát', () {
-    setUp(() => SharedPreferences.setMockInitialValues({}));
-
-    test('firmware boolean (gộp >1 về 0): dừng ở mức 2, khôi phục mức ban đầu', () async {
-      final t = FakeTransport(1)..storeMax = 1;
-      final c = _container(transport: t, spec: RegenProtocolSpec.grab());
-      addTearDown(c.dispose);
-      await c.read(regenProvider.notifier).probeHigherLevels();
-      expect(c.read(grabMaxLevelProvider), 1);
-      expect(t.raw, 1); // đã khôi phục
-      expect(c.read(regenProvider).message, contains('Chỉ mức 0/1'));
-    });
-
-    test('xe lưu được tới mức 3: ghi nhận mức tối đa 3 và khôi phục ban đầu', () async {
-      final t = FakeTransport(0)..storeMax = 3;
-      final c = _container(transport: t, spec: RegenProtocolSpec.grab());
-      addTearDown(c.dispose);
-      await c.read(regenProvider.notifier).probeHigherLevels();
-      expect(c.read(grabMaxLevelProvider), 3);
-      expect(t.raw, 0);
-      expect(c.read(regenProvider).message, contains('CHƯA xác minh'));
-    });
-
-    test('xe đang chạy → không ghi gì khi dò', () async {
-      final t = FakeTransport(0);
-      final c = _container(
-        transport: t,
-        spec: RegenProtocolSpec.grab(),
-        link: () => const RegenLinkInfo(
-            connected: true, authorized: true, telemetryFresh: true, speedKmh: 20),
-      );
-      addTearDown(c.dispose);
-      await c.read(regenProvider.notifier).probeHigherLevels();
-      expect(t.writes, 0);
-      expect(c.read(regenProvider).status, RegenSyncStatus.failed);
-    });
-
-    test('không đọc được mức ban đầu → không ghi gì', () async {
-      final t = FakeTransport(0)..readFails = true;
-      final c = _container(transport: t, spec: RegenProtocolSpec.grab());
-      addTearDown(c.dispose);
-      await c.read(regenProvider.notifier).probeHigherLevels();
-      expect(t.writes, 0);
-    });
-  });
-
-  group('Giao diện', () {
-    Widget host(RegenProtocolSpec spec, FakeTransport t) => ProviderScope(
-          overrides: [
-            bleProvider.overrideWith(() => _MockBle()),
-            regenSpecProvider.overrideWithValue(spec),
-            regenTransportProvider.overrideWithValue(t),
-          ],
-          child: const MaterialApp(home: RegenScreen()),
-        );
-
-    testWidgets('chưa xác minh: hiện cảnh báo, khóa nút gửi, không tràn 320dp', (tester) async {
-      tester.view.physicalSize = const Size(320 * 2.0, 640 * 2.0);
-      tester.view.devicePixelRatio = 2.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      await tester.pumpWidget(host(RegenProtocolSpec.unverified, FakeTransport(null)));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const Key('regen_unsupported_banner')), findsOneWidget);
-      expect(find.byKey(const Key('regen_no_levels')), findsOneWidget);
-      final apply = tester.widget<FilledButton>(find.byKey(const Key('regen_apply')));
-      expect(apply.onPressed, isNull);
-      expect(tester.takeException(), isNull);
-    });
-
-    testWidgets('Grab nhiều mức: hiện các mức, nút dò, bảng đo, không tràn 320dp', (tester) async {
+  group('Giao diện Regen (chỉ đọc)', () {
+    testWidgets('không có điều khiển nào, hiện cảnh báo chưa hỗ trợ, không tràn 320dp',
+        (tester) async {
       tester.view.physicalSize = const Size(320 * 2.0, 800 * 2.0);
       tester.view.devicePixelRatio = 2.0;
       addTearDown(tester.view.resetPhysicalSize);
-      await tester.pumpWidget(host(RegenProtocolSpec.grab(maxLevel: 3), FakeTransport(1)));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const Key('regen_unsupported_banner')), findsNothing);
-      expect(find.text('Regen mức 3 (thử nghiệm)', skipOffstage: false), findsOneWidget);
-      expect(find.byKey(const Key('regen_probe'), skipOffstage: false), findsOneWidget);
-      expect(find.byKey(const Key('regen_live_meter'), skipOffstage: false), findsOneWidget);
+      await tester.pumpWidget(ProviderScope(
+        overrides: [bleProvider.overrideWith(() => _MockBle())],
+        child: const MaterialApp(home: RegenScreen()),
+      ));
+      await tester.pump();
+      expect(find.byKey(const Key('regen_unsupported_banner'), skipOffstage: false),
+          findsOneWidget);
+      expect(find.byType(Switch, skipOffstage: false), findsNothing);
+      expect(find.byType(ChoiceChip, skipOffstage: false), findsNothing);
+      expect(find.byKey(const Key('regen_apply'), skipOffstage: false), findsNothing);
+      expect(find.byKey(const Key('regen_probe'), skipOffstage: false), findsNothing);
       expect(tester.takeException(), isNull);
     });
   });
