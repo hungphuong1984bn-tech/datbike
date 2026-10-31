@@ -1,4 +1,4 @@
-# Ảnh thật Datbike Quantum S1
+# Ảnh xe THBIKE
 
 Đặt ảnh thật (có QUYỀN SỬ DỤNG) vào thư mục này với tên:
 
