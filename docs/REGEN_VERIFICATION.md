@@ -80,3 +80,21 @@ Mục 4 ở trên coi char Grab (`a1d8e7c4`) là "Regen mức 0/1" và có nút 
 * **Đã gỡ** nút/hàm "Dò thêm mức Grab" (ghi 2, 3, 4 xuống xe) và mức Grab tối đa 9 — chưa có bằng chứng và rủi ro làm VESC hành xử ngoài dự kiến.
 * Quan sát "đổi Grab làm đổi dòng nạp ngược" được giữ như một **ảnh hưởng chéo chưa đo**, không phải bằng chứng có kênh Regen.
 * Bảng "Đo hiệu ứng" giờ là thẻ chỉ đọc: dòng pha, điện áp, công suất V×I và hai cực trị (không giả định dấu — xem CONTROL_CENTER.md §1).
+
+
+---
+
+## 6. Cập nhật 01/11/2026 — công cụ thu thập bằng chứng (chỉ đọc)
+
+Màn **Bằng chứng Regen** (`/regen-evidence`, mở từ thẻ Regen trong Trung tâm điều khiển). Không có đường ghi nào.
+
+* **Ghi telemetry theo mốc**: dòng pha, điện áp, công suất V×I, tốc độ, ga, ADC1/ADC2, trạng thái, % pin, mã lỗi,
+  chân chống. Bạn đặt tên mức Regen (theo app gốc) rồi đánh dấu từng lần thử; app tóm tắt từng mốc (cực tiểu/cực đại,
+  không giả định dấu).
+* **So sánh snapshot**: chụp giá trị ĐỌC của mọi characteristic đọc được trong Firmware Lab (bỏ `87efab0d`,
+  `2c73e84e`, `35a9b4f6` vì đổi liên tục) trước và sau khi đổi Regen bằng app gốc → liệt kê char đổi giá trị.
+  Chỉ chụp khi xe đứng yên. Nếu không char nào đổi, Regen nhiều khả năng nằm ngoài các char này (VESC qua CAN).
+* **Xuất CSV/JSON** để đối chiếu với btsnoop (mục 2) và firmware (Ghidra).
+
+Kết quả chỉ là ỨNG VIÊN: một char đổi giá trị chưa chứng minh nó là kênh Regen. Chỉ khi btsnoop cho thấy app gốc
+ghi đúng char đó lúc đổi mức, đọc lại khớp, và firmware có handler tương ứng thì mới làm theo mục 3.
