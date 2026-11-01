@@ -18,6 +18,10 @@ enum VehicleSupport { motorbike, car, both, unknown }
 /// [unverified]; [active] chỉ dùng được khi một nguồn khác xác nhận.
 enum StationStatus { active, paused, closed, unverified }
 
+/// Loại điểm sạc. [datBike] CHỈ dùng cho bản ghi từ nguồn Dat Bike / dữ liệu
+/// Dat Bike đóng gói; điểm do người dùng đề xuất luôn là [community].
+enum StationCategory { datBike, partner, community }
+
 class ChargingStation {
   final String id;
   final String name;
@@ -42,6 +46,13 @@ class ChargingStation {
   /// Tên nguồn dữ liệu (vd. "OpenStreetMap").
   final String source;
 
+  /// Loại điểm sạc (Dat Bike / đối tác / cộng đồng).
+  final StationCategory category;
+
+  /// true chỉ khi nguồn xác nhận RÕ điểm này có sạc. Cửa hàng Dat Bike chưa
+  /// có xác nhận thì false (không suy diễn mọi cửa hàng đều có trạm sạc).
+  final bool chargingConfirmed;
+
   /// Thời điểm bản ghi được chỉnh sửa gần nhất ở nguồn (KHÔNG phải thời điểm xác minh).
   final DateTime? updatedAt;
 
@@ -62,6 +73,8 @@ class ChargingStation {
     this.phone,
     this.website,
     this.source = 'OpenStreetMap',
+    this.category = StationCategory.community,
+    this.chargingConfirmed = false,
     this.updatedAt,
   });
 
@@ -98,6 +111,8 @@ class ChargingStation {
         if (phone != null) 'phone': phone,
         if (website != null) 'website': website,
         'source': source,
+        'category': category.name,
+        'chargingConfirmed': chargingConfirmed,
         if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
       };
 
@@ -125,16 +140,37 @@ class ChargingStation {
         phone: j['phone'] as String?,
         website: j['website'] as String?,
         source: (j['source'] as String?) ?? 'OpenStreetMap',
+        category: _enum(StationCategory.values, j['category'], StationCategory.community),
+        chargingConfirmed: j['chargingConfirmed'] == true,
         updatedAt: DateTime.tryParse((j['updatedAt'] as String?) ?? ''),
       );
 }
+
+/// Phân loại lỗi tải dữ liệu để hiện thông báo dễ hiểu.
+enum StationFetchError { none, notFound, rateLimited, serverError, timeout, noInternet, badData, unknown }
 
 class StationResult {
   final List<ChargingStation> stations;
   final bool fromCache;
   final DateTime? cachedAt;
   final String? error;
-  const StationResult(this.stations, {this.fromCache = false, this.cachedAt, this.error});
+  final StationFetchError errorKind;
+
+  /// Thời điểm dữ liệu mạng được tải thành công (null nếu chỉ có cache/dữ liệu đóng gói).
+  final DateTime? fetchedAt;
+
+  /// Tên các nguồn đã đóng góp vào danh sách (vd. "Dat Bike (đóng gói)", "OpenStreetMap").
+  final List<String> sources;
+
+  const StationResult(
+    this.stations, {
+    this.fromCache = false,
+    this.cachedAt,
+    this.error,
+    this.errorKind = StationFetchError.none,
+    this.fetchedAt,
+    this.sources = const [],
+  });
 }
 
 class ChargingStationService {

@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../core/charging/station_repository.dart';
 import '../../core/services/charging_station_service.dart';
 import '../../ui/app_theme.dart';
 import '../../ui/ds/ds.dart';
@@ -73,7 +74,7 @@ class _OverviewNearestStationState extends State<OverviewNearestStation> {
   late final Future<_Loaded> _future = _load();
 
   Future<_Loaded> _load() async {
-    final cache = await ChargingStationService.loadLastCache();
+    final cache = await StationRepository.loadLastRegion();
     if (cache == null || cache.stations.isEmpty) return const _Loaded(null, null);
 
     // Chỉ dùng vị trí đã có sẵn; tuyệt đối không bật hộp thoại xin quyền ở đây.

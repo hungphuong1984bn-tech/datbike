@@ -90,6 +90,11 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
     }
   }
 
+  Future<void> _call() async {
+    final ok = await ExternalNav.dial(s.phone);
+    if (!ok && mounted) _snack('Không mở được trình quay số.');
+  }
+
   Future<void> _markUsed() async {
     await StationUserStore.markUsed(s);
     if (mounted) _snack('Đã đánh dấu bạn từng sạc ở trạm này');
@@ -242,6 +247,17 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
             spacing: 6,
             runSpacing: 6,
             children: [
+              StationChip(
+                icon: Icons.verified_outlined,
+                label: StationUi.categoryLabel(s.category),
+                color: StationUi.categoryColor(s.category),
+              ),
+              if (StationUi.chargingLabel(s) != null)
+                StationChip(
+                  icon: Icons.bolt_rounded,
+                  label: StationUi.chargingLabel(s)!,
+                  color: s.chargingConfirmed ? AppColors.tertiary : AppColors.amber,
+                ),
               StationChip(
                 icon: Icons.circle,
                 label: StationUi.statusLabel(s.status),
@@ -433,6 +449,14 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
             label: const Text('Dẫn đường bằng ứng dụng bản đồ'),
           ),
           const SizedBox(height: 8),
+          if (ExternalNav.telUri(s.phone) != null) ...[
+            OutlinedButton.icon(
+              onPressed: _call,
+              icon: const Icon(Icons.phone_rounded),
+              label: Text('Gọi ${s.phone}'),
+            ),
+            const SizedBox(height: 8),
+          ],
           if (widget.me != null)
             OutlinedButton.icon(
               onPressed: () => Navigator.of(context).pop(StationDetailResult.routeInApp),

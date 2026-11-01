@@ -40,4 +40,5 @@ flutter:
     - assets/images/
     - assets/images/real/
     - assets/icon/
+    - assets/data/
 

@@ -25,6 +25,23 @@ class StationUi {
         StationStatus.unverified => AppColors.textSecondary,
       };
 
+  static String categoryLabel(StationCategory c) => switch (c) {
+        StationCategory.datBike => 'Dat Bike chính thức',
+        StationCategory.partner => 'Điểm sạc đối tác',
+        StationCategory.community => 'Điểm sạc cộng đồng',
+      };
+
+  static Color categoryColor(StationCategory c) => switch (c) {
+        StationCategory.datBike => AppColors.primary,
+        StationCategory.partner => AppColors.cyan,
+        StationCategory.community => AppColors.textSecondary,
+      };
+
+  /// Nhãn xác nhận có sạc — chỉ cho điểm Dat Bike (cửa hàng chưa xác nhận không được coi là có sạc).
+  static String? chargingLabel(ChargingStation s) => s.category != StationCategory.datBike
+      ? null
+      : (s.chargingConfirmed ? 'Có trạm sạc (đã xác nhận)' : 'Chưa xác nhận có sạc');
+
   static String vehicleLabel(VehicleSupport v) => switch (v) {
         VehicleSupport.motorbike => 'Xe máy điện',
         VehicleSupport.car => 'Ô tô điện',
@@ -107,7 +124,13 @@ class StationMarker extends StatelessWidget {
           shape: BoxShape.circle,
           color: dim ? AppColors.panelSecondary : c,
           border: Border.all(
-            color: favorite ? AppColors.amber : Colors.white,
+            color: favorite
+                ? AppColors.amber
+                : station.status == StationStatus.paused
+                    ? AppColors.amber
+                    : station.status == StationStatus.unverified
+                        ? Colors.white54
+                        : Colors.white,
             width: favorite ? 3 : 2,
           ),
           boxShadow: [

@@ -40,6 +40,9 @@ class StationFilter {
   /// Chỉ trạm VinFast / V-GREEN (nhận diện theo tên/nhà vận hành trong dữ liệu).
   final bool vinFastOnly;
 
+  /// Loại điểm sạc cần hiện. Rỗng = tất cả.
+  final Set<StationCategory> categories;
+
   const StationFilter({
     this.radiusKm = 10,
     this.query = '',
@@ -50,6 +53,7 @@ class StationFilter {
     this.includeCarOnly = false,
     this.hideClosed = true,
     this.vinFastOnly = false,
+    this.categories = const {},
   });
 
   StationFilter copyWith({
@@ -62,6 +66,7 @@ class StationFilter {
     bool? includeCarOnly,
     bool? hideClosed,
     bool? vinFastOnly,
+    Set<StationCategory>? categories,
   }) =>
       StationFilter(
         radiusKm: identical(radiusKm, _keep) ? this.radiusKm : radiusKm as double?,
@@ -73,6 +78,7 @@ class StationFilter {
         includeCarOnly: includeCarOnly ?? this.includeCarOnly,
         hideClosed: hideClosed ?? this.hideClosed,
         vinFastOnly: vinFastOnly ?? this.vinFastOnly,
+        categories: categories ?? this.categories,
       );
 
   static const Object _keep = Object();
@@ -84,6 +90,7 @@ class StationFilter {
       (only24h ? 1 : 0) +
       (includeCarOnly ? 1 : 0) +
       (vinFastOnly ? 1 : 0) +
+      (categories.isNotEmpty ? 1 : 0) +
       (!includeUnknownVehicle ? 1 : 0);
 }
 
@@ -122,6 +129,7 @@ class StationSearch {
       if (s.carOnly && !f.includeCarOnly) continue;
       if (s.vehicle == VehicleSupport.unknown && !f.includeUnknownVehicle) continue;
       if (f.vinFastOnly && !s.isVinFast) continue;
+      if (f.categories.isNotEmpty && !f.categories.contains(s.category)) continue;
       if (!matchesQuery(s, f.query)) continue;
       if (f.connector.isNotEmpty && !_norm(s.sockets ?? '').contains(_norm(f.connector))) continue;
       if (f.minPowerKw > 0 && (s.powerKw == null || s.powerKw! < f.minPowerKw)) continue;

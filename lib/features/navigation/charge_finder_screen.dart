@@ -22,6 +22,7 @@ import 'package:latlong2/latlong.dart';
 import '../../core/ble/ble_controller.dart';
 import '../../core/charging/external_nav.dart';
 import '../../core/charging/place_search_service.dart';
+import '../../core/charging/station_repository.dart';
 import '../../core/charging/station_search.dart';
 import '../../core/charging/station_user_store.dart';
 import '../../core/services/charging_station_service.dart';
@@ -30,7 +31,9 @@ import '../../core/services/map_tile_service.dart';
 import '../../core/services/route_service.dart';
 import '../../ui/app_theme.dart';
 import '../../ui/components.dart';
+import '../../core/charging/station_proposal_store.dart';
 import 'station_detail_screen.dart';
+import 'station_proposal_screen.dart';
 import 'station_widgets.dart';
 
 const double _kCardW = 292;
@@ -242,7 +245,7 @@ class _ChargeFinderScreenState extends ConsumerState<ChargeFinderScreen> {
       _loading = true;
       _error = null;
     });
-    final r = await ChargingStationService.fetchNear(o.latitude, o.longitude, radiusM: (km * 1000).round());
+    final r = await StationRepository.fetchNear(o.latitude, o.longitude, radiusM: (km * 1000).round());
     if (!mounted) return;
     setState(() {
       _result = r;
@@ -513,7 +516,7 @@ class _ChargeFinderScreenState extends ConsumerState<ChargeFinderScreen> {
       final cur = _result?.stations ?? const <ChargingStation>[];
       if (!cur.any((e) => e.id == picked.id)) {
         setState(() {
-          _result = StationResult([...cur, picked], fromCache: _result?.fromCache ?? false, cachedAt: _result?.cachedAt, error: _result?.error);
+          _result = StationResult([...cur, picked], fromCache: _result?.fromCache ?? false, cachedAt: _result?.cachedAt, error: _result?.error, errorKind: _result?.errorKind ?? StationFetchError.none, fetchedAt: _result?.fetchedAt, sources: _result?.sources ?? const []);
           _filter = _filter.copyWith(radiusKm: null);
           _recompute();
         });
@@ -524,6 +527,27 @@ class _ChargeFinderScreenState extends ConsumerState<ChargeFinderScreen> {
       _searchCtl.text = picked;
       _submitSearch(picked);
     }
+  }
+
+  Future<void> _propose() async {
+    final p = await Navigator.of(context).push<StationProposal>(
+      MaterialPageRoute(builder: (_) => StationProposalScreen(existing: _result?.stations ?? const [])),
+    );
+    if (p == null || !mounted) return;
+    final cur = _result?.stations ?? const <ChargingStation>[];
+    setState(() {
+      _result = StationResult([...cur, p.toStation()],
+          fromCache: _result?.fromCache ?? false,
+          cachedAt: _result?.cachedAt,
+          error: _result?.error,
+          errorKind: _result?.errorKind ?? StationFetchError.none,
+          fetchedAt: _result?.fetchedAt,
+          sources: _result?.sources ?? const []);
+      _recompute();
+    });
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(content: Text('Đã lưu đề xuất — trạng thái chờ xác minh.')));
   }
 
   Future<void> _openFilters() async {
@@ -645,6 +669,11 @@ class _ChargeFinderScreenState extends ConsumerState<ChargeFinderScreen> {
               child: const Icon(Icons.star_outline_rounded),
             ),
             onPressed: _openSaved,
+          ),
+          IconButton(
+            tooltip: 'Đề xuất điểm sạc mới',
+            icon: const Icon(Icons.add_location_alt_outlined),
+            onPressed: _propose,
           ),
           IconButton(
             tooltip: _listMode ? 'Xem bản đồ' : 'Xem danh sách',
@@ -866,7 +895,7 @@ class _ChargeFinderScreenState extends ConsumerState<ChargeFinderScreen> {
     final r = _result;
     if (r != null && r.fromCache) {
       out.add(banner(
-        'Không có mạng hoặc máy chủ lỗi — đang hiện dữ liệu đã lưu lúc ${r.cachedAt == null ? 'không rõ' : StationUi.dateTime(r.cachedAt!)}.',
+        '${r.error ?? 'Không có mạng hoặc máy chủ lỗi'} Đang hiện dữ liệu đã lưu${r.cachedAt == null ? ' (dữ liệu đóng gói của app)' : ' lúc ${StationUi.dateTime(r.cachedAt!)}'}.',
         AppColors.amber,
         icon: Icons.wifi_off_rounded,
         action: 'Tải lại',
@@ -978,6 +1007,9 @@ class _ChargeFinderScreenState extends ConsumerState<ChargeFinderScreen> {
               Wrap(spacing: 6, runSpacing: 4, children: [
                 if (s.isVinFast)
                   const StationChip(icon: Icons.ev_station_rounded, label: 'VinFast / V-GREEN', color: AppColors.cyan),
+                StationChip(icon: Icons.verified_outlined, label: StationUi.categoryLabel(s.category), color: StationUi.categoryColor(s.category)),
+                if (StationUi.chargingLabel(s) != null)
+                  StationChip(icon: Icons.bolt_rounded, label: StationUi.chargingLabel(s)!, color: s.chargingConfirmed ? AppColors.tertiary : AppColors.amber),
                 StationChip(icon: Icons.circle, label: StationUi.statusLabel(s.status), color: StationUi.statusColor(s.status)),
                 StationChip(icon: StationUi.vehicleIcon(s.vehicle), label: StationUi.vehicleLabel(s.vehicle), color: vc),
               ]),
@@ -1217,6 +1249,26 @@ class _FilterSheetState extends State<_FilterSheet> {
                   label: Text(p == 0 ? 'Bất kỳ' : '≥ ${p % 1 == 0 ? p.toInt() : p} kW'),
                   selected: f.minPowerKw == p,
                   onSelected: (_) => setState(() => f = f.copyWith(minPowerKw: p)),
+                ),
+            ]),
+            const SizedBox(height: 6),
+            Text('Loại điểm sạc', style: title),
+            const SizedBox(height: 6),
+            Wrap(spacing: 8, children: [
+              ChoiceChip(
+                label: const Text('Tất cả'),
+                selected: f.categories.isEmpty,
+                onSelected: (_) => setState(() => f = f.copyWith(categories: <StationCategory>{})),
+              ),
+              for (final c in StationCategory.values)
+                FilterChip(
+                  label: Text(StationUi.categoryLabel(c)),
+                  selected: f.categories.contains(c),
+                  onSelected: (on) => setState(() {
+                    final n = {...f.categories};
+                    on ? n.add(c) : n.remove(c);
+                    f = f.copyWith(categories: n);
+                  }),
                 ),
             ]),
             const SizedBox(height: 6),

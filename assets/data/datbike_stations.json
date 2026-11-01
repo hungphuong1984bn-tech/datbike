@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "updatedAt": "2026-11-01",
+  "source": "Người dùng cung cấp và xác nhận (THBIKE)",
+  "note": "Chỉ chứa điểm có địa chỉ và tọa độ do người dùng/nguồn chính thức cung cấp. Không suy diễn cửa hàng nào có sạc.",
+  "stations": [
+    {
+      "id": "datbike/khanh-anh-nguyen-van-cu",
+      "name": "Dat Bike Khánh Anh – Nguyễn Văn Cừ",
+      "operator": "Dat Bike",
+      "lat": 21.04831,
+      "lng": 105.881862,
+      "address": "116 Nguyễn Văn Cừ, Bồ Đề, Hà Nội",
+      "category": "datBike",
+      "status": "unverified",
+      "chargingConfirmed": true,
+      "source": "Người dùng xác nhận",
+      "updatedAt": "2026-11-01T00:00:00",
+      "sourceNote": "Người dùng xác nhận có trạm sạc (chưa có xác nhận từ dat.bike); trạng thái hoạt động chưa xác minh."
+    }
+  ]
+}
