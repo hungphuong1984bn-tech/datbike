@@ -174,4 +174,24 @@ void main() {
       expect(l.single.kind, ReportKind.closed);
     });
   });
+
+  group('Nguồn VinFast / V-GREEN (nhận diện theo dữ liệu OSM)', () {
+    ChargingStation named(String id, String name, {String? op}) => ChargingStation(
+        id: id, name: name, lat: 21.0, lng: 105.0, operator: op, vehicle: VehicleSupport.both);
+
+    test('nhận diện theo tên hoặc nhà vận hành', () {
+      expect(named('1', 'Trạm sạc VinFast Hà Nội').isVinFast, isTrue);
+      expect(named('2', 'Trạm sạc', op: 'V-GREEN').isVinFast, isTrue);
+      expect(named('3', 'Trạm', op: 'VGreen').isVinFast, isTrue);
+      expect(named('4', 'Trạm sạc EVN').isVinFast, isFalse);
+    });
+
+    test('bộ lọc vinFastOnly chỉ giữ trạm VinFast', () {
+      final all = [named('1', 'VinFast A'), named('2', 'EVN B')];
+      final r = StationSearch.apply(all, const StationFilter(radiusKm: null, vinFastOnly: true),
+          origin: origin);
+      expect(r.map((h) => h.station.id), ['1']);
+      expect(const StationFilter(vinFastOnly: true).advancedCount, 1);
+    });
+  });
 }
