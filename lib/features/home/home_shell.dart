@@ -146,9 +146,14 @@ class _DsNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.panel.withValues(alpha: AppColors.isDark ? 0.96 : 0.98),
+        color: AppColors.panel.withValues(alpha: AppColors.isDark ? 0.97 : 0.98),
         border: Border(
-          top: BorderSide(color: AppColors.panelBorderBright, width: 1),
+          top: BorderSide(
+            color: AppColors.isDark
+                ? AppColors.panelBorderBright.withValues(alpha: 0.7)
+                : AppColors.panelBorder,
+            width: 1,
+          ),
         ),
         boxShadow: AppColors.cardShadow,
       ),
@@ -205,7 +210,7 @@ class _DsNavButton extends StatelessWidget {
               height: 30,
               decoration: BoxDecoration(
                 color: selected
-                    ? AppColors.primary.withValues(alpha: AppColors.isDark ? 0.22 : 0.12)
+                    ? AppColors.electric.withValues(alpha: AppColors.isDark ? 0.24 : 0.12)
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(AppRadius.pill),
               ),

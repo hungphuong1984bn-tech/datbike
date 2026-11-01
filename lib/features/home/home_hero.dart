@@ -170,7 +170,7 @@ class HomeHeroCard extends StatelessWidget {
                             child: AnimatedMetric(
                               value: shownSpeed,
                               unit: 'km/h',
-                              valueSize: 54,
+                              valueSize: 60,
                               align: CrossAxisAlignment.end,
                             ),
                           ),

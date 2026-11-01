@@ -2283,8 +2283,8 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                 width: d,
                 height: d,
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: active ? (activeColor ?? AppColors.primarySoft) : AppColors.panelSecondary,
+                  borderRadius: BorderRadius.circular(d * 0.36),
+                  color: active ? (activeColor ?? AppColors.primarySoft) : AppColors.surfaceContainer,
                   border: Border.all(
                     color: active
                         ? (activeBorderColor ?? AppColors.primarySoftBorder)

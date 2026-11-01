@@ -1,5 +1,5 @@
-// Gauge tốc độ kỹ thuật số Kinetic Stitch EV:
-// Vạch chia độ chuẩn xác, đường ray hairline thanh thoát, gradient Electric Azure & Cyan,
+// Gauge tốc độ Digital Cockpit:
+// Vạch chia độ chuẩn xác, đường ray hairline thanh thoát, vòng cung Electric Blue → Cyan có quầng sáng,
 // hiển thị số km/h bằng Space Grotesk với tabular figures chống rung giật khi tăng tốc.
 
 import 'dart:math';
@@ -46,7 +46,7 @@ class SpeedGauge extends StatelessWidget {
                     Text(
                       speed.toStringAsFixed(1),
                       style: GoogleFonts.spaceGrotesk(
-                        fontSize: (size * 0.24).clamp(40.0, 56.0),
+                        fontSize: (size * 0.27).clamp(42.0, 64.0),
                         fontWeight: FontWeight.w700,
                         height: 1.0,
                         color: AppColors.textPrimary,
@@ -108,7 +108,7 @@ class _KineticGaugePainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeTrack
       ..strokeCap = StrokeCap.round
-      ..color = AppColors.panelSecondary;
+      ..color = AppColors.surfaceContainer;
     canvas.drawArc(rect, _start, _sweep, false, track);
 
     // 3. Vạch khía (Tick marks) chia độ 0 -> 100 km/h
@@ -116,7 +116,7 @@ class _KineticGaugePainter extends CustomPainter {
       ..color = AppColors.panelBorderBright
       ..strokeWidth = (1.2 * scale).clamp(0.8, 1.5);
     final activeTickPaint = Paint()
-      ..color = AppColors.primary
+      ..color = AppColors.electricGlow
       ..strokeWidth = (2.0 * scale).clamp(1.5, 2.5);
 
     const tickCount = 20;
@@ -142,7 +142,7 @@ class _KineticGaugePainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeWidth = glowWidth
         ..strokeCap = StrokeCap.round
-        ..color = AppColors.secondary.withValues(alpha: 0.20)
+        ..color = AppColors.electricGlow.withValues(alpha: _dark ? 0.34 : 0.20)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
       canvas.drawArc(rect, _start, _sweep * progress, false, glow);
 
@@ -153,7 +153,7 @@ class _KineticGaugePainter extends CustomPainter {
         ..shader = SweepGradient(
           startAngle: _start,
           endAngle: _start + _sweep,
-          colors: [AppColors.secondary, AppColors.primary],
+          colors: const [AppColors.electric, AppColors.electricGlow],
           transform: GradientRotation(_start),
         ).createShader(rect);
       canvas.drawArc(rect, _start, _sweep * progress, false, bar);
@@ -166,7 +166,7 @@ class _KineticGaugePainter extends CustomPainter {
         ..color = Colors.white
         ..style = PaintingStyle.fill;
       final tipBorder = Paint()
-        ..color = AppColors.primary
+        ..color = AppColors.electric
         ..style = PaintingStyle.stroke
         ..strokeWidth = (2.5 * scale).clamp(1.8, 3.0);
 

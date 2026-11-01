@@ -1,15 +1,14 @@
-// Kinetic Stitch EV Design System — Core Widgets
-// Structural clarity, hyper-legibility, pure white cards on luminous canvas,
-// hairline borders (#E2E8F0), soft ambient depth, Space Grotesk & Plus Jakarta Sans.
+// Digital Cockpit (Premium EV) — Core Widgets.
+// Bề mặt Graphite/Navy, viền mảnh, điểm nhấn Electric Blue → Cyan chỉ ở phần tử
+// đang hoạt động; số liệu Space Grotesk (tabular), nhãn Plus Jakarta Sans.
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'app_theme.dart';
 
-/// Thẻ Card chuẩn Level 1 của Kinetic Stitch EV:
-/// Nền trắng tinh khiết, viền mảnh 1px #E2E8F0, góc bo 16px (rounded-lg),
-/// đổ bóng vi mô mềm mại (hyper-diffused ambient shadow).
+/// Thẻ chuẩn của hệ thống: bề mặt nâng nhẹ (Dark có vệt sáng phía trên),
+/// viền mảnh 1px, góc bo lớn; phần tử đang hoạt động có quầng Electric/Cyan.
 class Panel extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
@@ -25,19 +24,35 @@ class Panel extends StatelessWidget {
     this.padding = const EdgeInsets.all(16),
     this.color,
     this.borderColor,
-    this.borderRadius = 20,
+    this.borderRadius = 22,
     this.hasActiveHalo = false,
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final dark = AppColors.isDark;
+    final base = color ?? AppColors.panel;
+    // Chỉ khi dùng màu mặc định mới có độ chuyển sắc; màu truyền vào được tôn trọng.
+    final lifted = color == null && dark
+        ? Color.alphaBlend(AppColors.cardHighlight, base)
+        : base;
     return Container(
       decoration: BoxDecoration(
-        color: color ?? AppColors.panel,
+        color: color == null && dark ? null : base,
+        gradient: color == null && dark
+            ? LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [lifted, base],
+              )
+            : null,
         borderRadius: BorderRadius.circular(borderRadius),
         border: Border.all(
-          color: borderColor ?? (hasActiveHalo ? AppColors.secondary : AppColors.panelBorder),
+          color: borderColor ??
+              (hasActiveHalo
+                  ? AppColors.electricGlow.withValues(alpha: 0.75)
+                  : (dark ? AppColors.panelBorderBright.withValues(alpha: 0.65) : AppColors.panelBorder)),
           width: 1,
         ),
         boxShadow: hasActiveHalo
@@ -59,8 +74,7 @@ class Panel extends StatelessWidget {
   }
 }
 
-/// Status Pill / Chip: Bo tròn tuyệt đối (Stadium / Pill 9999px)
-/// Nhãn in hoa với tracking 0.06em và điểm neon chỉ thị trạng thái.
+/// Huy hiệu trạng thái: viên thuốc bo tròn, điểm chỉ thị có quầng sáng nhẹ.
 class StatusPill extends StatelessWidget {
   final String label;
   final Color color;
@@ -78,11 +92,11 @@ class StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
+        color: color.withValues(alpha: AppColors.isDark ? 0.14 : 0.10),
         borderRadius: BorderRadius.circular(9999),
-        border: Border.all(color: color.withValues(alpha: 0.35), width: 1),
+        border: Border.all(color: color.withValues(alpha: 0.38), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -100,6 +114,7 @@ class StatusPill extends StatelessWidget {
               decoration: BoxDecoration(
                 color: color,
                 shape: BoxShape.circle,
+                boxShadow: [BoxShadow(color: color.withValues(alpha: 0.55), blurRadius: 6)],
               ),
             ),
             const SizedBox(width: 8),
@@ -110,7 +125,7 @@ class StatusPill extends StatelessWidget {
               color: AppColors.readable(color),
               fontSize: 11,
               fontWeight: FontWeight.w700,
-              letterSpacing: 0.06 * 11,
+              letterSpacing: 0.04 * 11,
             ),
           ),
         ],
@@ -186,8 +201,8 @@ class MetricTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Panel(
-      padding: padding ?? const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      borderRadius: 16,
+      padding: padding ?? const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
+      borderRadius: 18,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -198,8 +213,9 @@ class MetricTile extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(5),
                 decoration: BoxDecoration(
-                  color: (accentColor ?? AppColors.primary).withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(8),
+                  color: (accentColor ?? AppColors.primary)
+                      .withValues(alpha: AppColors.isDark ? 0.16 : 0.09),
+                  borderRadius: BorderRadius.circular(9),
                 ),
                 child: Icon(icon, size: 15, color: accentColor ?? AppColors.primary),
               ),
@@ -253,7 +269,7 @@ class MetricTile extends StatelessWidget {
                   value,
                   maxLines: 1,
                   style: GoogleFonts.spaceGrotesk(
-                    fontSize: 20,
+                    fontSize: 21,
                     fontWeight: FontWeight.w600,
                     color: valueColor ?? AppColors.textPrimary,
                     fontFeatures: const [FontFeature.tabularFigures()],
@@ -279,14 +295,14 @@ class MetricTile extends StatelessWidget {
   }
 }
 
-/// Nút điều khiển xe Vehicle Command Button lớn:
-/// 56px height, bo tròn 16px (rounded-lg), Space Grotesk title, subtext kỹ thuật.
+/// Nút điều khiển xe lớn: cao 56, bo 18. Mặc định dùng dải Electric → Cyan;
+/// truyền [backgroundColor] (vd. màu nguy hiểm) thì dùng màu đặc đó.
 class VehicleCommandButton extends StatelessWidget {
   final IconData icon;
   final String title;
   final String? subtitle;
   final VoidCallback? onPressed;
-  /// null → nền xanh chủ đạo của app (AppColors.primaryFill, chữ trắng đạt AA).
+  /// null → dải Electric → Cyan của app (chữ trắng đạt AA).
   final Color? backgroundColor;
   final Color foregroundColor;
   final bool isLoading;
@@ -304,57 +320,87 @@ class VehicleCommandButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final disabled = onPressed == null;
+    final useGradient = backgroundColor == null && !disabled;
+    final radius = BorderRadius.circular(18);
     return SizedBox(
       height: 56,
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: backgroundColor ?? AppColors.primaryFill,
-          foregroundColor: foregroundColor,
-          elevation: 0,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        ),
-        onPressed: isLoading ? null : onPressed,
-        child: isLoading
-            ? SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  valueColor: AlwaysStoppedAnimation<Color>(foregroundColor),
-                ),
-              )
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(icon, size: 22),
-                  const SizedBox(width: 10),
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: GoogleFonts.spaceGrotesk(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.2,
-                        ),
-                      ),
-                      if (subtitle != null) ...[
-                        Text(
-                          subtitle!,
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w400,
-                            color: foregroundColor.withValues(alpha: 0.8),
-                          ),
-                        ),
-                      ],
-                    ],
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: radius,
+          gradient: useGradient ? AppColors.electricGradient : null,
+          color: useGradient
+              ? null
+              : (disabled ? AppColors.surfaceContainerHigh : backgroundColor),
+          boxShadow: useGradient && !isLoading
+              ? [
+                  BoxShadow(
+                    color: AppColors.electric.withValues(alpha: AppColors.isDark ? 0.35 : 0.25),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
                   ),
-                ],
-              ),
+                ]
+              : null,
+        ),
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            disabledBackgroundColor: Colors.transparent,
+            foregroundColor: foregroundColor,
+            disabledForegroundColor: AppColors.textMuted,
+            shadowColor: Colors.transparent,
+            elevation: 0,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            shape: RoundedRectangleBorder(borderRadius: radius),
+          ),
+          onPressed: isLoading ? null : onPressed,
+          child: isLoading
+              ? SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    valueColor: AlwaysStoppedAnimation<Color>(foregroundColor),
+                  ),
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(icon, size: 22),
+                    const SizedBox(width: 10),
+                    Flexible(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.spaceGrotesk(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                          if (subtitle != null) ...[
+                            Text(
+                              subtitle!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w400,
+                                color: foregroundColor.withValues(alpha: 0.82),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+        ),
       ),
     );
   }
@@ -387,17 +433,22 @@ class RoundControl extends StatelessWidget {
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(18),
               onTap: enabled ? onTap : null,
               child: Container(
                 width: 58,
                 height: 54,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  color: AppColors.panel,
+                  borderRadius: BorderRadius.circular(18),
+                  color: enabled
+                      ? Color.alphaBlend(
+                          effectiveColor.withValues(alpha: AppColors.isDark ? 0.12 : 0.07),
+                          AppColors.panel,
+                        )
+                      : AppColors.panel,
                   border: Border.all(
                     color: enabled
-                        ? effectiveColor.withValues(alpha: 0.4)
+                        ? effectiveColor.withValues(alpha: 0.45)
                         : AppColors.panelBorder,
                     width: 1.2,
                   ),
@@ -457,7 +508,7 @@ class BatteryRangeCapsule extends StatelessWidget {
 
     return Panel(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      borderRadius: 16,
+      borderRadius: 20,
       hasActiveHalo: isCharging,
       onTap: onTap,
       child: Column(
@@ -498,15 +549,18 @@ class BatteryRangeCapsule extends StatelessWidget {
             borderRadius: BorderRadius.circular(9999),
             child: Container(
               height: 10,
-              color: AppColors.panelSecondary,
+              color: AppColors.surfaceContainer,
               child: Stack(
                 children: [
                   FractionallySizedBox(
                     widthFactor: (percent / 100.0).clamp(0.0, 1.0),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: color,
+                        gradient: LinearGradient(
+                          colors: [color.withValues(alpha: 0.72), color],
+                        ),
                         borderRadius: BorderRadius.circular(9999),
+                        boxShadow: [BoxShadow(color: color.withValues(alpha: 0.40), blurRadius: 8)],
                       ),
                     ),
                   ),
@@ -584,8 +638,8 @@ class NoticeBanner extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: color.withValues(alpha: AppColors.isDark ? 0.14 : 0.08),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.30), width: 1),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: color.withValues(alpha: 0.32), width: 1),
       ),
       child: Row(
         children: [
@@ -627,7 +681,11 @@ class SectionTitle extends StatelessWidget {
             height: 14,
             margin: const EdgeInsets.only(right: 8),
             decoration: BoxDecoration(
-              color: AppColors.primary,
+              gradient: const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [AppColors.electric, AppColors.electricGlow],
+              ),
               borderRadius: BorderRadius.circular(2),
             ),
           ),

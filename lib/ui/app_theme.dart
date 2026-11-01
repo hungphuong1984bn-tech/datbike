@@ -1,4 +1,5 @@
-// Theme "Kinetic Stitch EV" — hệ thống thiết kế dùng chung, hỗ trợ Dark/Light.
+// Theme "Digital Cockpit" (Premium EV) — Graphite · Navy · Electric Blue · Cyan.
+// Hệ thống thiết kế dùng chung, hỗ trợ Dark/Light đồng bộ.
 //
 // Kiến trúc màu:
 //  • [AppPalette]  — bảng màu bất biến cho từng chế độ (light / dark).
@@ -38,10 +39,10 @@ class AppSpacing {
 
 class AppRadius {
   AppRadius._();
-  static const double sm = 10;
-  static const double md = 14;
-  static const double lg = 20;
-  static const double xl = 28;
+  static const double sm = 12;
+  static const double md = 16;
+  static const double lg = 22;
+  static const double xl = 30;
   static const double pill = 9999;
 }
 
@@ -148,64 +149,64 @@ class AppPalette {
   /// Giao diện sáng — giữ nguyên diện mạo hiện tại của app.
   static const light = AppPalette(
     brightness: Brightness.light,
-    bg: Color(0xFFF8F9FA),
+    bg: Color(0xFFEDF1F7),
     panel: Color(0xFFFFFFFF),
-    panelSecondary: Color(0xFFF8FAFC),
-    panelBorder: Color(0xFFF1F5F9),
-    panelBorderBright: Color(0xFFE2E8F0),
-    surfaceContainer: Color(0xFFF1F5F9),
-    surfaceContainerHigh: Color(0xFFE2E8F0),
-    surfaceContainerHighest: Color(0xFFCBD5E1),
-    textPrimary: Color(0xFF0F172A),
-    textDim: Color(0xFF475569),
-    textSecondary: Color(0xFF64748B),
-    // #6B7A90 trên nền trắng ≈ 4.4:1 (cũ #94A3B8 chỉ ≈ 2.6:1 — khó đọc ngoài trời).
-    textMuted: Color(0xFF6B7A90),
-    primary: Color(0xFF2563EB),
-    accent: Color(0xFF0284C7),
-    primarySoft: Color(0xFFEFF6FF),
-    primarySoftBorder: Color(0xFFBFDBFE),
+    panelSecondary: Color(0xFFF5F8FC),
+    panelBorder: Color(0xFFE3E9F2),
+    panelBorderBright: Color(0xFFD3DCE9),
+    surfaceContainer: Color(0xFFE8EDF5),
+    surfaceContainerHigh: Color(0xFFDCE4EF),
+    surfaceContainerHighest: Color(0xFFC9D3E2),
+    textPrimary: Color(0xFF0A1730),
+    textDim: Color(0xFF3F4F68),
+    textSecondary: Color(0xFF5A6B85),
+    // Giữ ≥ 4.4:1 trên nền trắng (đọc được ngoài trời).
+    textMuted: Color(0xFF687892),
+    primary: Color(0xFF1F5FE0),
+    accent: Color(0xFF0A86B8),
+    primarySoft: Color(0xFFE9F0FF),
+    primarySoftBorder: Color(0xFFBBD0FA),
     error: Color(0xFFBA1A1A),
     redSoft: Color(0xFFFEF2F2),
     redSoftBorder: Color(0xFFFECACA),
-    redText: Color(0xFFDC2626),
-    greenSoft: Color(0xFFF0FDF4),
-    greenSoftBorder: Color(0xFFBBF7D0),
-    greenText: Color(0xFF15803D),
+    redText: Color(0xFFD42020),
+    greenSoft: Color(0xFFEFFAF3),
+    greenSoftBorder: Color(0xFFB7EBCB),
+    greenText: Color(0xFF12794A),
     amberSoft: Color(0xFFFEF3C7),
     amberSoftBorder: Color(0xFFFDE68A),
     amberText: Color(0xFFB45309),
-    shadow: Color(0xFF0F172A),
+    shadow: Color(0xFF0A1730),
     shadowOpacityScale: 1.0,
   );
 
-  /// Giao diện tối — nền graphite/navy, nhấn xanh điện/cyan.
+  /// Giao diện tối — Graphite nền, Navy bề mặt, Electric Blue/Cyan nhấn.
   static const dark = AppPalette(
     brightness: Brightness.dark,
-    bg: Color(0xFF0B0F17),
-    panel: Color(0xFF131A26),
-    panelSecondary: Color(0xFF0F1520),
-    panelBorder: Color(0xFF1F2A3B),
-    panelBorderBright: Color(0xFF2A3649),
-    surfaceContainer: Color(0xFF1A2231),
-    surfaceContainerHigh: Color(0xFF232E40),
-    surfaceContainerHighest: Color(0xFF2F3C52),
-    textPrimary: Color(0xFFE8EDF5),
-    textDim: Color(0xFFB4BFCF),
-    textSecondary: Color(0xFF97A5B9),
-    textMuted: Color(0xFF7D8BA1),
-    primary: Color(0xFF5B9BFF),
-    accent: Color(0xFF38BDF8),
-    primarySoft: Color(0xFF14233D),
-    primarySoftBorder: Color(0xFF26426E),
+    bg: Color(0xFF090C12),
+    panel: Color(0xFF121821),
+    panelSecondary: Color(0xFF0D121A),
+    panelBorder: Color(0xFF1C2431),
+    panelBorderBright: Color(0xFF2A3547),
+    surfaceContainer: Color(0xFF171F2B),
+    surfaceContainerHigh: Color(0xFF212C3B),
+    surfaceContainerHighest: Color(0xFF2D3A4E),
+    textPrimary: Color(0xFFEAF0F9),
+    textDim: Color(0xFFB6C2D4),
+    textSecondary: Color(0xFF98A7BC),
+    textMuted: Color(0xFF7F8EA5),
+    primary: Color(0xFF4F9BFF),
+    accent: Color(0xFF22D3EE),
+    primarySoft: Color(0xFF0F2038),
+    primarySoftBorder: Color(0xFF1F4373),
     error: Color(0xFFFF7B7B),
-    redSoft: Color(0xFF2B1518),
+    redSoft: Color(0xFF2A1417),
     redSoftBorder: Color(0xFF5A2429),
     redText: Color(0xFFFF8A8A),
-    greenSoft: Color(0xFF11271D),
-    greenSoftBorder: Color(0xFF1F4B34),
-    greenText: Color(0xFF4ADE80),
-    amberSoft: Color(0xFF2B2210),
+    greenSoft: Color(0xFF0F2820),
+    greenSoftBorder: Color(0xFF1C4D3A),
+    greenText: Color(0xFF3DDC97),
+    amberSoft: Color(0xFF2B2110),
     amberSoftBorder: Color(0xFF564214),
     amberText: Color(0xFFFBBF24),
     shadow: Color(0xFF000000),
@@ -259,28 +260,28 @@ class AppColors {
   // ── Nhấn ───────────────────────────────────────────────────────────────────
   static Color get primary => _p.primary;
   static Color get accent => _p.accent;
-  static Color get accentDim => _p.isDark ? const Color(0xFF7DD3FC) : const Color(0xFF0369A1);
+  static Color get accentDim => _p.isDark ? const Color(0xFF67E8F9) : const Color(0xFF0B6F96);
   static Color get primarySoft => _p.primarySoft;
   static Color get primarySoftBorder => _p.primarySoftBorder;
 
   /// Nền nút đặc có chữ trắng — cố định ở cả hai chế độ (tương phản 5.2:1).
-  static const primaryFill = Color(0xFF2563EB);
-  static const primaryContainer = Color(0xFF1D4ED8);
+  static const primaryFill = Color(0xFF1F6BFF);
+  static const primaryContainer = Color(0xFF1857D6);
   static const onPrimary = Color(0xFFFFFFFF);
   static const onPrimaryContainer = Color(0xFFFDFCFF);
 
-  static const secondary = Color(0xFF0EA5E9);
+  static const secondary = Color(0xFF16B7E8);
   static const secondaryContainer = Color(0xFF39B8FD);
   static const onSecondary = Color(0xFFFFFFFF);
   static const onSecondaryContainer = Color(0xFF004666);
 
-  static const tertiary = Color(0xFF10B981); // Eco / sạc tối ưu / sức khỏe pin
+  static const tertiary = Color(0xFF14C98A); // Eco / sạc tối ưu / sức khỏe pin
   static const tertiaryContainer = Color(0xFF00855B);
   static const onTertiary = Color(0xFFFFFFFF);
   static const onTertiaryContainer = Color(0xFFF5FFF6);
 
-  static const cyan = Color(0xFF0EA5E9);
-  static const mint = Color(0xFF10B981);
+  static const cyan = Color(0xFF16B7E8);
+  static const mint = Color(0xFF14C98A);
   static const amber = Color(0xFFF59E0B);
   static const red = Color(0xFFEF4444);
 
@@ -318,7 +319,7 @@ class AppColors {
       _p.shadow.withValues(alpha: (a * _p.shadowOpacityScale).clamp(0.0, 1.0));
 
   static List<BoxShadow> get cardShadow => [
-        BoxShadow(color: _shadow(0.024), blurRadius: 16, offset: const Offset(0, 4)),
+        BoxShadow(color: _shadow(0.035), blurRadius: 20, offset: const Offset(0, 6)),
       ];
 
   static List<BoxShadow> get modalShadow => [
@@ -327,10 +328,25 @@ class AppColors {
       ];
 
   static BoxShadow get activeHalo => BoxShadow(
-        color: const Color(0xFF0EA5E9).withValues(alpha: _p.isDark ? 0.28 : 0.18),
-        spreadRadius: 3,
-        blurRadius: 0,
+        color: const Color(0xFF16B7E8).withValues(alpha: _p.isDark ? 0.30 : 0.18),
+        spreadRadius: 2,
+        blurRadius: 14,
       );
+
+  // ── Cockpit: Electric Blue → Cyan (chỉ dùng cho điểm nhấn chính) ───────────
+  static const electric = Color(0xFF1F6BFF);
+  static const electricGlow = Color(0xFF16B7E8);
+
+  /// Dải màu nhấn dùng cho vòng cung tốc độ, thanh năng lượng, nút chính.
+  static const LinearGradient electricGradient = LinearGradient(
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+    colors: [Color(0xFF1F6BFF), Color(0xFF16B7E8)],
+  );
+
+  /// Viền sáng mảnh trên cạnh trên của thẻ (cảm giác kính/kim loại ở Dark).
+  static Color get cardHighlight =>
+      _p.isDark ? const Color(0x14FFFFFF) : const Color(0x00FFFFFF);
 }
 
 class AppTypography {
@@ -522,7 +538,12 @@ class AppTheme {
         centerTitle: true,
         iconTheme: IconThemeData(color: p.textPrimary, size: 20),
         actionsIconTheme: IconThemeData(color: p.textPrimary, size: 22),
-        titleTextStyle: jakarta(18, FontWeight.w700, p.textPrimary, ls: -0.3),
+        titleTextStyle: AppTypography.evWide(
+          fontSize: 19,
+          fontWeight: FontWeight.w700,
+          color: p.textPrimary,
+          letterSpacing: -0.3,
+        ),
       ),
       cardTheme: CardThemeData(
         color: p.panel,
@@ -590,7 +611,7 @@ class AppTheme {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         height: AppSizes.navBarHeight,
-        indicatorColor: p.primary.withValues(alpha: isDark ? 0.20 : 0.12),
+        indicatorColor: p.primary.withValues(alpha: isDark ? 0.22 : 0.12),
         indicatorShape: const StadiumBorder(),
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         labelTextStyle: WidgetStateProperty.resolveWith(
@@ -613,8 +634,8 @@ class AppTheme {
           foregroundColor: AppColors.onPrimary,
           disabledBackgroundColor: p.surfaceContainerHigh,
           disabledForegroundColor: p.textMuted,
-          textStyle: jakarta(14, FontWeight.w600, Colors.white, ls: 0.2),
-          shape: const StadiumBorder(),
+          textStyle: jakarta(14, FontWeight.w700, Colors.white, ls: 0.2),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
           minimumSize: const Size.fromHeight(AppSizes.minTap),
           elevation: 0,
         ),
@@ -622,10 +643,10 @@ class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: p.textPrimary,
-          backgroundColor: p.panel,
+          backgroundColor: Colors.transparent,
           side: BorderSide(color: p.panelBorderBright, width: 1),
           textStyle: jakarta(14, FontWeight.w600, p.textPrimary),
-          shape: const StadiumBorder(),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
           minimumSize: const Size.fromHeight(AppSizes.minTap),
         ),
       ),
@@ -648,7 +669,7 @@ class AppTheme {
           (s) => s.contains(WidgetState.selected) ? Colors.white : p.textSecondary,
         ),
         trackColor: WidgetStateProperty.resolveWith(
-          (s) => s.contains(WidgetState.selected) ? AppColors.primaryFill : p.surfaceContainer,
+          (s) => s.contains(WidgetState.selected) ? AppColors.primaryFill : p.surfaceContainerHigh,
         ),
         trackOutlineColor: WidgetStateProperty.resolveWith(
           (s) => s.contains(WidgetState.selected) ? Colors.transparent : p.panelBorderBright,
@@ -659,6 +680,39 @@ class AppTheme {
         side: BorderSide(color: p.panelBorderBright),
         labelStyle: jakarta(12.5, FontWeight.w600, p.textDim),
         shape: const StadiumBorder(),
+      ),
+      sliderTheme: SliderThemeData(
+        activeTrackColor: AppColors.electric,
+        inactiveTrackColor: p.surfaceContainerHigh,
+        thumbColor: isDark ? Colors.white : AppColors.electric,
+        overlayColor: AppColors.electric.withValues(alpha: 0.14),
+        trackHeight: 5,
+        valueIndicatorColor: p.surfaceContainerHighest,
+        valueIndicatorTextStyle: jakarta(12, FontWeight.w700, p.textPrimary),
+      ),
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: ButtonStyle(
+          shape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
+          ),
+          side: WidgetStatePropertyAll(BorderSide(color: p.panelBorderBright)),
+          backgroundColor: WidgetStateProperty.resolveWith(
+            (s) => s.contains(WidgetState.selected)
+                ? p.primary.withValues(alpha: isDark ? 0.22 : 0.12)
+                : Colors.transparent,
+          ),
+          foregroundColor: WidgetStateProperty.resolveWith(
+            (s) => s.contains(WidgetState.selected) ? p.primary : p.textDim,
+          ),
+        ),
+      ),
+      tabBarTheme: TabBarThemeData(
+        labelColor: p.primary,
+        unselectedLabelColor: p.textSecondary,
+        indicatorColor: p.primary,
+        dividerColor: p.panelBorder,
+        labelStyle: jakarta(13, FontWeight.w700, p.primary),
+        unselectedLabelStyle: jakarta(13, FontWeight.w500, p.textSecondary),
       ),
       progressIndicatorTheme: ProgressIndicatorThemeData(
         color: p.primary,

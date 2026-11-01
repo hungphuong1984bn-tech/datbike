@@ -36,10 +36,12 @@ class GlassCard extends StatelessWidget {
     final dark = AppColors.isDark;
     final borderColor = accent != null
         ? accent!.withValues(alpha: 0.55)
-        : AppColors.panelBorderBright.withValues(alpha: dark ? 0.9 : 1.0);
+        : (dark
+            ? AppColors.panelBorderBright.withValues(alpha: 0.7)
+            : AppColors.panelBorder);
     final fill = hero
         ? null
-        : AppColors.panel.withValues(alpha: dark ? 0.82 : 0.94);
+        : AppColors.panel.withValues(alpha: dark ? 0.88 : 0.96);
 
     Widget card = DecoratedBox(
       decoration: BoxDecoration(

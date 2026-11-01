@@ -59,7 +59,7 @@ class AppGradients {
         end: Alignment.bottomCenter,
         colors: [
           Color.alphaBlend(
-            AppColors.primary.withValues(alpha: AppColors.isDark ? 0.10 : 0.05),
+            AppColors.electric.withValues(alpha: AppColors.isDark ? 0.14 : 0.06),
             AppColors.bg,
           ),
           AppColors.bg,
@@ -72,14 +72,17 @@ class AppGradients {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: AppColors.isDark
-            ? const [Color(0xFF16253F), Color(0xFF0F1B2E)]
-            : const [Color(0xFFEAF2FF), Color(0xFFF4F9FF)],
+            ? const [Color(0xFF15294A), Color(0xFF0B1424)]
+            : const [Color(0xFFE4EEFF), Color(0xFFF4F8FF)],
       );
 
   /// Thanh năng lượng (sạc/pin).
   static LinearGradient energy(Color base) => LinearGradient(
-        colors: [base.withValues(alpha: 0.75), base],
+        colors: [base.withValues(alpha: 0.70), base],
       );
+
+  /// Dải Electric Blue → Cyan (điểm nhấn chính của cockpit).
+  static LinearGradient get electric => AppColors.electricGradient;
 }
 
 class AppGlow {

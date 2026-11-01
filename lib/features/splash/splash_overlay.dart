@@ -62,7 +62,7 @@ class _ThBikeSplashOverlayState extends State<ThBikeSplashOverlay>
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Color(0xFF05070B), Color(0xFF0B1220)],
+                  colors: [Color(0xFF06080D), Color(0xFF0E1B33)],
                 ),
               ),
               child: SafeArea(

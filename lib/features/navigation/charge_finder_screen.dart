@@ -29,6 +29,7 @@ import '../../core/services/charging_station_service.dart';
 import '../../core/services/energy_estimator.dart';
 import '../../core/services/route_service.dart';
 import '../../ui/app_theme.dart';
+import '../../ui/map_style.dart';
 import '../../ui/components.dart';
 import '../../core/charging/station_proposal_store.dart';
 import 'station_detail_screen.dart';
@@ -834,6 +835,7 @@ class _ChargeFinderScreenState extends ConsumerState<ChargeFinderScreen> {
     final me = _me;
     final r = _route;
     return gm.GoogleMap(
+      style: currentMapStyle(),
       initialCameraPosition: gm.CameraPosition(
         target: me != null ? _g(me) : const gm.LatLng(16.0, 106.0),
         zoom: me == null ? 5 : 14,

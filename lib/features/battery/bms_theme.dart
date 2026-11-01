@@ -14,16 +14,16 @@ import '../../core/battery/cell_protection_engine.dart';
 class Bms {
   Bms._();
 
-  static const Color bg = Color(0xFF060A12);
-  static const Color bgMid = Color(0xFF0B1220);
-  static const Color bgGlow = Color(0xFF111B33);
+  static const Color bg = Color(0xFF080B11);
+  static const Color bgMid = Color(0xFF0D131D);
+  static const Color bgGlow = Color(0xFF12223D);
 
   static const Color text = Color(0xFFEAF0FA);
   static const Color textDim = Color(0xFF8FA0BC);
   static const Color textFaint = Color(0xFF5B6B86);
 
-  static const Color accent = Color(0xFF38BDF8);
-  static const Color accent2 = Color(0xFF8B5CF6);
+  static const Color accent = Color(0xFF22D3EE);
+  static const Color accent2 = Color(0xFF4F7DFF);
 
   static const Color ok = Color(0xFF22D3A0);
   static const Color warning = Color(0xFFFBBF24);

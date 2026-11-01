@@ -65,8 +65,8 @@ _Palette _paletteFor(ClusterConfig c, bool night) {
       baseBg = night ? const Color(0xFF07131F) : const Color(0xFFEAF2F8);
       accent = const Color(0xFF14B8A6);
     case ClusterTheme.original:
-      baseBg = night ? const Color(0xFF0B0F17) : const Color(0xFFF8F9FA);
-      accent = const Color(0xFF2563EB);
+      baseBg = night ? const Color(0xFF090C12) : const Color(0xFFEDF1F7);
+      accent = const Color(0xFF1F6BFF);
   }
   final bg = c.background != null ? Color(c.background!) : baseBg;
   final acc = c.accent != null ? Color(c.accent!) : accent;
