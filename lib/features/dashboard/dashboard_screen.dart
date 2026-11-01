@@ -16,6 +16,7 @@ import '../../core/proto/bike_log.dart';
 import '../../core/services/trip_gps_tracker.dart';
 import '../home/trip_route_screen.dart';
 import '../../ui/app_theme.dart';
+import '../../ui/components.dart';
 import '../../ui/gauge.dart';
 import '../../ui/widgets.dart';
 import 'widgets/cockpit_live_map.dart';
@@ -208,7 +209,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         (ble.lastTelemetry ??
             (BikeLogMsg()
               ..model = (ble.bikeName ?? 'Dat Bike Quantum')
-              ..version = '1.14.0'
               ..state = BikeState.standBy));
 
     final trip = ble.trip;
@@ -314,14 +314,27 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
         ],
       ),
-      body: OrientationBuilder(
-        builder: (context, orientation) {
-          // Chỉ dùng bố cục ngang khi người dùng chủ động bật "Cho phép xoay ngang".
-          if (orientation == Orientation.landscape && ref.watch(clusterConfigProvider).allowRotate) {
-            return _buildLandscapeLayout(context, ble, m, trip, powerKw, isRecup, isDraw, isEncrypted);
-          }
-          return _buildPortraitLayout(context, ble, m, trip, powerKw, isRecup, isDraw, isEncrypted);
-        },
+      body: Column(
+        children: [
+          // Nhãn độ mới dữ liệu: phân biệt "chưa có dữ liệu" / "dữ liệu cũ" / trực tiếp.
+          _HudDataBanner(
+            phase: ble.phase,
+            hasTelemetry: _msg != null || ble.lastTelemetry != null,
+            lastTelemetryAt: ref.read(bleProvider.notifier).lastTelemetryAt,
+            speedKmh: m.speed,
+          ),
+          Expanded(
+            child: OrientationBuilder(
+              builder: (context, orientation) {
+                // Chỉ dùng bố cục ngang khi người dùng chủ động bật "Cho phép xoay ngang".
+                if (orientation == Orientation.landscape && ref.watch(clusterConfigProvider).allowRotate) {
+                  return _buildLandscapeLayout(context, ble, m, trip, powerKw, isRecup, isDraw, isEncrypted);
+                }
+                return _buildPortraitLayout(context, ble, m, trip, powerKw, isRecup, isDraw, isEncrypted);
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1168,7 +1181,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           _divider(),
           _infoRow('Số khung xe', m.frame.isEmpty ? '—' : m.frame),
           _divider(),
-          _infoRow('Phiên bản Firmware', m.version.isEmpty ? '1.14.0' : m.version),
+          _infoRow('Phiên bản Firmware', m.version.isEmpty ? '--' : m.version),
         ],
       ),
     );
@@ -1216,4 +1229,81 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Widget _divider() => Divider(height: 1, indent: 16, endIndent: 16, color: AppColors.panelBorder);
+}
+
+/// Dải trạng thái dữ liệu của HUD (mỏng, 1 dòng, để không làm tràn bố cục ngang).
+///  • Chưa từng nhận telemetry: HUD đang hiện giá trị mặc định (0), KHÔNG phải số đo.
+///  • Mất kết nối / telemetry cũ: số hiển thị là giá trị cuối cùng.
+///  • Trực tiếp: không chiếm chỗ; chỉ phát thông báo đọc màn hình về tốc độ.
+class _HudDataBanner extends StatelessWidget {
+  final BlePhase phase;
+  final bool hasTelemetry;
+  final DateTime? lastTelemetryAt;
+  final double speedKmh;
+
+  const _HudDataBanner({
+    required this.phase,
+    required this.hasTelemetry,
+    required this.lastTelemetryAt,
+    required this.speedKmh,
+  });
+
+  Widget _strip(String text, IconData icon) {
+    final fg = AppColors.amberText;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 0, 14, 6),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: AppColors.amberSoft,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.amberSoftBorder),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 14, color: fg),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                text,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11.5, fontWeight: FontWeight.w700, color: fg),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TickBuilder(
+      builder: (context, now) {
+        final connected = phase == BlePhase.connected;
+        final fresh = connected
+            ? freshnessFromTimestamp(lastTelemetryAt, now: now)
+            : (lastTelemetryAt == null ? DataFreshness.none : DataFreshness.stale);
+
+        if (!hasTelemetry || fresh == DataFreshness.none) {
+          return _strip('Chưa nhận dữ liệu từ xe — số 0 bên dưới không phải số đo thật',
+              Icons.sensors_off_rounded);
+        }
+        if (fresh == DataFreshness.stale) {
+          final at = lastTelemetryAt;
+          return _strip(
+              'Dữ liệu cũ${at == null ? '' : ' · nhận ${formatClock(at)} (${formatAge(at, now: now)})'}',
+              Icons.history_toggle_off_rounded);
+        }
+        return Semantics(
+          liveRegion: true,
+          label: 'Tốc độ ${speedKmh.round()} ki-lô-mét trên giờ',
+          child: const SizedBox(width: double.infinity, height: 0),
+        );
+      },
+    );
+  }
 }

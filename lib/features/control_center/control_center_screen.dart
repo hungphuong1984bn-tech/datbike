@@ -17,6 +17,7 @@ import '../../core/control/mode_types.dart';
 import '../../core/regen/regen_controller.dart' show regenLinkReaderProvider;
 import '../../core/regen/regen_protocol.dart' show regenBlockReason;
 import '../../ui/app_theme.dart';
+import 'mode_actions.dart';
 import 'regen_monitor_card.dart';
 
 /// Nhãn trạng thái hiển thị — tách riêng để test.
@@ -75,75 +76,9 @@ class _ControlCenterScreenState extends ConsumerState<ControlCenterScreen> {
     super.dispose();
   }
 
-  Future<bool> _confirm(String title, String body, String action) async {
-    final r = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(title),
-        content: SingleChildScrollView(child: Text(body)),
-        actions: [
-          TextButton(
-              key: const Key('confirm_cancel'),
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('HỦY')),
-          FilledButton(
-              key: const Key('confirm_ok'),
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(action)),
-        ],
-      ),
-    );
-    return r == true;
-  }
+  Future<void> _toggleGrab(bool target) => toggleGrabMode(context, ref, target);
 
-  /// Kiểm tra điều kiện TRƯỚC khi hỏi xác nhận; engine vẫn kiểm lại lúc gửi.
-  bool _preflight() {
-    final reason = regenBlockReason(
-      ref.read(regenLinkReaderProvider)(),
-      requiresStandstill: true,
-    );
-    if (reason != null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Không gửi: $reason')));
-      return false;
-    }
-    return true;
-  }
-
-  Future<void> _toggleGrab(bool target) async {
-    if (!_preflight()) return;
-    final ok = await _confirm(
-      target ? 'Bật Grab?' : 'Tắt Grab?',
-      'App sẽ gửi giá trị ${target ? "1" : "0"} tới kênh Grab (a1d8e7c4) rồi đọc lại từ xe để xác nhận.\n\n'
-      '• Chỉ đổi khi xe đứng yên.\n'
-      '• Người dùng đã quan sát rằng đổi kênh này làm thay đổi dòng nạp ngược; '
-      'chưa đo hướng mạnh/yếu nên app không khẳng định.\n'
-      '• Nếu xe không xác nhận, app hiển thị KHÔNG XÁC NHẬN và không tự gửi lại.',
-      target ? 'BẬT GRAB' : 'TẮT GRAB',
-    );
-    if (!ok || !mounted) return;
-    await ref.read(grabModeProvider.notifier).command(target);
-  }
-
-  Future<void> _toggleEce(bool target) async {
-    if (!_preflight()) return;
-    final ok = await _confirm(
-      target ? 'Bật ECE (giới hạn tốc độ)?' : 'Tắt ECE (bỏ giới hạn tốc độ)?',
-      target
-          ? 'App sẽ ghi cờ SpeedLimit = 1 rồi cờ ECE = 1 và đọc lại cả hai từ xe.\n\n'
-              '• Giới hạn chỉ có hiệu lực khi CẢ HAI cờ đọc lại = 1.\n'
-              '• Khi ECE bật, xe KHÔNG cho chuyển chế độ lái (Lab 24/10); muốn chuyển phải tắt ECE.\n'
-              '• Mức trần 60 km/h theo ghi chú dự án, chưa có số đo độc lập.'
-          : 'App sẽ ghi SpeedLimit = 0 rồi ECE = 0 và đọc lại từ xe.\n\n'
-              '• Đây là tắt tuỳ chọn giới hạn do firmware cung cấp; xe vẫn chịu các '
-              'giới hạn an toàn khác của nhà sản xuất.\n'
-              '• Theo ghi chú Lab, nên tắt/mở nguồn xe để bộ điều tốc giải phóng trần cũ.\n'
-              '• Chỉ đổi khi xe đứng yên.',
-      target ? 'BẬT ECE' : 'TẮT ECE',
-    );
-    if (!ok || !mounted) return;
-    await ref.read(eceModeProvider.notifier).command(target);
-  }
+  Future<void> _toggleEce(bool target) => toggleEceMode(context, ref, target);
 
   @override
   Widget build(BuildContext context) {

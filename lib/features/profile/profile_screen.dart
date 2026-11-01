@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/ble/ble_controller.dart';
+import '../../core/brand/app_info.dart';
 import '../battery/battery_diagnostics_screen.dart';
 import '../ble_diagnostics/ble_diagnostics_screen.dart';
 import '../ota/ota_screen.dart';
@@ -80,12 +81,19 @@ class ProfileScreen extends ConsumerWidget {
               'Lỗi, lịch sử lỗi, nhật ký hoạt động', (c) => Navigator.of(c).pushNamed('/diagnostics')),
           _Item(Icons.bluetooth_searching_rounded, () => AppColors.primary, 'Chẩn đoán Bluetooth (BLE)',
               'Trạng thái liên kết, gói dữ liệu, bằng chứng giao thức', (c) => _push(c, const BleDiagnosticsScreen())),
-          _Item(Icons.receipt_long_rounded, () => AppColors.accentDim, 'Tệp nhật ký Bluetooth',
-              'Xem, chia sẻ, xuất nhật ký kỹ thuật', (c) => Navigator.of(c).pushNamed('/logs')),
           _Item(Icons.system_update_rounded, () => AppColors.primary, 'Cập nhật phần mềm (OTA)',
               'Cập nhật phần mềm xe không dây', (c) => _push(c, const OtaScreen())),
           _Item(Icons.science_rounded, () => AppColors.accentDim, 'Phòng thí nghiệm',
               'Công cụ nâng cao, chỉ dành cho người am hiểu', (c) => _push(c, const FirmwareLabScreen())),
+        ]
+      ),
+      (
+        'Nhật ký và dữ liệu',
+        [
+          _Item(Icons.receipt_long_rounded, () => AppColors.accentDim, 'Tệp nhật ký Bluetooth',
+              'Xem, chia sẻ, xuất nhật ký kỹ thuật', (c) => Navigator.of(c).pushNamed('/logs')),
+          _Item(Icons.history_rounded, () => AppColors.primary, 'Lịch sử lỗi và hoạt động',
+              'Xem trong Trung tâm chẩn đoán', (c) => Navigator.of(c).pushNamed('/diagnostics')),
         ]
       ),
       (
@@ -95,6 +103,8 @@ class ProfileScreen extends ConsumerWidget {
               'Thiết kế đồng hồ lái xe của riêng bạn', (c) => _push(c, const DashboardStudioScreen())),
           _Item(Icons.settings_suggest_rounded, () => AppColors.primary, 'Cài đặt ứng dụng',
               'Giao diện, đơn vị, thông báo, thông tin xe, phiên bản', (c) => _push(c, const AppSettingsScreen())),
+          _Item(Icons.info_outline_rounded, () => AppColors.primary, 'Giới thiệu THBIKE',
+              'Tính năng, trạng thái hỗ trợ và tác giả', (c) => Navigator.of(c).pushNamed('/about')),
         ]
       ),
     ];
@@ -134,6 +144,11 @@ class ProfileScreen extends ConsumerWidget {
                           overflow: TextOverflow.ellipsis,
                           style: AppTypography.headlineSm(color: AppColors.textPrimary)),
                       const SizedBox(height: 2),
+                      if (ble.bikeName != null && ble.bikeName!.isNotEmpty)
+                        Text('Xe: ${ble.bikeName}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTypography.labelMd(color: AppColors.primary)),
                       Text(serial,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -183,6 +198,13 @@ class ProfileScreen extends ConsumerWidget {
               ),
             ),
           ],
+
+          // ── Phiên bản ứng dụng ────────────────────────────────────────
+          const SizedBox(height: AppSpacing.xl),
+          Center(
+            child: Text('$kAppName $kAppVersionName',
+                style: AppTypography.labelMd(color: AppColors.textMuted)),
+          ),
         ],
       ),
     );

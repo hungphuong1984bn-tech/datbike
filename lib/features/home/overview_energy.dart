@@ -68,7 +68,15 @@ class OverviewEnergyData {
 /// Bộ đọc: nối telemetry + phiên sạc → [OverviewEnergyData] rồi dựng bảng.
 class OverviewEnergySection extends ConsumerWidget {
   final VoidCallback onOpenCharging;
-  const OverviewEnergySection({super.key, required this.onOpenCharging});
+
+  /// false → ẩn khối "Thông tin xe" (ODO, nhiệt độ, chế độ lái) vì Tổng quan
+  /// đã hiển thị các số này trong lưới "Thông số kỹ thuật".
+  final bool showVehicleInfo;
+  const OverviewEnergySection({
+    super.key,
+    required this.onOpenCharging,
+    this.showVehicleInfo = true,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -123,14 +131,24 @@ class OverviewEnergySection extends ConsumerWidget {
       ecuTempC: (t != null && t.ecu > 0) ? t.ecu : null,
       driveMode: (t != null && t.isBikeOn) ? t.drivingModeLabel : null,
     );
-    return OverviewEnergyPanel(data: data, onOpenCharging: onOpenCharging);
+    return OverviewEnergyPanel(
+      data: data,
+      onOpenCharging: onOpenCharging,
+      showVehicleInfo: showVehicleInfo,
+    );
   }
 }
 
 class OverviewEnergyPanel extends StatelessWidget {
   final OverviewEnergyData data;
   final VoidCallback onOpenCharging;
-  const OverviewEnergyPanel({super.key, required this.data, required this.onOpenCharging});
+  final bool showVehicleInfo;
+  const OverviewEnergyPanel({
+    super.key,
+    required this.data,
+    required this.onOpenCharging,
+    this.showVehicleInfo = true,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -144,10 +162,12 @@ class OverviewEnergyPanel extends StatelessWidget {
         const SectionTitle('Sạc pin'),
         const SizedBox(height: 6),
         _chargeCard(),
-        const SizedBox(height: 16),
-        const SectionTitle('Thông tin xe'),
-        const SizedBox(height: 6),
-        _vehicleCard(),
+        if (showVehicleInfo) ...[
+          const SizedBox(height: 16),
+          const SectionTitle('Thông tin xe'),
+          const SizedBox(height: 6),
+          _vehicleCard(),
+        ],
       ],
     );
   }

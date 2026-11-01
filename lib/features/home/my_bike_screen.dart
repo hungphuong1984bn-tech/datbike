@@ -23,8 +23,14 @@ import '../navigation/charge_finder_screen.dart';
 import '../scan/scan_screen.dart';
 import '../settings/vehicle_settings_screen.dart';
 import '../../ui/geely_icons.dart';
+import '../../ui/ds/ds.dart';
+import '../../ui/widgets.dart';
 import 'home_hero.dart';
+import 'overview_control_summary.dart';
 import 'overview_energy.dart';
+import 'overview_header.dart';
+import 'overview_metrics.dart';
+import 'overview_station.dart';
 import 'overview_status.dart';
 import 'trip_route_screen.dart';
 import '../../ui/app_theme.dart';
@@ -1164,9 +1170,6 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
     final speed = telemetry?.speed ?? 0.0;
     final isBikeOn = telemetry?.isBikeOn == true;
     final isLocked = ble.isLocked;
-    final volt = (telemetry != null && telemetry.voltage > 0) ? telemetry.voltage : null;
-    final powerW = volt != null ? volt * telemetry!.phase.abs() : null;
-    final bmsTemp = (telemetry != null && telemetry.bmsTemp > 0) ? telemetry.bmsTemp : null;
 
     // Trạng thái vận hành thực tế của xe máy điện
     final statusText = !connected
@@ -1177,210 +1180,221 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                 ? 'Đang chạy (${speed.toStringAsFixed(0)} km/h)'
                 : (isBikeOn ? 'Sẵn sàng chạy' : 'Đang đỗ')));
 
+    final lastTelemetryAt = ref.read(bleProvider.notifier).lastTelemetryAt;
+    void openHud() => Navigator.of(context).pushNamed('/dashboard');
+    void openConnect() => Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const ScanScreen()));
+
+    // Lề hai bên: 16dp trên màn hẹp (≤ 360dp), 20dp còn lại.
+    final padH = MediaQuery.sizeOf(context).width <= 360 ? 16.0 : AppSpacing.pageH;
+    const gap = SizedBox(height: AppSpacing.lg);
 
     return Scaffold(
       backgroundColor: AppColors.bg,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ══════════════════════════════════════════════════════════════
-              // 1. THẺ TỔNG QUAN XE (Design System v3): tên xe · kết nối · SOC ·
-              //    quãng đường · ảnh xe · cảnh báo · tốc độ/công suất/nhiệt độ/điện áp.
-              //    Chỉ số liệu thật từ xe; thiếu dữ liệu → "--".
-              // ══════════════════════════════════════════════════════════════
-              HomeHeroCard(
-                phase: ble.phase,
-                lastTelemetryAt: ref.read(bleProvider.notifier).lastTelemetryAt,
-                bikeName: ble.bikeName ?? 'Xe điện',
-                percent: percent,
-                kmLeft: kmLeftVal,
-                kmEstimated: kmEstimated,
-                speedKmh: telemetry?.speed,
-                voltageV: volt,
-                powerW: powerW,
-                bmsTempC: bmsTemp,
-                statusText: statusText,
-                drivingModeShort: telemetry?.drivingModeShort,
-                isBikeOn: isBikeOn && !isLocked,
-                isLocked: isLocked,
-                isCharging: telemetry?.charging != null,
-                chargePowerW: telemetry?.charging?.power.toDouble(),
-                isSideStandDown: telemetry?.isSideStandDown ?? false,
-                errorCode: telemetry?.error ?? 0,
-                isFindingBike: ble.isFindingBike,
-                onSwitchBike: () => _openBikeSwitcherSheet(context),
-                onHud: () => Navigator.of(context).pushNamed('/dashboard'),
-                onConnect: () => Navigator.of(context)
-                    .push(MaterialPageRoute(builder: (_) => const ScanScreen())),
-                onStopFind: _quickFindBike,
-              ),
-              const SizedBox(height: 12),
-              OverviewShortcuts(
-                onHud: () => Navigator.of(context).pushNamed('/dashboard'),
-                onCharging: () => Navigator.of(context).pushNamed('/charging'),
-                onTrips: () => _openTripHistorySheet(context),
-              ),
-              const SizedBox(height: 16),
-
-              // Dòng xả · dòng nạp · công suất · thời gian sạc · thông tin xe.
-              // Chỉ số liệu thật từ xe; thiếu dữ liệu → "--".
-              OverviewEnergySection(
-                onOpenCharging: () => Navigator.of(context).pushNamed('/charging'),
-              ),
-
-              const SizedBox(height: 16),
-
-              // ══════════════════════════════════════════════════════════════
-              // 4. CARD 4 NÚT ĐIỀU KHIỂN NHANH CHUYÊN BIỆT CHO XE MÁY ĐIỆN:
-              //    1. Khóa (Lock/Unlock)
-              //    2. Bật Xe (Power On/Off - Keyless)
-              //    3. Tìm Xe (Find Bike - Còi & Đèn)
-              //    4. Mở Cốp (Trunk - Cốp 41L)
-              //    (Loại bỏ quạt điều hòa vì xe máy không có cabin AC!)
-              // ══════════════════════════════════════════════════════════════
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: AppColors.panel,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppColors.panelBorder),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x060F172A),
-                      blurRadius: 16,
-                      offset: Offset(0, 4),
-                    ),
-                  ],
-                ),
+      body: DecoratedBox(
+        decoration: BoxDecoration(gradient: AppGradients.page),
+        child: SafeArea(
+          child: Center(
+            // Màn lớn / máy tính bảng: giới hạn bề rộng nội dung cho dễ đọc.
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 560),
+              child: SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(padH, 4, padH, 24),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          // 1. Khóa Cổ & Chống Trộm
-                          _quickActionButton(
-                            icon: isLocked
-                                ? GeelyIcons.lock(
-                                    color: AppColors.red,
-                                    size: 24,
-                                  )
-                                : GeelyIcons.lockOpen(
-                                    color: AppColors.primary,
-                                    size: 24,
-                                  ),
-                            label: isLocked ? 'Mở Khóa' : 'Khóa Cổ',
-                            onTap: _quickLockToggle,
-                            active: isLocked,
-                            activeColor: AppColors.redSoft,
-                            activeBorderColor: AppColors.redSoftBorder,
-                          ),
-
-                          // 2. Bật / Tắt Nguồn Xe Máy Điện (Keyless Power)
-                          _quickActionButton(
-                            icon: Icon(
-                              Icons.power_settings_new_rounded,
-                              color: isBikeOn ? AppColors.tertiary : AppColors.textSecondary,
-                              size: 24,
-                            ),
-                            label: isBikeOn ? 'Tắt Máy' : 'Bật Xe',
-                            onTap: _quickPowerToggle,
-                            active: isBikeOn,
-                            activeColor: AppColors.greenSoft,
-                            activeBorderColor: AppColors.greenSoftBorder,
-                          ),
-
-                          // 3. Tìm Xe Trong Bãi (Còi & Đèn Định Vị - Bật / Tắt 2 chiều)
-                          _quickActionButton(
-                            icon: ble.isFindingBike
-                                ? const Icon(
-                                    Icons.volume_off_rounded,
-                                    color: AppColors.red,
-                                    size: 24,
-                                  )
-                                : GeelyIcons.findBike(
-                                    color: AppColors.primary,
-                                    size: 24,
-                                  ),
-                            label: ble.isFindingBike ? 'Tắt Còi' : 'Tìm Xe',
-                            onTap: _quickFindBike,
-                            active: ble.isFindingBike,
-                            activeColor: AppColors.redSoft,
-                            activeBorderColor: AppColors.redSoftBorder,
-                          ),
-
-                          // 4. Đồng bộ thời gian thực Taplo (RTC)
-                          _quickActionButton(
-                            icon: GeelyIcons.clock(
-                              color: AppColors.textPrimary,
-                              size: 24,
-                            ),
-                            label: 'Đồng bộ giờ',
-                            onTap: _quickSyncTime,
-                          ),
-
-                          // 5. Tìm trạm sạc gần bạn (bản đồ + danh sách)
-                          _quickActionButton(
-                            icon: Icon(
-                              Icons.ev_station_rounded,
-                              color: AppColors.tertiary,
-                              size: 24,
-                            ),
-                            label: 'Tìm trạm sạc',
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => const ChargeFinderScreen()),
-                            ),
-                            active: true,
-                            activeColor: AppColors.greenSoft,
-                            activeBorderColor: AppColors.greenSoftBorder,
-                          ),
-                        ],
-                      ),
+                    // 1. HEADER: logo · tên xe (đổi xe) · Bluetooth · HUD.
+                    OverviewHeader(
+                      phase: ble.phase,
+                      bikeName: ble.bikeName,
+                      onSwitchBike: () => _openBikeSwitcherSheet(context),
+                      onConnect: openConnect,
+                      onHud: openHud,
                     ),
+                    const SizedBox(height: AppSpacing.sm),
 
-                    Divider(color: AppColors.panelBorder, height: 1, thickness: 1),
-
-                    // Remote controls >
-                    InkWell(
-                      onTap: _openRemoteControlsSheet,
-                      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Cài đặt nhanh & Chống trộm',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                            Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.textMuted),
-                          ],
-                        ),
-                      ),
+                    // 2. HERO: ảnh xe · tốc độ · SOC · quãng đường · cảnh báo.
+                    //    Chỉ số liệu thật từ xe; thiếu dữ liệu → "--".
+                    HomeHeroCard(
+                      phase: ble.phase,
+                      lastTelemetryAt: lastTelemetryAt,
+                      percent: percent,
+                      kmLeft: kmLeftVal,
+                      kmEstimated: kmEstimated,
+                      speedKmh: telemetry?.speed,
+                      statusText: statusText,
+                      drivingModeShort: telemetry?.drivingModeShort,
+                      isBikeOn: isBikeOn && !isLocked,
+                      isLocked: isLocked,
+                      isCharging: telemetry?.charging != null,
+                      chargePowerW: telemetry?.charging?.power.toDouble(),
+                      isSideStandDown: telemetry?.isSideStandDown ?? false,
+                      errorCode: telemetry?.error ?? 0,
+                      isFindingBike: ble.isFindingBike,
+                      onStopFind: _quickFindBike,
                     ),
+                    gap,
+
+                    // 3. TRẠNG THÁI XE: chip gọn, chỉ hiện khi có dữ liệu thật & mới.
+                    OverviewStatusStrip(
+                      phase: ble.phase,
+                      lastTelemetryAt: lastTelemetryAt,
+                      percent: percent,
+                      isBikeOn: isBikeOn,
+                      isLocked: isLocked,
+                      isSideStandDown: telemetry?.isSideStandDown ?? false,
+                      leftIndicator: telemetry?.left ?? false,
+                      rightIndicator: telemetry?.right ?? false,
+                      headlight: telemetry?.headlight ?? false,
+                      errorCode: telemetry?.error ?? 0,
+                      onConnect: openConnect,
+                    ),
+                    gap,
+
+                    // 4. ĐIỀU KHIỂN NHANH (callback + điều kiện an toàn giữ nguyên).
+                    const SectionTitle('Điều khiển nhanh'),
+                    const SizedBox(height: 6),
+                    _buildQuickActions(ble, isLocked: isLocked, isBikeOn: isBikeOn),
+                    gap,
+
+                    // 5. THÔNG SỐ KỸ THUẬT: lưới 2/3 cột, có nguồn dữ liệu.
+                    const OverviewMetricsSection(),
+                    gap,
+
+                    // 6. NĂNG LƯỢNG: dòng xả/nạp · công suất · phiên sạc.
+                    OverviewEnergySection(
+                      showVehicleInfo: false,
+                      onOpenCharging: () => Navigator.of(context).pushNamed('/charging'),
+                    ),
+                    gap,
+
+                    // 7. TRUNG TÂM ĐIỀU KHIỂN: Grab · ECE · Regen (chỉ hiển thị).
+                    const OverviewControlSummary(),
+                    gap,
+
+                    // 8. HÀNH TRÌNH hiện tại + lịch sử.
+                    _buildTripCard(ble.trip),
+                    gap,
+
+                    // 9. TRẠM SẠC GẦN NHẤT (từ dữ liệu tìm kiếm đã lưu).
+                    const OverviewNearestStation(),
                   ],
                 ),
               ),
-
-              const SizedBox(height: 16),
-
-              // ══════════════════════════════════════════════════════════════
-              // 5. CARD CHUYẾN ĐI (Trip Computer & Thống kê hành trình)
-              // ══════════════════════════════════════════════════════════════
-              _buildTripCard(ble.trip),
-
-              const SizedBox(height: 24),
-            ],
+            ),
           ),
         ),
+      ),
+    );
+  }
+
+  /// Hàng nút điều khiển nhanh + lối vào "Cài đặt nhanh & Chống trộm".
+  Widget _buildQuickActions(BleState ble, {required bool isLocked, required bool isBikeOn}) {
+    return GlassCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 14),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 1. Khóa Cổ & Chống Trộm
+                Expanded(
+                  child: _quickActionButton(
+                    icon: isLocked
+                        ? GeelyIcons.lock(color: AppColors.red, size: 24)
+                        : GeelyIcons.lockOpen(color: AppColors.primary, size: 24),
+                    label: isLocked ? 'Mở Khóa' : 'Khóa Cổ',
+                    onTap: _quickLockToggle,
+                    active: isLocked,
+                    activeColor: AppColors.redSoft,
+                    activeBorderColor: AppColors.redSoftBorder,
+                  ),
+                ),
+                // 2. Bật / Tắt nguồn xe (keyless)
+                Expanded(
+                  child: _quickActionButton(
+                    icon: Icon(
+                      Icons.power_settings_new_rounded,
+                      color: isBikeOn ? AppColors.tertiary : AppColors.textSecondary,
+                      size: 24,
+                    ),
+                    label: isBikeOn ? 'Tắt Máy' : 'Bật Xe',
+                    onTap: _quickPowerToggle,
+                    active: isBikeOn,
+                    activeColor: AppColors.greenSoft,
+                    activeBorderColor: AppColors.greenSoftBorder,
+                  ),
+                ),
+                // 3. Tìm xe trong bãi (còi & đèn, bật/tắt 2 chiều)
+                Expanded(
+                  child: _quickActionButton(
+                    icon: ble.isFindingBike
+                        ? const Icon(Icons.volume_off_rounded, color: AppColors.red, size: 24)
+                        : GeelyIcons.findBike(color: AppColors.primary, size: 24),
+                    label: ble.isFindingBike ? 'Tắt Còi' : 'Tìm Xe',
+                    onTap: _quickFindBike,
+                    active: ble.isFindingBike,
+                    activeColor: AppColors.redSoft,
+                    activeBorderColor: AppColors.redSoftBorder,
+                  ),
+                ),
+                // 4. Đồng bộ giờ với xe (RTC)
+                Expanded(
+                  child: _quickActionButton(
+                    icon: GeelyIcons.clock(color: AppColors.textPrimary, size: 24),
+                    label: 'Đồng bộ giờ',
+                    onTap: _quickSyncTime,
+                  ),
+                ),
+                // 5. Tìm trạm sạc (bản đồ + danh sách)
+                Expanded(
+                  child: _quickActionButton(
+                    icon: Icon(Icons.ev_station_rounded, color: AppColors.tertiary, size: 24),
+                    label: 'Tìm trạm sạc',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const ChargeFinderScreen()),
+                    ),
+                    active: true,
+                    activeColor: AppColors.greenSoft,
+                    activeBorderColor: AppColors.greenSoftBorder,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Divider(color: AppColors.panelBorder, height: 1, thickness: 1),
+          // Lối vào Cài đặt nhanh & Chống trộm
+          Semantics(
+            button: true,
+            label: 'Cài đặt nhanh và chống trộm',
+            excludeSemantics: true,
+            child: InkWell(
+              onTap: _openRemoteControlsSheet,
+              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(AppRadius.lg)),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: AppSizes.minTap),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  child: Row(
+                    children: [
+                      Icon(Icons.shield_outlined, size: 18, color: AppColors.primary),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Cài đặt nhanh & Chống trộm',
+                          style: AppTypography.labelLg(color: AppColors.textPrimary),
+                        ),
+                      ),
+                      Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.textMuted),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1396,21 +1410,8 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
         ? '$mins phút ${secs > 0 ? "$secs s" : ""} · Đang ghi'
         : (secs > 0 ? '$secs giây · Đang ghi' : 'Sẵn sàng ghi nhận');
 
-    return Container(
-      width: double.infinity,
+    return GlassCard(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.panel,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.panelBorder),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x060F172A),
-            blurRadius: 16,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1557,7 +1558,7 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Giảm ${(trip.distanceKm * 0.16).toStringAsFixed(1)} kg CO₂ so với xe xăng',
+                    'Ước tính giảm ${(trip.distanceKm * 0.16).toStringAsFixed(1)} kg CO₂ so với xe xăng',
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 11.5,
                       fontWeight: FontWeight.w600,
@@ -2263,45 +2264,64 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
     Color? activeColor,
     Color? activeBorderColor,
   }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: active ? (activeColor ?? AppColors.primarySoft) : AppColors.panelSecondary,
-              border: Border.all(
-                color: active ? (activeBorderColor ?? AppColors.primarySoftBorder) : AppColors.panelBorder,
-                width: 1,
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+          // Vòng tròn co theo ô (tối đa 52dp) để 5 nút vừa màn 320dp không tràn.
+          child: LayoutBuilder(builder: (context, c) {
+            final d = (c.maxWidth.isFinite ? c.maxWidth : 52.0).clamp(40.0, 52.0).toDouble();
+            return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: d,
+                height: d,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: active ? (activeColor ?? AppColors.primarySoft) : AppColors.panelSecondary,
+                  border: Border.all(
+                    color: active
+                        ? (activeBorderColor ?? AppColors.primarySoftBorder)
+                        : AppColors.panelBorder,
+                    width: 1,
+                  ),
+                  boxShadow: active
+                      ? [
+                          BoxShadow(
+                            color: (activeBorderColor ?? AppColors.primary).withValues(alpha: 0.15),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Center(child: icon),
               ),
-              boxShadow: active
-                  ? [
-                      BoxShadow(
-                        color: (activeBorderColor ?? AppColors.primary).withValues(alpha: 0.15),
-                        blurRadius: 10,
-                        offset: const Offset(0, 3),
-                      ),
-                    ]
-                  : null,
-            ),
-            child: Center(child: icon),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 11.5,
-              fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-              color: active ? AppColors.textPrimary : AppColors.textSecondary,
-              letterSpacing: 0.2,
-            ),
-          ),
-        ],
+              const SizedBox(height: 8),
+              // Nhãn tự co để không tràn trên màn 320dp.
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11.5,
+                    fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                    color: active ? AppColors.textPrimary : AppColors.textSecondary,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+              ),
+            ],
+          );
+          }),
+        ),
       ),
     );
   }

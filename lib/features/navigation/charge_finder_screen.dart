@@ -976,6 +976,8 @@ class _ChargeFinderScreenState extends ConsumerState<ChargeFinderScreen> {
                 ],
               ),
               Wrap(spacing: 6, runSpacing: 4, children: [
+                if (s.isVinFast)
+                  const StationChip(icon: Icons.ev_station_rounded, label: 'VinFast / V-GREEN', color: AppColors.cyan),
                 StationChip(icon: Icons.circle, label: StationUi.statusLabel(s.status), color: StationUi.statusColor(s.status)),
                 StationChip(icon: StationUi.vehicleIcon(s.vehicle), label: StationUi.vehicleLabel(s.vehicle), color: vc),
               ]),
@@ -1218,6 +1220,15 @@ class _FilterSheetState extends State<_FilterSheet> {
                 ),
             ]),
             const SizedBox(height: 6),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Chỉ trạm VinFast / V-GREEN'),
+              subtitle: const Text(
+                  'Nhận diện theo tên/nhà vận hành trong dữ liệu OpenStreetMap — không phải xác nhận chính thức, '
+                  'chưa có số cổng trống. Phần lớn trạm VinFast dành cho ô tô: bật thêm "Hiện cả trạm ô tô điện" nếu cần.'),
+              value: f.vinFastOnly,
+              onChanged: (v) => setState(() => f = f.copyWith(vinFastOnly: v)),
+            ),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Chỉ trạm mở cửa 24/7'),

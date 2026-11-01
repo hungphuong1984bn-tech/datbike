@@ -1,7 +1,12 @@
-// Thẻ "Tổng quan xe" của trang chủ — Design System v3.
+// Thẻ "Tổng quan xe" của trang chủ — Design System v3 (Premium EV).
+//
+// Bố cục: hàng huy hiệu trạng thái → [ảnh xe | tốc độ] → SOC + quãng đường →
+// thanh năng lượng → độ mới dữ liệu → cảnh báo.
 //
 // Nguyên tắc dữ liệu: chỉ hiển thị giá trị xe đã gửi thật. Giá trị null → "--".
 // Không dùng số mẫu. Quãng đường còn lại do app tự ước tính được gắn nhãn "Ước tính".
+// Mất kết nối: tốc độ về "--" (không để số cũ trông như đang chạy); SOC/quãng đường
+// giữ giá trị cuối kèm nhãn "Dữ liệu cũ".
 // Widget chỉ nhận tham số thuần (không đọc BLE) nên dễ kiểm thử và không ảnh hưởng giao thức.
 
 import 'package:flutter/material.dart';
@@ -16,16 +21,12 @@ import '../../ui/widgets.dart';
 class HomeHeroCard extends StatelessWidget {
   final BlePhase phase;
   final DateTime? lastTelemetryAt;
-  final String bikeName;
 
   // Số liệu thật (null = chưa có)
   final int? percent;
   final int? kmLeft;
   final bool kmEstimated;
   final double? speedKmh;
-  final double? voltageV;
-  final double? powerW;
-  final double? bmsTempC;
 
   // Trạng thái
   final String statusText;
@@ -39,23 +40,16 @@ class HomeHeroCard extends StatelessWidget {
   final bool isFindingBike;
 
   // Hành động
-  final VoidCallback onSwitchBike;
-  final VoidCallback onHud;
-  final VoidCallback onConnect;
   final VoidCallback onStopFind;
 
   const HomeHeroCard({
     super.key,
     required this.phase,
     required this.lastTelemetryAt,
-    required this.bikeName,
     required this.percent,
     required this.kmLeft,
     required this.kmEstimated,
     required this.speedKmh,
-    required this.voltageV,
-    required this.powerW,
-    required this.bmsTempC,
     required this.statusText,
     required this.drivingModeShort,
     required this.isBikeOn,
@@ -65,9 +59,6 @@ class HomeHeroCard extends StatelessWidget {
     required this.isSideStandDown,
     required this.errorCode,
     required this.isFindingBike,
-    required this.onSwitchBike,
-    required this.onHud,
-    required this.onConnect,
     required this.onStopFind,
   });
 
@@ -83,10 +74,23 @@ class HomeHeroCard extends StatelessWidget {
     final connected = phase == BlePhase.connected;
     final pct = percent;
     final c = socColor(pct);
+    // Tốc độ chỉ có ý nghĩa khi đang kết nối; mất kết nối → "--".
+    final shownSpeed = connected ? speedKmh : null;
 
     final warnings = <String>[
       if (isSideStandDown) 'Chân chống đang hạ',
       if (errorCode != 0) 'Xe báo mã lỗi $errorCode — xem Trung tâm chẩn đoán',
+    ];
+
+    final pills = <Widget>[
+      if (isLocked)
+        const StatusPill(label: 'Đã khóa', color: AppColors.red, icon: Icons.lock_rounded)
+      else if (isBikeOn)
+        const StatusPill(label: 'Xe sẵn sàng', color: AppColors.tertiary, pulse: true),
+      if (isCharging)
+        const StatusPill(label: 'Đang sạc', color: AppColors.tertiary, icon: Icons.bolt_rounded),
+      if (drivingModeShort != null && connected && isBikeOn)
+        StatusPill(label: 'Chế độ $drivingModeShort', color: AppColors.primaryFill),
     ];
 
     return GlassCard(
@@ -96,43 +100,84 @@ class HomeHeroCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Đầu thẻ: tên xe · kết nối · HUD ───────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 6, 0),
+          // ── Huy hiệu trạng thái (chỉ hiện khi có dữ liệu tương ứng) ─────
+          if (pills.isNotEmpty || isFindingBike)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  ...pills,
+                  if (isFindingBike)
+                    InkWell(
+                      onTap: onStopFind,
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                      child: Container(
+                        constraints: const BoxConstraints(minHeight: 32),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppColors.redSoft,
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
+                          border: Border.all(color: AppColors.red),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.volume_off_rounded, size: 15, color: AppColors.red),
+                            const SizedBox(width: 6),
+                            Text('Đang hú còi · bấm để tắt',
+                                style: AppTypography.labelMd(color: AppColors.redText)),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+
+          // ── Ảnh xe (trái) + tốc độ (phải) ──────────────────────────────
+          SizedBox(
+            height: 168,
             child: Row(
               children: [
+                const Expanded(
+                  flex: 11,
+                  child: Padding(
+                    padding: EdgeInsets.only(left: 8, top: 4, bottom: 4),
+                    child: BikeImage(),
+                  ),
+                ),
                 Expanded(
-                  child: InkWell(
-                    onTap: onSwitchBike,
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
-                      child: Row(
+                  flex: 9,
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 16, left: 4),
+                    child: Semantics(
+                      label: shownSpeed == null
+                          ? 'Tốc độ hiện tại: chưa có dữ liệu'
+                          : 'Tốc độ hiện tại: ${shownSpeed.round()} ki-lô-mét trên giờ',
+                      excludeSemantics: true,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Flexible(
-                            child: Text(
-                              bikeName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: AppTypography.evWide(fontSize: 18, letterSpacing: -0.3),
+                          Text('TỐC ĐỘ',
+                              style: AppTypography.labelSm(color: AppColors.textSecondary)),
+                          const SizedBox(height: 2),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerRight,
+                            child: AnimatedMetric(
+                              value: shownSpeed,
+                              unit: 'km/h',
+                              valueSize: 54,
+                              align: CrossAxisAlignment.end,
                             ),
                           ),
-                          const SizedBox(width: 4),
-                          Icon(Icons.unfold_more_rounded, size: 18, color: AppColors.primary),
                         ],
                       ),
                     ),
                   ),
-                ),
-                InkWell(
-                  onTap: connected ? null : onConnect,
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                  child: ConnectionBadge(phase: phase),
-                ),
-                IconButton(
-                  tooltip: 'Đồng hồ lái (HUD)',
-                  icon: Icon(Icons.speed_rounded, size: 22, color: AppColors.textPrimary),
-                  onPressed: onHud,
                 ),
               ],
             ),
@@ -140,33 +185,45 @@ class HomeHeroCard extends StatelessWidget {
 
           // ── Năng lượng: SOC lớn + quãng đường ─────────────────────────
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                AnimatedMetric(
-                  value: pct?.toDouble(),
-                  unit: '%',
-                  label: 'Mức pin (SOC)',
-                  valueSize: 54,
-                  color: pct == null ? null : AppColors.readable(c),
-                ),
-                const Spacer(),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    AnimatedMetric(
-                      value: kmLeft?.toDouble(),
-                      unit: 'km',
-                      label: 'Quãng đường còn lại',
-                      valueSize: 30,
-                      align: CrossAxisAlignment.end,
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: AnimatedMetric(
+                      value: pct?.toDouble(),
+                      unit: '%',
+                      label: 'Mức pin (SOC)',
+                      valueSize: 44,
+                      color: pct == null ? null : AppColors.readable(c),
                     ),
-                    if (kmEstimated && kmLeft != null) ...[
-                      const SizedBox(height: 4),
-                      const FreshnessBadge(freshness: DataFreshness.estimated),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerRight,
+                        child: AnimatedMetric(
+                          value: kmLeft?.toDouble(),
+                          unit: 'km',
+                          label: 'Quãng đường còn lại',
+                          valueSize: 28,
+                          align: CrossAxisAlignment.end,
+                        ),
+                      ),
+                      if (kmEstimated && kmLeft != null) ...[
+                        const SizedBox(height: 4),
+                        const FreshnessBadge(freshness: DataFreshness.estimated),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ],
             ),
@@ -189,15 +246,17 @@ class HomeHeroCard extends StatelessWidget {
                         isCharging
                             ? 'Đang sạc${chargePowerW != null && chargePowerW! > 0 ? ' · ${chargePowerW!.round()} W' : ''}'
                             : statusText,
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: AppTypography.bodySm(color: AppColors.textDim),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    FreshnessBadge(
-                      freshness: fresh,
-                      detail: lastTelemetryAt == null ? null : formatAge(lastTelemetryAt, now: now),
+                    Flexible(
+                      child: FreshnessBadge(
+                        freshness: fresh,
+                        detail: lastTelemetryAt == null ? null : formatAge(lastTelemetryAt, now: now),
+                      ),
                     ),
                   ],
                 );
@@ -205,72 +264,10 @@ class HomeHeroCard extends StatelessWidget {
             ),
           ),
 
-          // ── Ảnh xe + huy hiệu ─────────────────────────────────────────
-          SizedBox(
-            height: 190,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 8),
-                  child: BikeImage(),
-                ),
-                if (isBikeOn)
-                  const Positioned(
-                    top: 8,
-                    left: 14,
-                    child: StatusPill(label: 'Xe sẵn sàng', color: AppColors.tertiary, pulse: true),
-                  ),
-                if (isLocked)
-                  const Positioned(
-                    top: 8,
-                    left: 14,
-                    child: StatusPill(
-                        label: 'Đã khóa', color: AppColors.red, icon: Icons.lock_rounded),
-                  ),
-                if (drivingModeShort != null && connected)
-                  Positioned(
-                    top: 8,
-                    right: 14,
-                    child: StatusPill(
-                      label: 'Chế độ $drivingModeShort',
-                      color: AppColors.primaryFill,
-                    ),
-                  ),
-                if (isFindingBike)
-                  Positioned(
-                    bottom: 8,
-                    right: 14,
-                    child: InkWell(
-                      onTap: onStopFind,
-                      borderRadius: BorderRadius.circular(AppRadius.pill),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                        decoration: BoxDecoration(
-                          color: AppColors.redSoft,
-                          borderRadius: BorderRadius.circular(AppRadius.pill),
-                          border: Border.all(color: AppColors.red),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.volume_off_rounded, size: 15, color: AppColors.red),
-                            const SizedBox(width: 6),
-                            Text('Đang hú còi · bấm để tắt',
-                                style: AppTypography.labelMd(color: AppColors.redText)),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-
           // ── Cảnh báo xe ───────────────────────────────────────────────
           if (warnings.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -300,48 +297,7 @@ class HomeHeroCard extends StatelessWidget {
                 ),
               ),
             ),
-
-          // ── Thông số nhanh ────────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 14),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _StatTile(
-                    icon: Icons.speed_rounded,
-                    label: 'Tốc độ',
-                    value: speedKmh,
-                    unit: 'km/h',
-                  ),
-                ),
-                Expanded(
-                  child: _StatTile(
-                    icon: Icons.bolt_rounded,
-                    label: 'Công suất',
-                    value: powerW,
-                    unit: 'W',
-                  ),
-                ),
-                Expanded(
-                  child: _StatTile(
-                    icon: Icons.device_thermostat_rounded,
-                    label: 'Nhiệt độ pin',
-                    value: bmsTempC,
-                    unit: '°C',
-                  ),
-                ),
-                Expanded(
-                  child: _StatTile(
-                    icon: Icons.electrical_services_rounded,
-                    label: 'Điện áp',
-                    value: voltageV,
-                    unit: 'V',
-                    decimals: 1,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          const SizedBox(height: 16),
         ],
       ),
     );
@@ -429,60 +385,6 @@ class _EnergyBarState extends State<_EnergyBar> with SingleTickerProviderStateMi
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StatTile extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final double? value;
-  final String unit;
-  final int decimals;
-
-  const _StatTile({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.unit,
-    this.decimals = 0,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-        decoration: BoxDecoration(
-          color: AppColors.panel.withValues(alpha: AppColors.isDark ? 0.55 : 0.8),
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(color: AppColors.panelBorder),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, size: 16, color: AppColors.textSecondary),
-            const SizedBox(height: 4),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: AnimatedMetric(
-                value: value,
-                decimals: decimals,
-                unit: unit,
-                valueSize: 18,
-                align: CrossAxisAlignment.center,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.labelSm(color: AppColors.textSecondary),
-            ),
-          ],
         ),
       ),
     );

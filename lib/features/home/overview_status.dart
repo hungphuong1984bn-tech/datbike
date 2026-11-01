@@ -364,3 +364,209 @@ class _Tile extends StatelessWidget {
     );
   }
 }
+
+/// Thanh trạng thái xe gọn cho tab Tổng quan (thay vì thẻ lớn).
+///
+/// Chỉ hiện chip khi dữ liệu tương ứng THẬT và còn mới:
+///  • Luôn có: Bluetooth + độ mới telemetry.
+///  • Chỉ khi đã kết nối và telemetry "Trực tiếp": nguồn xe, khóa, chân chống,
+///    xi-nhan, đèn pha, mã lỗi, pin yếu.
+///  • Mất kết nối / telemetry cũ: hiện cảnh báo thay vì trạng thái cũ.
+/// Không tạo cảnh báo khi chưa có dữ liệu hoặc chưa đạt điều kiện.
+class OverviewStatusStrip extends StatelessWidget {
+  final BlePhase phase;
+  final DateTime? lastTelemetryAt;
+  final int? percent;
+  final bool isBikeOn;
+  final bool isLocked;
+  final bool isSideStandDown;
+  final bool leftIndicator;
+  final bool rightIndicator;
+  final bool headlight;
+  final int errorCode;
+  final VoidCallback onConnect;
+
+  const OverviewStatusStrip({
+    super.key,
+    required this.phase,
+    required this.lastTelemetryAt,
+    required this.percent,
+    required this.isBikeOn,
+    required this.isLocked,
+    required this.isSideStandDown,
+    required this.leftIndicator,
+    required this.rightIndicator,
+    required this.headlight,
+    required this.errorCode,
+    required this.onConnect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final connected = phase == BlePhase.connected;
+    final busy = phase == BlePhase.connecting ||
+        phase == BlePhase.reconnecting ||
+        phase == BlePhase.scanning;
+
+    return TickBuilder(
+      builder: (context, now) {
+        final fresh = connected
+            ? freshnessFromTimestamp(lastTelemetryAt, now: now)
+            : (lastTelemetryAt == null ? DataFreshness.none : DataFreshness.stale);
+        final live = connected && fresh == DataFreshness.live;
+        final pct = percent;
+        final int? lowPct = (live && pct != null && pct <= 20) ? pct : null;
+
+        final chips = <Widget>[
+          _StateChip(
+            icon: connected
+                ? Icons.bluetooth_connected_rounded
+                : Icons.bluetooth_disabled_rounded,
+            label: blePhaseLabel(phase),
+            color: blePhaseColor(phase),
+          ),
+          if (live) ...[
+            _StateChip(
+              icon: Icons.power_settings_new_rounded,
+              label: isBikeOn ? 'Xe đang bật' : 'Xe đang tắt',
+              color: isBikeOn ? AppColors.tertiary : AppColors.textMuted,
+            ),
+            _StateChip(
+              icon: isLocked ? Icons.lock_rounded : Icons.lock_open_rounded,
+              label: isLocked ? 'Đã khóa' : 'Đã mở khóa',
+              color: isLocked ? AppColors.cyan : AppColors.textMuted,
+            ),
+            if (isSideStandDown)
+              const _StateChip(
+                icon: Icons.vertical_align_bottom_rounded,
+                label: 'Chân chống hạ',
+                color: AppColors.amber,
+              ),
+            if (leftIndicator)
+              const _StateChip(
+                icon: Icons.arrow_back_rounded,
+                label: 'Xi-nhan trái',
+                color: AppColors.amber,
+              ),
+            if (rightIndicator)
+              const _StateChip(
+                icon: Icons.arrow_forward_rounded,
+                label: 'Xi-nhan phải',
+                color: AppColors.amber,
+              ),
+            if (headlight)
+              const _StateChip(
+                icon: Icons.light_mode_rounded,
+                label: 'Đèn pha',
+                color: AppColors.cyan,
+              ),
+            if (errorCode != 0)
+              _StateChip(
+                icon: Icons.error_outline_rounded,
+                label: 'Mã lỗi $errorCode',
+                color: AppColors.red,
+              ),
+            if (lowPct != null)
+              _StateChip(
+                icon: Icons.battery_alert_rounded,
+                label: lowPct <= 10
+                    ? 'Pin còn $lowPct% — sạc ngay'
+                    : 'Pin còn $lowPct% — nên sạc',
+                color: lowPct <= 10 ? AppColors.red : AppColors.amber,
+              ),
+          ],
+        ];
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Expanded(child: SectionTitle('Trạng thái xe')),
+                Flexible(
+                  child: FreshnessBadge(
+                    freshness: fresh,
+                    detail: lastTelemetryAt == null
+                        ? null
+                        : formatAge(lastTelemetryAt, now: now),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Wrap(spacing: 8, runSpacing: 8, children: chips),
+            if (!connected && !busy) ...[
+              const SizedBox(height: AppSpacing.md),
+              NoticeBanner(
+                color: AppColors.amber,
+                icon: Icons.bluetooth_disabled_rounded,
+                text: lastTelemetryAt == null
+                    ? 'Chưa kết nối xe. Kết nối để xem pin, tốc độ và điều khiển.'
+                    : 'Mất kết nối — số liệu bên dưới là giá trị cuối cùng, không còn cập nhật.',
+                trailing: TextButton(onPressed: onConnect, child: const Text('Kết nối')),
+              ),
+            ],
+            if (busy) ...[
+              const SizedBox(height: AppSpacing.md),
+              NoticeBanner(
+                color: AppColors.cyan,
+                icon: Icons.bluetooth_searching_rounded,
+                text: blePhaseLabel(phase),
+              ),
+            ],
+            if (connected && fresh == DataFreshness.stale) ...[
+              const SizedBox(height: AppSpacing.md),
+              const NoticeBanner(
+                color: AppColors.amber,
+                icon: Icons.history_toggle_off_rounded,
+                text: 'Đã kết nối nhưng xe chưa gửi dữ liệu mới. Số liệu có thể đã cũ.',
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// Chip trạng thái nhỏ: biểu tượng + chữ, tô màu theo ngữ nghĩa.
+class _StateChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  const _StateChip({required this.icon, required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = AppColors.readable(color);
+    return Semantics(
+      label: label,
+      excludeSemantics: true,
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 32),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: AppColors.isDark ? 0.14 : 0.09),
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          border: Border.all(color: color.withValues(alpha: 0.35)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 15, color: fg),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.labelMd(color: fg),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

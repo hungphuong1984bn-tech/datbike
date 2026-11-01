@@ -158,7 +158,7 @@ class _VehicleSettingsScreenState extends ConsumerState<VehicleSettingsScreen> {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: [
           // 1. Thông Tin Xe & Serial Khung
-          _buildVehicleInfoCard(ble, connected, telemetry?.version ?? '1.14.0'),
+          _buildVehicleInfoCard(ble, connected, (telemetry?.version.isNotEmpty == true ? telemetry!.version : '--')),
           const SizedBox(height: 16),
 
           // 2. Đồng Hồ Taplo & Thời Gian Thực

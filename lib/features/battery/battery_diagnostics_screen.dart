@@ -18,6 +18,7 @@ import 'views/health_view.dart';
 import 'views/history_view.dart';
 import 'views/obd_view.dart';
 import 'views/protection_view.dart';
+import 'widgets/bms_summary_strip.dart';
 import 'widgets/cell_pack_view.dart';
 
 class BatteryDiagnosticsScreen extends ConsumerStatefulWidget {
@@ -119,14 +120,21 @@ class _BatteryDiagnosticsScreenState
         body: BmsBackground(
           child: SafeArea(
             top: false,
-            child: TabBarView(
+            child: Column(
               children: [
-                _tab(const _HealthTab()),
-                _tab(const _CellsTab()),
-                _tab(const ProtectionView()),
-                _tab(const BalancingView()),
-                _tab(const BatteryHistoryView()),
-                _tab(const _ObdTab()),
+                const BmsSummaryStrip(),
+                Expanded(
+                  child: TabBarView(
+                    children: [
+                      _tab(const _HealthTab()),
+                      _tab(const _CellsTab()),
+                      _tab(const ProtectionView()),
+                      _tab(const BalancingView()),
+                      _tab(const BatteryHistoryView()),
+                      _tab(const _ObdTab()),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),

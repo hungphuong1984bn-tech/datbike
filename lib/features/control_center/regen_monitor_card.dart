@@ -115,6 +115,15 @@ class _RegenMonitorCardState extends ConsumerState<RegenMonitorCard> {
               child: const Text('Reset cực trị'),
             ),
           ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: OutlinedButton.icon(
+              key: const Key('regen_open_evidence'),
+              onPressed: () => Navigator.of(context).pushNamed('/regen-evidence'),
+              icon: const Icon(Icons.science_outlined, size: 18),
+              label: const Text('Thu thập bằng chứng Regen'),
+            ),
+          ),
           Text(
             'Lưu ý dấu: tài liệu trong dự án mâu thuẫn về dấu của dòng pha khi tái '
             'sinh (bộ giải mã ghi "dương = tái tạo", tài liệu giao thức ghi "âm"). '
