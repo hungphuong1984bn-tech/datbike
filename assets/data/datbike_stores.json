@@ -1,0 +1,781 @@
+{
+ "version": 1,
+ "updatedAt": "2026-11-01",
+ "source": "Danh sách cửa hàng Dat Bike do người dùng cung cấp (THBIKE)",
+ "note": "Chưa có tọa độ; không suy diễn cửa hàng nào có trạm sạc. Chỉ dùng địa chỉ để mở Google Maps.",
+ "stores": [
+  {
+   "id": "store/dat-bike-tien-linh-tran-khat-chan",
+   "name": "DAT BIKE TIẾN LINH TRẦN KHÁT CHÂN",
+   "address": "68 Đ. Trần Khát Chân, P. Hai Bà Trưng, TP. Hà Nội",
+   "province": "Hà Nội",
+   "phones": [
+    "0353 946 868"
+   ],
+   "hours": "Bán hàng: 8h-20h | Dịch vụ: 8h-17h",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-bike-phan-vinh-pham-van-dong",
+   "name": "STORE BIKE PHAN VINH PHẠM VĂN ĐỒNG",
+   "address": "1090 Phạm Văn Đồng, P. Thủ Đức, TP. HCM",
+   "province": "TP. Hồ Chí Minh",
+   "phones": [
+    "0326 696 499"
+   ],
+   "hours": "Bán hàng 7:30–20:30 | Kỹ thuật 8:00–18:00",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-an-tam-247-son-tay",
+   "name": "STORE DAT BIKE AN TÂM 247 SƠN TÂY",
+   "address": "3 Phố Cầu Trì, P. Sơn Tây, TP. Hà Nội",
+   "province": "Hà Nội",
+   "phones": [
+    "0582 888 666"
+   ],
+   "hours": "Bán hàng 07:30–18:00 | Kỹ thuật 08:00–18:30",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-au-co",
+   "name": "STORE DAT BIKE ÂU CƠ",
+   "address": "758 Âu Cơ, P. Tân Bình, TP. HCM",
+   "province": "TP. Hồ Chí Minh",
+   "phones": [
+    "0908 870 574"
+   ],
+   "hours": "Bán hàng 09:00–20:00 | Kỹ thuật 09:00–18:00",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-bien-hoa",
+   "name": "STORE DAT BIKE BIÊN HÒA",
+   "address": "1229 Phạm Văn Thuận, P. Tam Hiệp, Tỉnh Đồng Nai",
+   "province": "Đồng Nai",
+   "phones": [
+    "0788 215 019"
+   ],
+   "hours": "Bán hàng 09:00–20:00 | Kỹ thuật 09:00–18:00",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-binh-hung",
+   "name": "STORE DAT BIKE BÌNH HƯNG",
+   "address": "843 Quốc lộ 50, Xã Bình Hưng, TP. HCM",
+   "province": "TP. Hồ Chí Minh",
+   "phones": [
+    "0888 979 968"
+   ],
+   "hours": "Bán hàng 08:00–21:00 | Kỹ thuật 08:00–17:00",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-cau-giay",
+   "name": "STORE DAT BIKE CẦU GIẤY",
+   "address": "283 Hoàng Quốc Việt, P. Nghĩa Tân, TP. Hà Nội",
+   "province": "Hà Nội",
+   "phones": [
+    "0933 507 444"
+   ],
+   "hours": "Bán hàng 09:00–20:00 | Kỹ thuật 09:00–18:00",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-da-nang",
+   "name": "STORE DAT BIKE ĐÀ NẴNG",
+   "address": "209 Hùng Vương, Phường Hải Châu, Thành phố Đà Nẵng",
+   "province": "Đà Nẵng",
+   "phones": [
+    "0795 566 209"
+   ],
+   "hours": "09:00–18:00 (Bán hàng và Kỹ thuật)",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-dai-thanh-cong-ben-cat",
+   "name": "STORE DAT BIKE ĐẠI THÀNH CÔNG BẾN CÁT",
+   "address": "546 QL13, P. Mỹ Phước, TP. HCM",
+   "province": "TP. Hồ Chí Minh",
+   "phones": [
+    "0333 222 379"
+   ],
+   "hours": "Bán hàng 08:00–19:30 | Kỹ thuật 08:00–20:30",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-dien-xanh-le-trong-tan",
+   "name": "STORE DAT BIKE ĐIỆN XANH (Lê Trọng Tấn)",
+   "address": "429 Lê Trọng Tấn, P. Tân Sơn Nhì, TP. HCM",
+   "province": "TP. Hồ Chí Minh",
+   "phones": [
+    "0868 433 358"
+   ],
+   "hours": "Bán hàng 09:00–20:00 | Kỹ thuật 09:00–17:30",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-dien-xanh-quang-trung",
+   "name": "STORE DAT BIKE ĐIỆN XANH (Quang Trung)",
+   "address": "474D Quang Trung, P. Gò Vấp, TP. HCM",
+   "province": "TP. Hồ Chí Minh",
+   "phones": [
+    "0334 777 358"
+   ],
+   "hours": "Bán hàng 09:00–20:00 | Kỹ thuật 09:00–18:00",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-do-xuan-hop",
+   "name": "STORE DAT BIKE ĐỖ XUÂN HỢP",
+   "address": "87A Đỗ Xuân Hợp, P. Phước Long, TP. HCM",
+   "province": "TP. Hồ Chí Minh",
+   "phones": [
+    "0908 483 804"
+   ],
+   "hours": "Bán hàng 09:00–20:00 | Kỹ thuật 09:00–18:00",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-duc-kien-hai-phong",
+   "name": "STORE DAT BIKE ĐỨC KIÊN HẢI PHÒNG",
+   "address": "311 Ngô Quyền, P. Lê Thanh Nghị, TP. Hải Phòng",
+   "province": "Hải Phòng",
+   "phones": [
+    "0566 558 822"
+   ],
+   "hours": "08:00–17:00 (Bán hàng & Kỹ thuật)",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-egreen-dinh-cong",
+   "name": "STORE DAT BIKE EGREEN ĐỊNH CÔNG",
+   "address": "205 Định Công, P. Định Công, TP. Hà Nội",
+   "province": "Hà Nội",
+   "phones": [
+    "0926 235 959"
+   ],
+   "hours": "Bán hàng 08:00–21:00 | Kỹ thuật 08:00–17:30",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-gia-hung-thinh-tan-huong",
+   "name": "STORE DAT BIKE GIA HƯNG THỊNH TÂN HƯƠNG",
+   "address": "101 Tân Hương, P. Phú Thọ Hòa, TP. HCM",
+   "province": "TP. Hồ Chí Minh",
+   "phones": [
+    "0775 050 218"
+   ],
+   "hours": "07:30–20:00 (Bán hàng & Dịch vụ)",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-green-city-khanh-hoi",
+   "name": "STORE DAT BIKE GREEN CITY KHÁNH HỘI",
+   "address": "235 Khánh Hội, P. Vĩnh Hội, TP. HCM",
+   "province": "TP. Hồ Chí Minh",
+   "phones": [
+    "0934 616 788"
+   ],
+   "hours": "08:00–20:00 (Bán hàng & Dịch vụ)",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-green-city-le-van-viet",
+   "name": "STORE DAT BIKE GREEN CITY LÊ VĂN VIỆT",
+   "address": "223 Lê Văn Việt, P. Tăng Nhơn Phú, TP. HCM",
+   "province": "TP. Hồ Chí Minh",
+   "phones": [
+    "0934 615 889"
+   ],
+   "hours": "08:00–20:00 (Bán hàng & Dịch vụ)",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-green-city-nguyen-anh-thu",
+   "name": "STORE DAT BIKE GREEN CITY NGUYỄN ẢNH THỦ",
+   "address": "761A Nguyễn Ảnh Thủ, P. Trung Mỹ Tây, TP. HCM",
+   "province": "TP. Hồ Chí Minh",
+   "phones": [
+    "0902 814 968"
+   ],
+   "hours": "08:00–20:00 (Bán hàng & Dịch vụ)",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-hang-phat-lac-long-quan",
+   "name": "STORE DAT BIKE HẰNG PHÁT LẠC LONG QUÂN",
+   "address": "422 Lạc Long Quân, Nhật Tân, Tây Hồ, Hà Nội",
+   "province": "Hà Nội",
+   "phones": [
+    "0368 366 679"
+   ],
+   "hours": "Bán hàng 09:00–19:00 | Kỹ thuật 09:00–18:00",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-hong-phuong-nguyen-thi-dinh",
+   "name": "STORE DAT BIKE HỒNG PHƯƠNG NGUYỄN THỊ ĐỊNH",
+   "address": "38 Nguyễn Thị Định, P. Bình Trưng, TP. HCM",
+   "province": "TP. Hồ Chí Minh",
+   "phones": [
+    "0799 700 777"
+   ],
+   "hours": "Bán hàng 09:00–20:00 | Kỹ thuật 09:00–18:00",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-huu-nghi",
+   "name": "STORE DAT BIKE HỮU NGHỊ",
+   "address": "198 Nguyễn Huệ, P. Cao Lãnh, Tỉnh Đồng Tháp",
+   "province": "Đồng Tháp",
+   "phones": [
+    "0918 776 525"
+   ],
+   "hours": "08:00–17:00",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-huy-anh-lam-dong",
+   "name": "STORE DAT BIKE HUY ANH LÂM ĐỒNG",
+   "address": "300 Thống Nhất, Tổ 8 Đức Trọng, Tỉnh Lâm Đồng",
+   "province": "Lâm Đồng",
+   "phones": [
+    "0944 909 298"
+   ],
+   "hours": "07:00–18:00",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-kha-van-can",
+   "name": "STORE DAT BIKE KHA VẠN CÂN",
+   "address": "691 Kha Vạn Cân, P. Thủ Đức, TP. HCM",
+   "province": "TP. Hồ Chí Minh",
+   "phones": [
+    "0767 422 312"
+   ],
+   "hours": "Bán hàng 09:00–20:00 | Kỹ thuật 09:00–18:00",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-khanh-anh-co-linh",
+   "name": "STORE DAT BIKE KHÁNH ANH CỔ LINH",
+   "address": "99 Cổ Linh, P. Long Biên, TP. Hà Nội",
+   "province": "Hà Nội",
+   "phones": [
+    "0945 583 858"
+   ],
+   "hours": "Bán hàng 7:30–20:00 | Kỹ thuật 7:30–18:00",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-khanh-anh-nguyen-van-cu",
+   "name": "STORE DAT BIKE KHÁNH ANH NGUYỄN VĂN CỪ",
+   "address": "116 Nguyễn Văn Cừ, P. Bồ Đề, TP. Hà Nội",
+   "province": "Hà Nội",
+   "phones": [
+    "0915 121 314"
+   ],
+   "hours": "Bán hàng 7:30–20:00 | Kỹ thuật 7:30–18:00",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-kim-nhat-phat",
+   "name": "STORE DAT BIKE KIM NHẬT PHÁT",
+   "address": "16K/3, KP. Bình Đáng, P. Bình Hòa, TP. HCM",
+   "province": "TP. Hồ Chí Minh",
+   "phones": [
+    "0862 821 504"
+   ],
+   "hours": "Bán hàng 07:30–20:00 | Kỹ thuật 07:30–18:00",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-lang-ha",
+   "name": "STORE DAT BIKE LÁNG HẠ",
+   "address": "58 Láng Hạ, P. Đống Đa, TP. Hà Nội",
+   "province": "Hà Nội",
+   "phones": [
+    "0908 162 630"
+   ],
+   "hours": "Bán hàng 09:00–20:00 | Kỹ thuật 09:00–18:00",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-migreen-gia-lai",
+   "name": "STORE DAT BIKE MIGREEN GIA LAI",
+   "address": "58 Đinh Tiên Hoàng, P. Diên Hồng, Tỉnh Gia Lai",
+   "province": "Gia Lai",
+   "phones": [
+    "0328 248 679"
+   ],
+   "hours": "Ngày thường 8h00–18h00 | Thứ 7 & CN 8h00–20h00 (Bán hàng & Kỹ thuật)",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-minh-khoi-le-gian",
+   "name": "STORE DAT BIKE MINH KHÔI LÊ GIẢN",
+   "address": "54 Louis III, Louis City Đại Mỗ, P. Đại Mỗ, TP. Hà Nội",
+   "province": "Hà Nội",
+   "phones": [
+    "0782 455 559"
+   ],
+   "hours": "07:30–18:00 (Bán hàng & Kỹ thuật)",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-minh-long-motor",
+   "name": "STORE DAT BIKE MINH LONG MOTOR",
+   "address": "T1/61M, KP. Bình Thuận 2, P. Thuận Giao, TP. HCM",
+   "province": "TP. Hồ Chí Minh",
+   "phones": [
+    "0786 000 036",
+    "097 515 6879"
+   ],
+   "hours": "07:30–20:00 (Bán hàng & Kỹ thuật)",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-minh-phat-nghi-tam",
+   "name": "STORE DAT BIKE MINH PHÁT NGHI TÀM",
+   "address": "127 Nghi Tàm, P. Tây Hồ, TP. Hà Nội",
+   "province": "Hà Nội",
+   "phones": [
+    "0901 726 720"
+   ],
+   "hours": "Bán hàng 08:00–20:00 | Kỹ thuật 09:00–18:00",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-minh-phat-nguyen-luong-bang",
+   "name": "STORE DAT BIKE MINH PHÁT NGUYỄN LƯƠNG BẰNG",
+   "address": "165 - 167 Nguyễn Lương Bằng, P. Đống Đa, TP. Hà Nội",
+   "province": "Hà Nội",
+   "phones": [
+    "0901 726 720"
+   ],
+   "hours": "Bán hàng 08:30–20:00 | Kỹ thuật 08:30–18:00",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-mua-xuan-hang-dau",
+   "name": "STORE DAT BIKE MÙA XUÂN HÀNG ĐẬU",
+   "address": "Số 8 Hàng Đậu, P. Ba Đình, TP. Hà Nội",
+   "province": "Hà Nội",
+   "phones": [
+    "0946 088 888"
+   ],
+   "hours": "Bán hàng 08:00–19:30 | Kỹ thuật 08:00–17:30",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-nam-khang-motor",
+   "name": "STORE DAT BIKE NAM KHANG MOTOR",
+   "address": "555 Đường Tỉnh 787A, Ấp Lộc Bình, Xã An Ninh, Tỉnh Tây Ninh",
+   "province": "Tây Ninh",
+   "phones": [
+    "0888 268 111",
+    "0339 859 779"
+   ],
+   "hours": "07:00–20:00",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-ngoc-anh",
+   "name": "STORE DAT BIKE NGỌC ANH",
+   "address": "144 Nguyễn Tất Thành, P. Lý Văn Lâm, Tỉnh Cà Mau",
+   "province": "Cà Mau",
+   "phones": [
+    "1900 9270"
+   ],
+   "hours": "07:00–17:00 (Bán hàng & Kỹ thuật)",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-nguyen-thi-thap",
+   "name": "STORE DAT BIKE NGUYỄN THỊ THẬP",
+   "address": "224 Nguyễn Thị Thập, P. Tân Thuận, TP. HCM",
+   "province": "TP. Hồ Chí Minh",
+   "phones": [
+    "0774 109 784"
+   ],
+   "hours": "Bán hàng 09:00–20:00 | Kỹ thuật 09:00–18:00",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-nguyen-van-cu",
+   "name": "STORE DAT BIKE NGUYỄN VĂN CỪ",
+   "address": "575-577 Nguyễn Văn Cừ, P. Long Biên, TP. Hà Nội",
+   "province": "Hà Nội",
+   "phones": [
+    "0937 945 712"
+   ],
+   "hours": "Bán hàng 09:00–20:00 | Kỹ thuật 09:00–18:00",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-nhat-lam",
+   "name": "STORE DAT BIKE NHẤT LÂM",
+   "address": "199 Nguyễn Tất Thành, P. Sa Đéc, Tỉnh Đồng Tháp",
+   "province": "Đồng Tháp",
+   "phones": [
+    "0919 099 244"
+   ],
+   "hours": "07:30–19:00",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-phan-van-hon",
+   "name": "STORE DAT BIKE PHAN VĂN HỚN",
+   "address": "71B Phan Văn Hớn, Xã Bà Điểm (Hóc Môn cũ), TP. HCM",
+   "province": "TP. Hồ Chí Minh",
+   "phones": [
+    "0902 820 807"
+   ],
+   "hours": "Bán hàng 09:00–20:00 | Kỹ thuật 09:00–18:00",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-phuc-buon-me-thuot",
+   "name": "STORE DAT BIKE PHÚC BUÔN MÊ THUỘT",
+   "address": "69 Phan Bội Châu, P. Buôn Ma Thuột, Daklak",
+   "province": "Đắk Lắk",
+   "phones": [
+    "0905 082 077",
+    "0941 472 879"
+   ],
+   "hours": "07:00–18:00 (Bán hàng & Kỹ thuật)",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-quang-phuong-ta-quang-buu",
+   "name": "STORE DAT BIKE QUANG PHƯƠNG TẠ QUANG BỬU",
+   "address": "787 Tạ Quang Bửu, phường Chánh Hưng, TP. HCM",
+   "province": "TP. Hồ Chí Minh",
+   "phones": [
+    "0938 336 601"
+   ],
+   "hours": "08:00–20:00 (chỉ bán hàng)",
+   "salesOnly": true
+  },
+  {
+   "id": "store/store-dat-bike-quang-phuong-tran-hung-dao",
+   "name": "STORE DAT BIKE QUANG PHƯƠNG TRẦN HƯNG ĐẠO",
+   "address": "606 Trần Hưng Đạo, P. Chợ Quán, TP. HCM",
+   "province": "TP. Hồ Chí Minh",
+   "phones": [
+    "0938 336 601"
+   ],
+   "hours": "08:00–20:00 (chỉ bán hàng)",
+   "salesOnly": true
+  },
+  {
+   "id": "store/store-dat-bike-quang-trung",
+   "name": "STORE DAT BIKE QUANG TRUNG",
+   "address": "99 Quang Trung, P. Hà Đông, TP. Hà Nội",
+   "province": "Hà Nội",
+   "phones": [
+    "0934 500 781"
+   ],
+   "hours": "Bán hàng 09:00–20:00 | Kỹ thuật 09:00–18:00",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-saigon-x",
+   "name": "STORE DAT BIKE SAIGON X",
+   "address": "170B-170C Nơ Trang Long, P. Bình Thạnh, TP. HCM",
+   "province": "TP. Hồ Chí Minh",
+   "phones": [
+    "0878 289 090"
+   ],
+   "hours": "08:00–20:00 (Bán hàng & Kỹ thuật)",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-saigon-x-nguyen-thi-minh-khai",
+   "name": "STORE DAT BIKE SAIGON X NGUYỄN THỊ MINH KHAI",
+   "address": "448A - 450 Nguyễn Thị Minh Khai, P. Bàn Cờ, TP. HCM",
+   "province": "TP. Hồ Chí Minh",
+   "phones": [
+    "0389 333 877"
+   ],
+   "hours": "Bán hàng 08:00–20:00 | Kỹ thuật 08:00–18:00",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-sang-trong-bac-tu-liem",
+   "name": "STORE DAT BIKE SANG TRỌNG BẮC TỪ LIÊM",
+   "address": "Toà nhà Viettelpost Center, KM12, QL32, KCN vừa và nhỏ Từ Liêm, P. Xuân Phương, TP. Hà Nội",
+   "province": "Hà Nội",
+   "phones": [
+    "0867 335 526"
+   ],
+   "hours": "Bán hàng 08:00–20:00 | Kỹ thuật 08:00–18:00",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-sang-trong-cu-chi",
+   "name": "STORE DAT BIKE SANG TRỌNG CỦ CHI",
+   "address": "531 Phan Văn Khải, Xã Tân An Hội, TP HCM",
+   "province": "TP. Hồ Chí Minh",
+   "phones": [
+    "0376 999 358"
+   ],
+   "hours": "07:30–20:00",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-so-moto-3-luy-ban-bich",
+   "name": "STORE DAT BIKE SO MOTO 3 LŨY BÁN BÍCH",
+   "address": "310 Lũy Bán Bích, P. Tân Phú, TP. HCM",
+   "province": "TP. Hồ Chí Minh",
+   "phones": [
+    "0931 901 155"
+   ],
+   "hours": "Bán hàng 08:00–20:00 | Kỹ thuật 09:00–19:00",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-so-moto-le-van-khuong",
+   "name": "STORE DAT BIKE SO MOTO LÊ VĂN KHƯƠNG",
+   "address": "266 Lê Văn Khương, P. Thới An, TP. HCM",
+   "province": "TP. Hồ Chí Minh",
+   "phones": [
+    "0931 233 677"
+   ],
+   "hours": "Bán hàng 08:00–20:00 | Kỹ thuật 09:00–19:00",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-so-moto-tinh-lo-10",
+   "name": "STORE DAT BIKE SO MOTO TỈNH LỘ 10",
+   "address": "681 Tỉnh lộ 10, P. An Lạc, TP. HCM",
+   "province": "TP. Hồ Chí Minh",
+   "phones": [
+    "0969 912 228"
+   ],
+   "hours": "Bán hàng 08:00–20:00 | Kỹ thuật 09:00–19:00",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-tai-loc-bien-hoa",
+   "name": "STORE DAT BIKE TÀI LỘC BIÊN HÒA",
+   "address": "383 Đường 30/4, P. Trấn Biên, TP. Đồng Nai",
+   "province": "Đồng Nai",
+   "phones": [
+    "0251 382 4339"
+   ],
+   "hours": "7:00–18:00 (Bán hàng & Kỹ thuật)",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-thanh-phat",
+   "name": "STORE DAT BIKE THÀNH PHÁT",
+   "address": "172 Đại Lộ Bình Dương, KP7, P. Thủ Dầu Một, TP. HCM",
+   "province": "TP. Hồ Chí Minh",
+   "phones": [
+    "0345 984 545"
+   ],
+   "hours": "07:30–20:00 (Bán hàng & Kỹ thuật)",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-thanh-phat-trung-kinh",
+   "name": "STORE DAT BIKE THÀNH PHÁT TRUNG KÍNH",
+   "address": "195 Phố Trung Kính, P. Yên Hoà, TP. Hà Nội",
+   "province": "Hà Nội",
+   "phones": [
+    "0933 746 222"
+   ],
+   "hours": "07:30–18:30 (Bán hàng & Dịch vụ)",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-thiet-tien-phat",
+   "name": "STORE DAT BIKE THIẾT TIẾN PHÁT",
+   "address": "135 Nguyễn Văn Tăng, P. Long Bình, TP. HCM",
+   "province": "TP. Hồ Chí Minh",
+   "phones": [
+    "0932 923 307"
+   ],
+   "hours": "07:30–20:00 (Bán hàng & Kỹ thuật)",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-to-hieu-hai-phong",
+   "name": "STORE DAT BIKE TÔ HIỆU HẢI PHÒNG",
+   "address": "1191-193 Tô Hiệu, P. Lê Chân, TP. Hải Phòng",
+   "province": "Hải Phòng",
+   "phones": [
+    "0908 924 800"
+   ],
+   "hours": "Bán hàng 09:00–20:00 | Kỹ thuật 09:00–18:00",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-toan-thang",
+   "name": "STORE DAT BIKE TOÀN THẮNG",
+   "address": "138C Lý Tự Trọng, P. Ninh Kiều, TP. Cần Thơ",
+   "province": "Cần Thơ",
+   "phones": [
+    "0911 122 545"
+   ],
+   "hours": "08:00–18:00 (Bán hàng & Kỹ thuật)",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-truong-dinh",
+   "name": "STORE DAT BIKE TRƯƠNG ĐỊNH",
+   "address": "186 Trương Định, P. Tương Mai, TP. Hà Nội",
+   "province": "Hà Nội",
+   "phones": [
+    "0936 001 230"
+   ],
+   "hours": "Bán hàng 09:00–20:00 | Kỹ thuật 09:00–18:00",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-truong-hai-phat-tran-hung-dao",
+   "name": "STORE DAT BIKE TRƯỜNG HẢI PHÁT TRẦN HƯNG ĐẠO",
+   "address": "20/9 Trần Hưng Đạo, Long Xuyên, An Giang",
+   "province": "An Giang",
+   "phones": [
+    "0277 3899 899"
+   ],
+   "hours": "07:00–17:00 (chỉ bán hàng)",
+   "salesOnly": true
+  },
+  {
+   "id": "store/store-dat-bike-tu-xuong",
+   "name": "STORE DAT BIKE TÚ XƯƠNG",
+   "address": "49B Tú Xương, P. Xuân Hòa, TP. HCM",
+   "province": "TP. Hồ Chí Minh",
+   "phones": [
+    "0703 704 113"
+   ],
+   "hours": "Bán hàng 09:00–20:00 | Kỹ thuật 09:00–18:00",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-van-anh-huynh-tan-phat",
+   "name": "STORE DAT BIKE VÂN ANH HUỲNH TẤN PHÁT",
+   "address": "1310 Huỳnh Tấn Phát, P. Tân Mỹ, TP. HCM",
+   "province": "TP. Hồ Chí Minh",
+   "phones": [
+    "0974 722 291"
+   ],
+   "hours": "08:00–18:00 (Bán hàng & Kỹ thuật)",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-viet-long",
+   "name": "STORE DAT BIKE VIỆT LONG",
+   "address": "3 Nguyễn Khánh Toàn, P. Nghĩa Đô, TP. Hà Nội",
+   "province": "Hà Nội",
+   "phones": [
+    "0961 788 845"
+   ],
+   "hours": "Bán hàng 09:00–20:00 | Kỹ thuật 09:00–19:00",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-viet-thanh-pham-van-dong",
+   "name": "STORE DAT BIKE VIỆT THANH PHẠM VĂN ĐỒNG",
+   "address": "99 Phạm Văn Đồng, P. Phú Diễn, TP. Hà Nội",
+   "province": "Hà Nội",
+   "phones": [
+    "0989 976 299"
+   ],
+   "hours": "Bán hàng 08:00–20:00 | Kỹ thuật 08:00–18:00",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-vinh-hoa-mai-my-tho",
+   "name": "STORE DAT BIKE VĨNH HOA MAI MỸ THO",
+   "address": "292B Ấp Bắc, P. Đạo Thạnh, Tỉnh Đồng Tháp",
+   "province": "Đồng Tháp",
+   "phones": [
+    "0898 871 871"
+   ],
+   "hours": "7:30–19:30 (Bán hàng & Kỹ thuật)",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-vinh-hoa-mai-rach-gia",
+   "name": "STORE DAT BIKE VĨNH HOA MAI RẠCH GIÁ",
+   "address": "555 Nguyễn Trung Trực, P. Rạch Giá, Tỉnh An Giang",
+   "province": "An Giang",
+   "phones": [
+    "0898 871 871"
+   ],
+   "hours": "07:30–19:30 (Bán hàng & Dịch vụ)",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-vung-tau",
+   "name": "STORE DAT BIKE VŨNG TÀU",
+   "address": "288 Lê Hồng Phong, P. Vũng Tàu, TP. HCM",
+   "province": "TP. Hồ Chí Minh",
+   "phones": [
+    "0908 289 200"
+   ],
+   "hours": "Bán hàng 09:00–20:00 | Kỹ thuật 09:00–18:00",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-xanh-ha-long",
+   "name": "STORE DAT BIKE XANH HẠ LONG",
+   "address": "912 Hạ Long, P. Bãi Cháy, TP. Quảng Ninh",
+   "province": "Quảng Ninh",
+   "phones": [
+    "0982 461 015"
+   ],
+   "hours": "08:30–18:30 (Bán hàng & Dịch vụ)",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-xe-may-dien-so-1",
+   "name": "STORE DAT BIKE XE MÁY ĐIỆN SỐ 1",
+   "address": "288 Lý Thái Tổ, P. Long Xuyên, Tỉnh An Giang",
+   "province": "An Giang",
+   "phones": [
+    "0909 905 432"
+   ],
+   "hours": "Bán hàng 07:30–20:00 | Kỹ thuật 07:30–17:30",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-xe-may-xanh-bien-hoa",
+   "name": "STORE DAT BIKE XE MÁY XANH BIÊN HÒA",
+   "address": "212 Đồng Khởi, P. Trảng Dài, TP. Đồng Nai",
+   "province": "Đồng Nai",
+   "phones": [
+    "0967 545 737"
+   ],
+   "hours": "7:30–20:00 (Bán hàng & Kỹ thuật)",
+   "salesOnly": false
+  },
+  {
+   "id": "store/store-dat-bike-xuan-cau-ba-trieu-chi-ban-xe",
+   "name": "STORE DAT BIKE XUÂN CẦU BÀ TRIỆU (Chỉ Bán Xe)",
+   "address": "124 Bà Triệu, P. Hai Bà Trưng, TP. Hà Nội",
+   "province": "Hà Nội",
+   "phones": [
+    "0983 885 888"
+   ],
+   "hours": "08:00–19:30 (chỉ bán xe)",
+   "salesOnly": true
+  },
+  {
+   "id": "store/store-dat-bike-xuan-cau-le-van-luong",
+   "name": "STORE DAT BIKE XUÂN CẦU LÊ VĂN LƯƠNG",
+   "address": "68 Lê Văn Lương, P. Thanh Xuân, TP. Hà Nội",
+   "province": "Hà Nội",
+   "phones": [
+    "0976 759 888"
+   ],
+   "hours": "Bán hàng 8h30–19h30 | Kỹ thuật 8h30–17h30",
+   "salesOnly": false
+  }
+ ]
+}

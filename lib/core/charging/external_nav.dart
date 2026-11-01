@@ -52,4 +52,15 @@ class ExternalNav {
     }
     return false;
   }
+
+  /// Mở một liên kết (vd. tìm kiếm Google Maps theo địa chỉ) bằng ứng dụng nhận ACTION_VIEW. false nếu không mở được.
+  static Future<bool> openUrl(String url) async {
+    try {
+      return (await _channel.invokeMethod<bool>('openMap', {'url': url})) == true;
+    } on PlatformException {
+      return false;
+    } on MissingPluginException {
+      return false;
+    }
+  }
 }
