@@ -60,9 +60,9 @@ jobs:
         continue-on-error: true
         run: flutter test
 
-      - name: Build APK (release, tách theo ABI)
+      - name: Build APK (release, Universal — một file chạy mọi ABI)
         if: ${{ github.event.inputs.build_type != 'debug' }}
-        run: flutter build apk --release --split-per-abi
+        run: flutter build apk --release
 
       - name: Build APK (debug)
         if: ${{ github.event.inputs.build_type == 'debug' }}
@@ -74,14 +74,14 @@ jobs:
           mkdir -p dist
           for f in build/app/outputs/flutter-apk/*.apk; do
             base=$(basename "$f" .apk)
-            cp "$f" "dist/MyBike-${VERSION}-${base#app-}.apk"
+            cp "$f" "dist/THBIKE-${VERSION}-${base#app-}.apk"
           done
           ls -lh dist
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: MyBike-Android-APK
+          name: THBIKE-Android-APK
           path: dist/*.apk
           retention-days: 30
 
