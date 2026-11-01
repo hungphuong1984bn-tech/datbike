@@ -73,6 +73,14 @@ class ChargingStation {
   bool get supportsMotorbike => vehicle == VehicleSupport.motorbike || vehicle == VehicleSupport.both;
   bool get carOnly => vehicle == VehicleSupport.car;
 
+  /// Trạm do VinFast / V-GREEN vận hành — CHỈ suy ra từ tên, nhà vận hành,
+  /// thương hiệu hoặc mạng lưới ghi trong dữ liệu OSM. Không phải xác nhận
+  /// chính thức từ V-GREEN và không nói gì về tình trạng cổng sạc.
+  bool get isVinFast => vinFastPattern.hasMatch('$name ${operator ?? ''}');
+
+  static final RegExp vinFastPattern =
+      RegExp(r'vin\s*fast|v[\s\-]*green|vgreen', caseSensitive: false);
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'name': name,
@@ -157,7 +165,7 @@ class ChargingStationService {
       tags.forEach((k, v) {
         if (k.startsWith('socket:') && k.split(':').length == 2) sockets.add('${k.substring(7)}×$v');
       });
-      final op = tags['operator'] as String? ?? tags['brand'] as String?;
+      final op = tags['operator'] as String? ?? tags['brand'] as String? ?? tags['network'] as String?;
       out.add(ChargingStation(
         id: '${e['type']}/${e['id']}',
         name: (tags['name'] as String?) ?? op ?? 'Trạm sạc',
@@ -283,6 +291,29 @@ class ChargingStationService {
         }),
       );
     } catch (_) {}
+  }
+
+  /// Đọc bản ghi cache của lần tìm gần nhất. KHÔNG gọi mạng, KHÔNG cần vị trí.
+  /// Dùng cho thẻ "Trạm sạc gần nhất" ở Tổng quan; null nếu chưa từng tìm.
+  static Future<({List<ChargingStation> stations, DateTime at, double lat, double lng})?>
+      loadLastCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_cacheKey);
+      if (raw == null) return null;
+      final j = jsonDecode(raw) as Map<String, dynamic>;
+      final list = (j['stations'] as List)
+          .map((e) => ChargingStation.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
+      return (
+        stations: list,
+        at: DateTime.tryParse(j['at'] as String? ?? '') ?? DateTime.now(),
+        lat: (j['lat'] as num).toDouble(),
+        lng: (j['lng'] as num).toDouble(),
+      );
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Chỉ dùng cache nếu lần tìm trước nằm trong ~15 km quanh vị trí hiện tại.
