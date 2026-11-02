@@ -1229,10 +1229,10 @@ class _VehicleSettingsScreenState extends ConsumerState<VehicleSettingsScreen> {
                                 controller: ctrl,
                                 maxLength: 20,
                                 autofocus: true,
-                                decoration: const InputDecoration(
+                                decoration: InputDecoration(
                                   hintText: 'Vd: Dat Bike Quantum S1',
                                   counterStyle: TextStyle(
-                                    color: Colors.white54,
+                                    color: AppColors.textMuted,
                                     fontSize: 11,
                                   ),
                                 ),

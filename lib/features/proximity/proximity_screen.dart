@@ -51,7 +51,7 @@ class ProximityScreen extends ConsumerWidget {
               const Padding(
                 padding: EdgeInsets.only(bottom: 12),
                 child: NoticeBanner(
-                  color: Colors.orange,
+                  color: AppColors.amber,
                   icon: Icons.bluetooth_disabled_rounded,
                   text:
                       'Chưa kết nối/xác thực xe — tính năng chỉ chạy khi có '

@@ -150,14 +150,21 @@ class _MyBikeAppState extends ConsumerState<MyBikeApp> with WidgetsBindingObserv
       themeMode: mode,
       builder: (context, child) {
         final dark = AppColors.isDark;
+        // Giới hạn cỡ chữ hệ thống 0.9–1.4: vẫn tôn trọng cài đặt trợ năng nhưng
+        // tránh tràn bố cục ở điện thoại nhỏ (≈320dp) khi người dùng chỉnh chữ rất lớn.
+        final mq = MediaQuery.of(context);
+        final scaler = mq.textScaler.clamp(minScaleFactor: 0.9, maxScaleFactor: 1.4);
         // Icon thanh trạng thái/điều hướng hệ thống tương phản với nền.
-        return AnnotatedRegion<SystemUiOverlayStyle>(
-          value: (dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark).copyWith(
-            statusBarColor: Colors.transparent,
-            systemNavigationBarColor: AppColors.panel,
-            systemNavigationBarIconBrightness: dark ? Brightness.light : Brightness.dark,
+        return MediaQuery(
+          data: mq.copyWith(textScaler: scaler),
+          child: AnnotatedRegion<SystemUiOverlayStyle>(
+            value: (dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark).copyWith(
+              statusBarColor: Colors.transparent,
+              systemNavigationBarColor: AppColors.panel,
+              systemNavigationBarIconBrightness: dark ? Brightness.light : Brightness.dark,
+            ),
+            child: ThBikeSplashOverlay(child: child ?? const SizedBox.shrink()),
           ),
-          child: ThBikeSplashOverlay(child: child ?? const SizedBox.shrink()),
         );
       },
       initialRoute: '/',

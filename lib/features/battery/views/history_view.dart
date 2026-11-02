@@ -48,7 +48,7 @@ class _BatteryHistoryViewState extends State<BatteryHistoryView> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Padding(
+      return Padding(
         padding: EdgeInsets.symmetric(vertical: 48),
         child: Center(child: CircularProgressIndicator(color: Bms.accent)),
       );
@@ -60,7 +60,7 @@ class _BatteryHistoryViewState extends State<BatteryHistoryView> {
         tooltip: 'Tải lại lịch sử',
         visualDensity: VisualDensity.compact,
         onPressed: _load,
-        icon: const Icon(Icons.refresh_rounded, size: 18, color: Bms.textDim),
+        icon: Icon(Icons.refresh_rounded, size: 18, color: Bms.textDim),
       ),
     );
 
@@ -100,7 +100,7 @@ class _BatteryHistoryViewState extends State<BatteryHistoryView> {
                 selectedColor: Bms.accent.withValues(alpha: 0.25),
                 backgroundColor: Bms.glassFill,
                 labelStyle: Bms.body(12.5, r == _range ? Bms.accent : Bms.textDim),
-                side: const BorderSide(color: Bms.border),
+                side: BorderSide(color: Bms.border),
               ),
           ],
         ),

@@ -10,6 +10,7 @@ import '../../../core/battery/battery_hub.dart';
 import '../../../core/battery/battery_sessions.dart';
 import '../../../core/battery/cell_model.dart';
 import '../../../core/services/battery_diagnostics_service.dart';
+import '../../../ui/app_theme.dart';
 import '../bms_theme.dart';
 import '../widgets/bms_charts.dart';
 
@@ -276,7 +277,7 @@ class _Sessions extends StatelessWidget {
       child: Column(
         children: [
           for (var i = 0; i < sessions.length && i < 15; i++) ...[
-            if (i > 0) const Divider(color: Bms.border, height: 1),
+            if (i > 0) Divider(color: Bms.border, height: 1),
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 10),
               child: Row(
@@ -319,6 +320,8 @@ class _Sessions extends StatelessWidget {
 
 class _SocRingPainter extends CustomPainter {
   final double? fraction;
+  // Ghi nhớ chế độ sáng/tối lúc dựng để vẽ lại khi người dùng đổi giao diện.
+  final bool _dark = AppColors.isDark;
   _SocRingPainter(this.fraction);
 
   @override
@@ -332,7 +335,7 @@ class _SocRingPainter extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 10
-        ..color = Colors.white.withValues(alpha: 0.08),
+        ..color = Bms.overlay(0.08),
     );
     final f = fraction;
     if (f == null) return;
@@ -341,7 +344,7 @@ class _SocRingPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 10
       ..strokeCap = StrokeCap.round
-      ..shader = const SweepGradient(
+      ..shader = SweepGradient(
         startAngle: -math.pi / 2,
         endAngle: 3 * math.pi / 2,
         colors: [Bms.accent2, Bms.accent, Bms.ok],
@@ -350,5 +353,6 @@ class _SocRingPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _SocRingPainter old) => old.fraction != fraction;
+  bool shouldRepaint(covariant _SocRingPainter old) =>
+      old.fraction != fraction || old._dark != _dark;
 }

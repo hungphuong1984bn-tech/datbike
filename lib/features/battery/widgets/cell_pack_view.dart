@@ -123,7 +123,7 @@ class _CellPackViewState extends ConsumerState<CellPackView>
                     ),
                     selectedColor: Bms.accent,
                     backgroundColor: Bms.glassFill,
-                    side: const BorderSide(color: Bms.border),
+                    side: BorderSide(color: Bms.border),
                     showCheckmark: false,
                   ),
                 ),
@@ -218,7 +218,7 @@ class _EmptyPack extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 26),
         child: Column(
           children: [
-            const Icon(Icons.battery_unknown_rounded, size: 44, color: Bms.invalid),
+            Icon(Icons.battery_unknown_rounded, size: 44, color: Bms.invalid),
             const SizedBox(height: 10),
             Text('Chưa có dữ liệu cell', style: Bms.title(15)),
             const SizedBox(height: 4),
@@ -254,7 +254,7 @@ class _PackFrame extends ConsumerWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
-        color: Colors.black.withValues(alpha: 0.28),
+        color: Bms.sunken,
         border: Border.all(
           color: on ? Bms.accent2.withValues(alpha: 0.8) : Bms.border,
           width: on ? 1.6 : 1,
@@ -268,12 +268,12 @@ class _PackFrame extends ConsumerWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.battery_charging_full_rounded, size: 16, color: Bms.accent),
+              Icon(Icons.battery_charging_full_rounded, size: 16, color: Bms.accent),
               const SizedBox(width: 6),
               Text('BỘ PIN · $cellCount cell', style: Bms.title(12.5)),
               const Spacer(),
               if (on)
-                const StatusPill(
+                StatusPill(
                   text: 'BMS báo cân bằng',
                   color: Bms.accent2,
                   icon: Icons.balance_rounded,
@@ -428,7 +428,7 @@ class _CellTileState extends ConsumerState<CellTile>
             end: Alignment.bottomCenter,
             colors: [
               color.withValues(alpha: live ? 0.20 : 0.07),
-              Colors.white.withValues(alpha: 0.03),
+              Bms.overlay(0.03),
             ],
           ),
           border: Border.all(
@@ -518,7 +518,7 @@ class _CellTileState extends ConsumerState<CellTile>
                       return DecoratedBox(
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(16),
-                          color: Colors.white.withValues(alpha: a),
+                          color: Bms.overlay(a),
                         ),
                       );
                     },
@@ -573,7 +573,7 @@ class _DeviationBar extends StatelessWidget {
           children: [
             Container(
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.08),
+                color: Bms.overlay(0.08),
                 borderRadius: BorderRadius.circular(3),
               ),
             ),
@@ -594,7 +594,7 @@ class _DeviationBar extends StatelessWidget {
               width: 1,
               top: -1,
               bottom: -1,
-              child: Container(color: Colors.white.withValues(alpha: 0.5)),
+              child: Container(color: Bms.overlay(0.5)),
             ),
           ],
         );

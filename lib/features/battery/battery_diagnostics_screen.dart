@@ -89,7 +89,7 @@ class _BatteryDiagnosticsScreenState
               tooltip: 'Quét lại dữ liệu xe',
               onPressed: connected && !_isRefreshing ? _refresh : null,
               icon: _isRefreshing
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2, color: Bms.accent),

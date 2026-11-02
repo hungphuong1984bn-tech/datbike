@@ -1,6 +1,8 @@
 // Bộ giao diện "Premium EV Battery Monitoring": nền tối có chiều sâu, khối kính
 // (glassmorphism), màu trạng thái và các widget nhỏ dùng chung cho màn hình BMS.
-// Độc lập với palette sáng/tối của app: màn hình BMS luôn dùng Dark Premium.
+// Theo palette sáng/tối của app (AppColors): Dark giữ nguyên diện mạo Premium cũ,
+// Light dùng cùng hệ màu với các màn hình còn lại. Mọi màu là getter nên đổi chế độ
+// có hiệu lực ngay (gốc app ép dựng lại cây widget khi đổi giao diện).
 
 import 'dart:async';
 import 'dart:ui' show FontFeature, ImageFilter;
@@ -10,29 +12,54 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/battery/cell_model.dart';
 import '../../core/battery/cell_protection_engine.dart';
+import '../../ui/app_theme.dart';
 
 class Bms {
   Bms._();
 
-  static const Color bg = Color(0xFF080B11);
-  static const Color bgMid = Color(0xFF0D131D);
-  static const Color bgGlow = Color(0xFF12223D);
+  static bool get _dark => AppColors.isDark;
 
-  static const Color text = Color(0xFFEAF0FA);
-  static const Color textDim = Color(0xFF8FA0BC);
-  static const Color textFaint = Color(0xFF5B6B86);
+  // Nền
+  static Color get bg => _dark ? const Color(0xFF080B11) : AppColors.bg;
+  static Color get bgMid => _dark ? const Color(0xFF0D131D) : AppColors.panelSecondary;
+  static Color get bgGlow => _dark
+      ? const Color(0xFF12223D)
+      : Color.alphaBlend(AppColors.electric.withValues(alpha: 0.10), AppColors.bg);
 
-  static const Color accent = Color(0xFF22D3EE);
-  static const Color accent2 = Color(0xFF4F7DFF);
+  // Chữ (3 bậc). Dark: textFaint nâng nhẹ để đạt tương phản ≥ 4.5:1 trên nền.
+  static Color get text => _dark ? const Color(0xFFEAF0FA) : AppColors.textPrimary;
+  static Color get textDim => _dark ? const Color(0xFF8FA0BC) : AppColors.textDim;
+  static Color get textFaint => _dark ? const Color(0xFF74839C) : AppColors.textMuted;
 
-  static const Color ok = Color(0xFF22D3A0);
-  static const Color warning = Color(0xFFFBBF24);
-  static const Color critical = Color(0xFFF43F5E);
-  static const Color invalid = Color(0xFF64748B);
-  static const Color estimated = Color(0xFFA78BFA);
+  // Nhấn
+  static Color get accent => _dark ? const Color(0xFF22D3EE) : AppColors.accent;
+  static Color get accent2 => _dark ? const Color(0xFF4F7DFF) : AppColors.primary;
 
-  static const Color border = Color(0x1FFFFFFF); // trắng 12%
-  static const Color glassFill = Color(0x0FFFFFFF); // trắng 6%
+  // Ngữ nghĩa (Light dùng biến thể đậm hơn để đọc được ngoài trời)
+  static Color get ok => _dark ? const Color(0xFF22D3A0) : AppColors.greenText;
+  static Color get warning => _dark ? const Color(0xFFFBBF24) : AppColors.amberText;
+  static Color get critical => _dark ? const Color(0xFFF43F5E) : AppColors.redText;
+  static Color get invalid => _dark ? const Color(0xFF64748B) : AppColors.textMuted;
+  static Color get estimated => _dark ? const Color(0xFFA78BFA) : const Color(0xFF6D4AD8);
+
+  // Viền / bề mặt
+  static Color get border => _dark ? const Color(0x1FFFFFFF) : AppColors.panelBorderBright;
+  static Color get glassFill => _dark ? const Color(0x0FFFFFFF) : AppColors.panel;
+
+  /// Lớp phủ nhạt dùng cho vạch lưới, nền ô nhập, thanh nền… (trắng ở Dark, mực ở Light).
+  static Color overlay(double a) => _dark
+      ? Colors.white.withValues(alpha: a)
+      : AppColors.textPrimary.withValues(alpha: (a * 0.75).clamp(0.0, 1.0));
+
+  /// Nền lõm (khung pin): tối hơn nền ở Dark, xám xanh nhạt ở Light.
+  static Color get sunken =>
+      _dark ? Colors.black.withValues(alpha: 0.28) : AppColors.surfaceContainer;
+
+  /// Hai đầu gradient của thẻ kính.
+  static Color get glassTop =>
+      _dark ? Colors.white.withValues(alpha: 0.085) : AppColors.panel;
+  static Color get glassBottom =>
+      _dark ? Colors.white.withValues(alpha: 0.035) : AppColors.panelSecondary;
 
   static Color severityColor(AlertSeverity s) {
     switch (s) {
@@ -85,20 +112,20 @@ class Bms {
   }
 
   // ── Kiểu chữ ──────────────────────────────────────────────────────────────
-  static TextStyle title([double size = 16, Color color = text]) =>
+  static TextStyle title([double size = 16, Color? color]) =>
       GoogleFonts.plusJakartaSans(
-          fontSize: size, fontWeight: FontWeight.w700, color: color);
+          fontSize: size, fontWeight: FontWeight.w700, color: color ?? text);
 
-  static TextStyle body([double size = 13, Color color = textDim]) =>
+  static TextStyle body([double size = 13, Color? color]) =>
       GoogleFonts.plusJakartaSans(
-          fontSize: size, fontWeight: FontWeight.w500, color: color, height: 1.35);
+          fontSize: size, fontWeight: FontWeight.w500, color: color ?? textDim, height: 1.35);
 
   static TextStyle number(
-          [double size = 22, Color color = text, FontWeight w = FontWeight.w700]) =>
+          [double size = 22, Color? color, FontWeight w = FontWeight.w700]) =>
       GoogleFonts.spaceGrotesk(
         fontSize: size,
         fontWeight: w,
-        color: color,
+        color: color ?? text,
         fontFeatures: const [FontFeature.tabularFigures()],
       );
 
@@ -131,7 +158,7 @@ class BmsBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
@@ -213,21 +240,19 @@ class GlassCard extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Colors.white.withValues(alpha: 0.085),
-            Colors.white.withValues(alpha: 0.035),
-          ],
+          colors: [Bms.glassTop, Bms.glassBottom],
         ),
         border: Border.all(color: borderColor ?? Bms.border, width: 1),
-        boxShadow: glow == null
-            ? null
-            : [
-                BoxShadow(
-                  color: glow!.withValues(alpha: 0.22),
-                  blurRadius: 22,
-                  spreadRadius: -4,
-                ),
-              ],
+        boxShadow: [
+          // Light: bóng nhẹ như các Panel khác; Dark: không bóng (đã có viền kính).
+          if (!AppColors.isDark) ...AppColors.cardShadow,
+          if (glow != null)
+            BoxShadow(
+              color: glow!.withValues(alpha: 0.22),
+              blurRadius: 22,
+              spreadRadius: -4,
+            ),
+        ],
       ),
       child: child,
     );
@@ -271,7 +296,7 @@ class SectionHeader extends StatelessWidget {
             height: 14,
             margin: const EdgeInsets.only(right: 8),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
+              gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [Bms.accent, Bms.accent2],
@@ -299,15 +324,28 @@ class SectionHeader extends StatelessWidget {
 
 /// Nhãn nguồn dữ liệu: đo trực tiếp / tính toán / ước tính.
 enum DataSource {
-  measured('BMS đo', Bms.accent, Icons.sensors_rounded),
-  calculated('Tính toán', Bms.textDim, Icons.functions_rounded),
-  estimated('Ước tính', Bms.estimated, Icons.auto_graph_rounded),
-  unavailable('Không có', Bms.invalid, Icons.block_rounded);
+  measured('BMS đo', Icons.sensors_rounded),
+  calculated('Tính toán', Icons.functions_rounded),
+  estimated('Ước tính', Icons.auto_graph_rounded),
+  unavailable('Không có', Icons.block_rounded);
 
   final String label;
-  final Color color;
   final IconData icon;
-  const DataSource(this.label, this.color, this.icon);
+  const DataSource(this.label, this.icon);
+
+  /// Màu theo palette đang áp dụng (getter vì Bms.* phụ thuộc sáng/tối).
+  Color get color {
+    switch (this) {
+      case DataSource.measured:
+        return Bms.accent;
+      case DataSource.calculated:
+        return Bms.textDim;
+      case DataSource.estimated:
+        return Bms.estimated;
+      case DataSource.unavailable:
+        return Bms.invalid;
+    }
+  }
 }
 
 class SourceTag extends StatelessWidget {

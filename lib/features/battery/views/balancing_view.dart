@@ -156,7 +156,7 @@ class _StatusCard extends StatelessWidget {
                 color: Bms.warning,
                 icon: Icons.help_outline_rounded,
               ),
-              const StatusPill(
+              StatusPill(
                 text: 'Điều khiển từ app: không hỗ trợ',
                 color: Bms.textDim,
                 icon: Icons.lock_outline_rounded,
@@ -349,7 +349,7 @@ class _BeforeAfterCard extends StatelessWidget {
           Row(
             children: [
               Expanded(child: _col('ΔV TRƯỚC', mv(e.deltaBeforeMv), Bms.warning)),
-              const Icon(Icons.arrow_forward_rounded, color: Bms.textFaint),
+              Icon(Icons.arrow_forward_rounded, color: Bms.textFaint),
               Expanded(
                 child: _col(e.isOngoing ? 'ΔV HIỆN TẠI' : 'ΔV SAU', mv(e.deltaAfterMv), Bms.ok),
               ),
@@ -414,7 +414,7 @@ class _AdviceCard extends StatelessWidget {
                     child: Container(
                       width: 4,
                       height: 4,
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                           shape: BoxShape.circle, color: Bms.textFaint),
                     ),
                   ),
@@ -446,7 +446,7 @@ class _EventLog extends StatelessWidget {
       child: Column(
         children: [
           for (var i = 0; i < events.length && i < 20; i++) ...[
-            if (i > 0) const Divider(color: Bms.border, height: 1),
+            if (i > 0) Divider(color: Bms.border, height: 1),
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 10),
               child: Row(
@@ -503,7 +503,7 @@ class _LimitationsCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            const Icon(Icons.info_outline_rounded, size: 18, color: Bms.textDim),
+            Icon(Icons.info_outline_rounded, size: 18, color: Bms.textDim),
             const SizedBox(width: 8),
             Text('Giới hạn đã xác minh', style: Bms.title(13)),
           ]),

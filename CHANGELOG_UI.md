@@ -1,3 +1,11 @@
+# Phần XV — Premium Smart EV UI (xem docs/UI_PREMIUM_PHASE15.md)
+- Bác sĩ Pin đồng bộ Light/Dark (Bms.* theo AppColors; lớp phủ & biểu đồ theo chế độ)
+- MỚI ui/ds/live_state.dart: LiveStateBanner (Disconnected/Connecting/Waiting/Stale), SkeletonBlock/Card, BottomActionBar
+- StateKind thêm disconnected, stale
+- Regen dùng DsScaffold + LiveStateBanner; Smart Unlock bỏ màu cam cứng; sửa chữ vô hình ở dialog "Đặt tên xe" (Light)
+- main.dart: giới hạn text scale 0.9–1.4
+- CHƯA chạy flutter analyze/test/build
+
 # Redesign UI — "Digital Cockpit" (Premium EV)
 
 Chỉ thay đổi trình bày. Không đổi: BLE/UUID/GATT, Provider, Repository, Service, API, dữ liệu, quyền hệ thống, chuỗi hiển thị (test vẫn khớp).

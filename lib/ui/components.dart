@@ -192,7 +192,9 @@ class _TickBuilderState extends State<TickBuilder> {
 // Trạng thái màn hình: loading / empty / error / offline / warning
 // ─────────────────────────────────────────────────────────────────────────────
 
-enum StateKind { loading, empty, error, offline, warning }
+/// loading · empty · error · offline (không có kết nối/Internet) · warning ·
+/// disconnected (mất/chưa kết nối XE) · stale (có dữ liệu nhưng đã cũ).
+enum StateKind { loading, empty, error, offline, warning, disconnected, stale }
 
 class StateView extends StatelessWidget {
   final StateKind kind;
@@ -228,6 +230,10 @@ class StateView extends StatelessWidget {
         return AppColors.amber;
       case StateKind.warning:
         return AppColors.amber;
+      case StateKind.disconnected:
+        return AppColors.red;
+      case StateKind.stale:
+        return AppColors.amber;
     }
   }
 
@@ -244,6 +250,10 @@ class StateView extends StatelessWidget {
         return Icons.bluetooth_disabled_rounded;
       case StateKind.warning:
         return Icons.warning_amber_rounded;
+      case StateKind.disconnected:
+        return Icons.link_off_rounded;
+      case StateKind.stale:
+        return Icons.history_toggle_off_rounded;
     }
   }
 
@@ -310,7 +320,9 @@ class StateView extends StatelessWidget {
                   FilledButton.icon(
                     onPressed: onAction,
                     icon: Icon(
-                      kind == StateKind.error || kind == StateKind.offline
+                      kind == StateKind.error ||
+                              kind == StateKind.offline ||
+                              kind == StateKind.disconnected
                           ? Icons.refresh_rounded
                           : Icons.arrow_forward_rounded,
                       size: 18,

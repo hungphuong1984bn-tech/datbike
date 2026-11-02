@@ -28,7 +28,7 @@ void _drawText(
   Canvas canvas,
   String text,
   Offset at, {
-  Color color = Bms.textFaint,
+  Color? color,
   double size = 10,
   TextAlign align = TextAlign.left,
   double maxWidth = 80,
@@ -36,7 +36,7 @@ void _drawText(
   final tp = TextPainter(
     text: TextSpan(
       text: text,
-      style: GoogleFonts.spaceGrotesk(fontSize: size, color: color),
+      style: GoogleFonts.spaceGrotesk(fontSize: size, color: color ?? Bms.textFaint),
     ),
     textAlign: align,
     textDirection: TextDirection.ltr,
@@ -191,7 +191,7 @@ class _LinePainter extends CustomPainter {
     final range = hi - lo;
 
     final grid = Paint()
-      ..color = Colors.white.withValues(alpha: 0.07)
+      ..color = Bms.overlay(0.07)
       ..strokeWidth = 1;
     for (var i = 0; i <= 3; i++) {
       final y = plot.top + plot.height * i / 3;
@@ -382,7 +382,7 @@ class _CompareBarsPainter extends CustomPainter {
     double yOf(double v) => plot.bottom - plot.height * ((v - lo) / range);
 
     final grid = Paint()
-      ..color = Colors.white.withValues(alpha: 0.07)
+      ..color = Bms.overlay(0.07)
       ..strokeWidth = 1;
     for (var i = 0; i <= 3; i++) {
       final y = plot.top + plot.height * i / 3;
@@ -423,7 +423,7 @@ class _CompareBarsPainter extends CustomPainter {
         canvas.drawRRect(
           rect.inflate(2),
           Paint()
-            ..color = Colors.white
+            ..color = Bms.text
             ..style = PaintingStyle.stroke
             ..strokeWidth = 1.5,
         );

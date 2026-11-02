@@ -68,7 +68,7 @@ class _CellDetailScreenState extends ConsumerState<CellDetailScreen> {
             children: [
               DataStateBanner(freshness: hub.freshness, receivedAt: pack?.receivedAt),
               if (cell == null)
-                const GlassCard(
+                GlassCard(
                   child: Padding(
                     padding: EdgeInsets.symmetric(vertical: 24),
                     child: Center(
@@ -138,10 +138,10 @@ class _CellDetailScreenState extends ConsumerState<CellDetailScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.schedule_rounded, size: 14, color: Bms.textFaint),
+              Icon(Icons.schedule_rounded, size: 14, color: Bms.textFaint),
               const SizedBox(width: 5),
               Text(formatClock(pack.receivedAt), style: Bms.body(12)),
-              const Text('  ·  ', style: TextStyle(color: Bms.textFaint)),
+              Text('  ·  ', style: TextStyle(color: Bms.textFaint)),
               AgeText(at: pack.receivedAt),
             ],
           ),
@@ -205,7 +205,7 @@ class _CellDetailScreenState extends ConsumerState<CellDetailScreen> {
             item('Lệch so với TB', dev,
                 color: Bms.cellColor(cell.status), src: DataSource.calculated),
           ]),
-          const Divider(color: Bms.border, height: 22),
+          Divider(color: Bms.border, height: 22),
           Row(children: [
             item('Điện áp TB toàn pack',
                 pack.hasStats ? '${pack.vAvg.toStringAsFixed(3)} V' : '--',
@@ -213,14 +213,14 @@ class _CellDetailScreenState extends ConsumerState<CellDetailScreen> {
             item('Xếp hạng (1 = cao nhất)', rank == null ? '--' : '#$rank / ${pack.validCount}',
                 src: DataSource.calculated),
           ]),
-          const Divider(color: Bms.border, height: 22),
+          Divider(color: Bms.border, height: 22),
           Row(children: [
             item('Cao nhất phiên',
                 mx == null ? '--' : '${mx.voltage.toStringAsFixed(3)} V · ${formatClock(mx.at)}'),
             item('Thấp nhất phiên',
                 mn == null ? '--' : '${mn.voltage.toStringAsFixed(3)} V · ${formatClock(mn.at)}'),
           ]),
-          const Divider(color: Bms.border, height: 22),
+          Divider(color: Bms.border, height: 22),
           Row(children: [
             Expanded(
               child: Column(

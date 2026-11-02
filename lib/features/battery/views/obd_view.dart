@@ -229,7 +229,7 @@ class ObdThermalView extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.05),
+              color: Bms.overlay(0.05),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(color: Bms.border),
             ),
@@ -367,7 +367,7 @@ class ObdThermalView extends StatelessWidget {
             padding: const EdgeInsets.all(12),
             margin: const EdgeInsets.only(bottom: 8),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.05),
+              color: Bms.overlay(0.05),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Column(

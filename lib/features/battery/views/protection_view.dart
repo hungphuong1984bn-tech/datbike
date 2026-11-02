@@ -340,7 +340,7 @@ class _AlertLog extends StatelessWidget {
       child: Column(
         children: [
           for (var i = 0; i < list.length; i++) ...[
-            if (i > 0) const Divider(color: Bms.border, height: 1),
+            if (i > 0) Divider(color: Bms.border, height: 1),
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 9),
               child: Row(
@@ -483,18 +483,18 @@ class _ConfigSheetState extends ConsumerState<_ConfigSheet> {
               labelStyle: Bms.body(12),
               suffixStyle: Bms.body(12),
               filled: true,
-              fillColor: Colors.white.withValues(alpha: 0.05),
+              fillColor: Bms.overlay(0.05),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Bms.border),
+                borderSide: BorderSide(color: Bms.border),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Bms.border),
+                borderSide: BorderSide(color: Bms.border),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Bms.accent),
+                borderSide: BorderSide(color: Bms.accent),
               ),
             ),
           ),
