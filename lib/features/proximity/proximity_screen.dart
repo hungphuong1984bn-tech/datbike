@@ -25,7 +25,16 @@ class ProximityScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final ble = ref.watch(bleProvider);
+    // select + record: chỉ rebuild khi 6 trường này đổi, KHÔNG rebuild theo
+    // mỗi khung telemetry/RSSI của BleState.
+    final ble = ref.watch(bleProvider.select((s) => (
+          phase: s.phase,
+          isAuthorized: s.isAuthorized,
+          walkUpUnlock: s.walkUpUnlock,
+          walkUpAutoPowerOn: s.walkUpAutoPowerOn,
+          autoLockWalkAway: s.autoLockWalkAway,
+          autoLockMode: s.autoLockMode,
+        )));
     final prox = ref.watch(proximityProvider);
     final ctl = ref.read(proximityProvider.notifier);
     final bleCtl = ref.read(bleProvider.notifier);
@@ -84,6 +93,38 @@ class ProximityScreen extends ConsumerWidget {
                     value: ble.autoLockWalkAway,
                     onChanged: bleCtl.setAutoLockWalkAway,
                   ),
+                  if (ble.autoLockWalkAway)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Khi rời xa'),
+                          const SizedBox(height: 6),
+                          SegmentedButton<int>(
+                            key: const Key('prox_lock_mode'),
+                            segments: const [
+                              ButtonSegment(value: 0, label: Text('Chỉ tắt xe')),
+                              ButtonSegment(
+                                  value: 1, label: Text('Tắt + khóa an toàn')),
+                            ],
+                            selected: {ble.autoLockMode},
+                            onSelectionChanged: (s) =>
+                                bleCtl.setAutoLockMode(s.first),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            ble.autoLockMode == 0
+                                ? 'Chỉ tắt nguồn: xe vẫn nhận kết nối nên khi bạn '
+                                    'quay lại, app tự nối lại và tự mở/bật xe được.'
+                                : 'Khóa an toàn: xe sẽ BẮT BUỘC quẹt thẻ NFC mới nối '
+                                    'lại được → Mở khóa thông minh KHÔNG thể tự chạy '
+                                    'sau khi đã khóa kiểu này.',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
               ),
             ),

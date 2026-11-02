@@ -428,4 +428,28 @@ void main() {
       expect(e.pollCalibration(t0.add(const Duration(seconds: 2))), isNull);
     });
   });
+
+  group('Nâng cấp Smart Unlock / Auto Lock (2.11.1)', () {
+    test('chỉ ở vùng trung gian đủ lâu vẫn armed khóa (máy trong túi)', () {
+      final e = ProximityEngine();
+      // cal -50, độ nhạy vừa: gần ≥ -53, xa ≤ -59 → -56 là vùng trung gian.
+      _feed(e, _cfgBoth, _ctx(), t0, -56, 6);
+      expect(e.zone, equals(ProximityZone.middle));
+      expect(e.lockArmed, isTrue);
+    });
+    test('mất link sau khi tự khóa → armed mở lại để quay về tự mở', () {
+      final e = ProximityEngine();
+      e.reportResult(ProximityAction.lock, true, t0, 'x');
+      expect(e.unlockArmed, isFalse);
+      e.resetLink(t0.add(const Duration(seconds: 3)));
+      expect(e.unlockArmed, isTrue);
+    });
+    test('mất link khi tín hiệu cuối còn mạnh (đứng cạnh xe) → không armed', () {
+      final e = ProximityEngine();
+      e.noteUserCommand(t0, locked: true);
+      _feed(e, _cfgBoth, _ctx(locked: true, on: false), t0, -49, 4);
+      e.resetLink(t0.add(const Duration(seconds: 6)));
+      expect(e.unlockArmed, isFalse);
+    });
+  });
 }

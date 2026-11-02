@@ -141,6 +141,8 @@ class ProximityEngine {
   static const int nearMinSamples = 2;
   static const int farMinSamples = 4;
   static const double hysteresisDb = 2.0;
+  static const double weakLinkDbm = -80.0; // tín hiệu cuối ≤ mức này = đang ở rìa tầm sóng
+  static const Duration middleArmDwell = Duration(seconds: 3);
   static const double minGapDb = 4.0; // khoảng cách tối thiểu ngưỡng gần–xa
   static const Duration minActionInterval = Duration(seconds: 20);
   static const int maxActionsPerWindow = 3;
@@ -174,6 +176,7 @@ class ProximityEngine {
   bool _lockArmed = false; // phải từng ở gần (sau lần khóa gần nhất) mới armed
 
   DateTime? _lastActionAt;
+  DateTime? _lastAutoLockAt; // lần tự khóa/tắt xe gần nhất (để nhận biết đã rời xe)
   final List<DateTime> _actionTimes = [];
   DateTime? _backoffUntil;
   DateTime? _blockedUntil;
@@ -256,6 +259,17 @@ class ProximityEngine {
 
   /// Gọi khi mất kết nối / đổi xe: xóa bộ lọc, KHÔNG suy diễn là đã rời xe.
   void resetLink(DateTime now, {String why = 'mất kết nối'}) {
+    // Link BLE thường đứt TRƯỚC khi RSSI kịp xuống ngưỡng "xa" (ra khỏi tầm
+    // sóng). Nếu vừa tự tắt/khóa xe, hoặc tín hiệu cuối cùng đã yếu, thì việc
+    // mất link CHÍNH LÀ bằng chứng đã rời xe → cho phép tự mở lại khi quay lại
+    // (nếu không, cờ unlockArmed kẹt false và đến gần xe không bao giờ tự mở).
+    final leftEvidence = (_lastAutoLockAt != null &&
+            now.difference(_lastAutoLockAt!) < const Duration(minutes: 30)) ||
+        (_filtered != null && _filtered! <= weakLinkDbm);
+    if (leftEvidence && !_unlockArmed) {
+      _unlockArmed = true;
+      _log(now, 'armed_unlock', 'mất link sau khi rời xa → sẵn sàng tự mở lại');
+    }
     _win.clear();
     _kalman.reset();
     _filtered = null;
@@ -356,10 +370,28 @@ class ProximityEngine {
       if (!_unlockArmed) _log(now, 'armed_unlock', 'đã rời xa');
       _unlockArmed = true;
     }
+    // Đứng ở vùng trung gian đủ lâu (không còn sát xe) cũng đủ coi là đã rời
+    // xe để lần quay lại tự mở được — trước đây bắt buộc phải xuống hẳn vùng
+    // "xa", nên đi ra rồi quay lại giữa chừng thì không bao giờ tự mở.
+    if (_zone == ProximityZone.middle &&
+        inZone >= middleArmDwell &&
+        _samplesInZone >= 3) {
+      if (!_unlockArmed) _log(now, 'armed_unlock', 'đã rời khỏi vùng sát xe');
+      _unlockArmed = true;
+    }
     if (_zone == ProximityZone.near &&
         inZone >= nearDwell &&
         _samplesInZone >= nearMinSamples) {
       if (!_lockArmed) _log(now, 'armed_lock', 'đã ở gần');
+      _lockArmed = true;
+    }
+    // Ngưỡng "gần" (-55 dBm) rất khó đạt khi để máy trong túi → trước đây Auto
+    // Lock không bao giờ armed nên không bao giờ khóa. Chỉ cần từng ở vùng
+    // KHÔNG-xa đủ lâu trong phiên này là đã chứng tỏ bạn từng ở cạnh xe.
+    if (_zone == ProximityZone.middle &&
+        inZone >= middleArmDwell &&
+        _samplesInZone >= 3) {
+      if (!_lockArmed) _log(now, 'armed_lock', 'đã ở trong tầm xe');
       _lockArmed = true;
     }
 
@@ -534,6 +566,7 @@ class ProximityEngine {
           : 'Đã gửi lệnh tắt xe + khóa — xe nhận ghi (chưa có xác nhận trạng thái khóa).';
       if (a == ProximityAction.unlock) _unlockArmed = false;
       if (a == ProximityAction.lock) {
+        _lastAutoLockAt = now;
         _lockArmed = false;
         _unlockArmed = false; // phải rời xa/ quay lại rõ ràng mới mở
       }
