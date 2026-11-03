@@ -2,6 +2,8 @@
 // Đây là kiểm thử tự động (đơn vị) — KHÔNG phải kiểm thử trên xe thật.
 // Chuỗi RSSI ở đây do test tự dựng, không phải dữ liệu đo từ xe.
 
+import 'dart:math';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mybike_app/core/proximity/proximity_engine.dart';
 
@@ -450,6 +452,165 @@ void main() {
       _feed(e, _cfgBoth, _ctx(locked: true, on: false), t0, -49, 4);
       e.resetLink(t0.add(const Duration(seconds: 6)));
       expect(e.unlockArmed, isFalse);
+    });
+  });
+
+  group('Smart Key giới hạn khoảng cách 2 m', () {
+    // 1 m = -50 dBm, n mặc định 2.4 → ngưỡng 2 m = -50 - 24·log10(2) ≈ -57.22.
+    const cfg = ProximityConfig(
+      unlockEnabled: true,
+      lockEnabled: true,
+      calibratedRssi1m: -50.0,
+      rangeLimitM: 2.0,
+    );
+    final e0 = ProximityEngine();
+
+    test('RSSI ↔ khoảng cách: 1 m và 2 m khớp mô hình', () {
+      expect(e0.rssiAtDistance(cfg, 1.0), closeTo(-50.0, 1e-9));
+      expect(e0.rssiAtDistance(cfg, 2.0), closeTo(-57.22, 0.01));
+      expect(e0.estimateDistanceM(cfg, -50.0), closeTo(1.0, 0.01));
+      expect(e0.estimateDistanceM(cfg, -57.22), closeTo(2.0, 0.02));
+      // Vùng gần ≤ 1,8 m, vùng xa ≥ 2,2 m (n = 2.4, RSSI@1m = -50).
+      expect(e0.unlockThreshold(cfg), closeTo(-50 - 24 * log(1.8) / ln10, 0.01));
+      expect(e0.lockThreshold(cfg), closeTo(-50 - 24 * log(2.2) / ln10, 0.01));
+      expect(e0.estimateDistanceM(cfg, e0.unlockThreshold(cfg)), closeTo(1.8, 0.02));
+      expect(e0.estimateDistanceM(cfg, e0.lockThreshold(cfg)), closeTo(2.2, 0.02));
+    });
+
+    test('khoảng 1,8–2,2 m là vùng đệm: giữ trạng thái, không mở/khóa', () {
+      final e = ProximityEngine();
+      // 2,0 m ≈ -57.22 dBm: nằm giữa hai ngưỡng.
+      final d = _feed(e, cfg, _ctx(locked: true, on: false), t0, -57.22, 30);
+      expect(d.action, equals(ProximityAction.none));
+      expect(e.zone, equals(ProximityZone.middle));
+    });
+
+    test('độ tin cậy: tăng khi đủ mẫu + đủ 2 mốc hiệu chỉnh, 0 khi mẫu cũ', () {
+      final e = ProximityEngine();
+      expect(e.distanceConfidence(cfg, t0), equals(0));
+      for (var i = 0; i < 8; i++) {
+        e.addSample(-55, t0.add(Duration(seconds: i)));
+      }
+      final now = t0.add(const Duration(seconds: 7));
+      const full = ProximityConfig(
+        calibratedRssi1m: -50.0, calibratedRssi2m: -57.0, rangeLimitM: 2.0);
+      expect(e.distanceConfidence(full, now),
+          greaterThan(e.distanceConfidence(cfg, now)));
+      expect(e.distanceConfidence(cfg, now.add(const Duration(seconds: 10))),
+          equals(0));
+    });
+
+    test('có mốc 2 m đo trực tiếp → dùng thẳng, suy ra hệ số suy hao', () {
+      const c2 = ProximityConfig(
+        calibratedRssi1m: -50.0,
+        calibratedRssi2m: -59.0,
+        rangeLimitM: 2.0,
+      );
+      final n2 = e0.pathLossN(c2);
+      expect(e0.rssiAtDistance(c2, 2.0), closeTo(-59.0, 1e-9));
+      expect(e0.unlockThreshold(c2), closeTo(-50 - 10 * n2 * log(1.8) / ln10, 0.01));
+      expect(e0.pathLossN(c2), closeTo(9.0 / 3.0103, 0.01));
+      expect(e0.estimateDistanceM(c2, -59.0), closeTo(2.0, 0.02));
+    });
+
+    test('chưa hiệu chỉnh → dùng RSSI@1 m mặc định tạm thời, không dùng ngưỡng cũ', () {
+      const c = ProximityConfig(rangeLimitM: 2.0);
+      expect(e0.effectiveRssi1m(c), equals(ProximityEngine.defaultRssi1m));
+      expect(e0.unlockThreshold(c), lessThan(ProximityEngine.defaultRssi1m));
+    });
+
+    test('trong 2 m + xe đang khóa → tự mở khóa', () {
+      final e = ProximityEngine();
+      final d = _feed(e, cfg, _ctx(locked: true, on: false), t0, -55, 6);
+      expect(d.action, equals(ProximityAction.unlock));
+      expect(d.reason, contains('2 m'));
+    });
+
+    test('ngoài 2 m (≈3 m) → KHÔNG mở khóa dù chờ lâu', () {
+      final e = ProximityEngine();
+      // -61 dBm ≈ 3.0 m với mốc -50 / n=2.4.
+      final d = _feed(e, cfg, _ctx(locked: true, on: false), t0, -61, 30);
+      expect(d.action, equals(ProximityAction.none));
+      expect(e.zone, equals(ProximityZone.far));
+    });
+
+    test('đang bật xe, ra ngoài 2 m, đứng yên → tự tắt (kể cả ở số lái)', () {
+      final e = ProximityEngine();
+      _feed(e, cfg, _ctx(gear: true), t0, -52, 5); // đang ở trong 2 m → armed
+      expect(e.lockArmed, isTrue);
+      final d = _feed(
+        e, cfg, _ctx(gear: true), t0.add(const Duration(seconds: 6)), -63, 20);
+      expect(d.action, equals(ProximityAction.lock));
+      expect(d.reason, contains('ngoài 2 m'));
+    });
+
+    test('xe đang chạy → KHÔNG tự tắt dù ngoài 2 m', () {
+      final e = ProximityEngine();
+      _feed(e, cfg, _ctx(speed: 0), t0, -52, 5);
+      final d = _feed(
+        e, cfg, _ctx(speed: 12.0, gear: true),
+        t0.add(const Duration(seconds: 6)), -70, 20);
+      expect(d.action, equals(ProximityAction.none));
+    });
+
+    test('đứng sát ranh giới 2 m (dao động ±1 dB) → không tự tắt', () {
+      final e = ProximityEngine();
+      _feed(e, cfg, _ctx(), t0, -52, 5);
+      final d = _feed(
+        e, cfg, _ctx(), t0.add(const Duration(seconds: 6)), -57.2, 30,
+        jitter: 1.0);
+      expect(d.action, equals(ProximityAction.none));
+    });
+
+    test('thao tác tay: trong 2 m cho phép, ngoài 2 m bị chặn kèm khoảng cách', () {
+      final e = ProximityEngine();
+      for (var i = 0; i < 6; i++) {
+        e.addSample(-54, t0.add(Duration(seconds: i)));
+      }
+      final now = t0.add(const Duration(seconds: 5));
+      expect(e.checkManualRange(cfg, now).ok, isTrue);
+
+      final far = ProximityEngine();
+      for (var i = 0; i < 6; i++) {
+        far.addSample(-65, t0.add(Duration(seconds: i)));
+      }
+      final r = far.checkManualRange(cfg, now);
+      expect(r.ok, isFalse);
+      expect(r.distanceM, greaterThan(2.0));
+      expect(r.message, contains('quá 2 m'));
+    });
+
+    test('thao tác tay: chưa có mẫu / mẫu cũ → chặn; tắt chế độ khoảng cách → cho phép', () {
+      final e = ProximityEngine();
+      expect(e.checkManualRange(cfg, t0).ok, isFalse);
+      e.addSample(-50, t0);
+      expect(
+        e.checkManualRange(cfg, t0.add(const Duration(seconds: 10))).ok,
+        isFalse,
+      );
+      const off = ProximityConfig(calibratedRssi1m: -50.0);
+      expect(ProximityEngine().checkManualRange(off, t0).ok, isTrue);
+    });
+
+    test('hiệu chỉnh mốc 2 m: chấp nhận tín hiệu yếu hơn mốc 1 m (tới -82 dBm)', () {
+      final e = ProximityEngine();
+      e.startCalibration(t0, targetM: 2);
+      for (var i = 0; i <= 9; i++) {
+        e.addSample(-78, t0.add(Duration(seconds: i)));
+      }
+      final r = e.pollCalibration(t0.add(const Duration(seconds: 9)));
+      expect(r, isNotNull);
+      expect(r!.ok, isTrue);
+      expect(r.targetM, equals(2));
+      expect(r.rssi1m, closeTo(-78, 0.5));
+
+      // Cùng tín hiệu đó với mốc 1 m thì bị từ chối (< -75).
+      final e1 = ProximityEngine();
+      e1.startCalibration(t0);
+      for (var i = 0; i <= 9; i++) {
+        e1.addSample(-78, t0.add(Duration(seconds: i)));
+      }
+      expect(e1.pollCalibration(t0.add(const Duration(seconds: 9)))!.ok, isFalse);
     });
   });
 }
