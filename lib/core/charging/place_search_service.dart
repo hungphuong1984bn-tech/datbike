@@ -64,3 +64,61 @@ class PlaceSearchService {
     }
   }
 }
+
+/// Kết quả đổi tọa độ → địa chỉ (Nominatim /reverse).
+class ReverseHit {
+  final String address;
+  final String province;
+  final String district;
+  const ReverseHit(this.address, this.province, this.district);
+}
+
+class PlaceReverseService {
+  PlaceReverseService._();
+
+  static Uri buildUri(double lat, double lng) => Uri.https('nominatim.openstreetmap.org', '/reverse', {
+        'lat': lat.toStringAsFixed(6),
+        'lon': lng.toStringAsFixed(6),
+        'format': 'jsonv2',
+        'accept-language': 'vi',
+        'zoom': '18',
+        'addressdetails': '1',
+      });
+
+  /// Phân tích phản hồi; null nếu không có địa chỉ. Hàm thuần.
+  static ReverseHit? parse(String body) {
+    final j = jsonDecode(body);
+    if (j is! Map || j['error'] != null) return null;
+    final name = '${j['display_name'] ?? ''}'.trim();
+    if (name.isEmpty) return null;
+    final a = j['address'];
+    String pick(List<String> keys) {
+      if (a is! Map) return '';
+      for (final k in keys) {
+        final v = a[k];
+        if (v is String && v.trim().isNotEmpty) return v.trim();
+      }
+      return '';
+    }
+
+    return ReverseHit(
+      name,
+      pick(const ['city', 'state', 'province']),
+      pick(const ['city_district', 'district', 'county', 'suburb', 'town']),
+    );
+  }
+
+  /// null khi không có kết quả hoặc lỗi mạng (người dùng vẫn tự nhập được địa chỉ).
+  /// Điều kiện Nominatim: chỉ gọi khi người dùng chủ động (chạm giữ), không gọi liên tục.
+  static Future<ReverseHit?> lookup(double lat, double lng) async {
+    try {
+      final res = await http
+          .get(buildUri(lat, lng), headers: {'User-Agent': 'THBIKE/$kAppVersion (tim-tram-sac)'})
+          .timeout(const Duration(seconds: 10));
+      if (res.statusCode != 200) return null;
+      return parse(utf8.decode(res.bodyBytes));
+    } catch (_) {
+      return null;
+    }
+  }
+}

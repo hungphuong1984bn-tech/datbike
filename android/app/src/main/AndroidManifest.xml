@@ -42,15 +42,24 @@
             android:name=".ConnectService"
             android:foregroundServiceType="connectedDevice"
             android:exported="false" />
-        <!-- Khóa Google Maps SDK: lấy từ android/local.properties (GOOGLE_MAPS_API_KEY) hoặc biến môi trường cùng tên; KHÔNG commit khóa. -->
-        <meta-data
-            android:name="com.google.android.geo.API_KEY"
-            android:value="${GOOGLE_MAPS_API_KEY}" />
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
     </application>
     <queries>
+        <!-- Mở Google Maps / ứng dụng bản đồ để dẫn đường tới trạm sạc -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="geo"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="google.navigation"/>
+        </intent>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>

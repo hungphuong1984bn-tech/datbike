@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../core/charging/station_log.dart';
 import '../../core/charging/external_nav.dart';
 import '../../core/charging/station_search.dart';
 import '../../core/charging/station_user_store.dart';
@@ -84,7 +85,9 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
   }
 
   Future<void> _external() async {
+    StationLogStore.record(StationEvent.navigate, stationId: s.id, detail: 'detail');
     final ok = await ExternalNav.navigateTo(s.position, s.name);
+    StationLogStore.record(StationEvent.navigateResult, stationId: s.id, detail: ok ? 'ok' : 'fail');
     if (!ok && mounted) {
       _snack('Không mở được ứng dụng bản đồ. Hãy cài Google Maps hoặc một ứng dụng bản đồ khác.');
     }

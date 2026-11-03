@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../core/charging/station_marker_status.dart';
 import '../../core/services/charging_station_service.dart';
 import '../../ui/app_theme.dart';
 
@@ -60,6 +61,24 @@ class StationUi {
         VehicleSupport.motorbike || VehicleSupport.both => AppColors.tertiary,
         VehicleSupport.car => AppColors.cyan,
         VehicleSupport.unknown => AppColors.amber,
+      };
+
+  /// Màu Marker theo trạng thái: xanh lá = hoạt động, xanh dương = đang cập nhật,
+  /// cam = chưa xác minh, xám = tạm ngừng, đỏ = có cảnh báo.
+  static Color markerColor(MarkerStatus s) => switch (s) {
+        MarkerStatus.active => const Color(0xFF16A34A),
+        MarkerStatus.updating => const Color(0xFF2563EB),
+        MarkerStatus.unverified => const Color(0xFFF59E0B),
+        MarkerStatus.paused => const Color(0xFF8B95A5),
+        MarkerStatus.warning => const Color(0xFFDC2626),
+      };
+
+  static IconData markerIcon(MarkerStatus s) => switch (s) {
+        MarkerStatus.active => Icons.bolt_rounded,
+        MarkerStatus.updating => Icons.sync_rounded,
+        MarkerStatus.unverified => Icons.question_mark_rounded,
+        MarkerStatus.paused => Icons.pause_rounded,
+        MarkerStatus.warning => Icons.priority_high_rounded,
       };
 
   static String km(double v) => v < 1 ? '${(v * 1000).round()} m' : '${v.toStringAsFixed(1)} km';
@@ -146,6 +165,83 @@ class StationMarker extends StatelessWidget {
           size: 20,
           color: dim ? AppColors.textSecondary : Colors.white,
         ),
+      ),
+    );
+  }
+}
+
+/// Marker trạm theo trạng thái. Chọn → phóng to + vòng sáng; yêu thích → sao nhỏ ở góc.
+/// Màu KHÔNG là tín hiệu duy nhất: mỗi trạng thái có biểu tượng riêng.
+class StationPin extends StatelessWidget {
+  final MarkerStatus status;
+  final bool selected;
+  final bool favorite;
+  final bool dimmed;
+  const StationPin({
+    super.key,
+    required this.status,
+    required this.selected,
+    required this.favorite,
+    this.dimmed = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = StationUi.markerColor(status);
+    return AnimatedScale(
+      scale: selected ? 1.3 : 1.0,
+      duration: AppMotion.normal,
+      curve: AppMotion.curve,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: dimmed ? c.withValues(alpha: 0.55) : c,
+              border: Border.all(color: Colors.white, width: selected ? 3 : 2),
+              boxShadow: [
+                if (selected) BoxShadow(color: c.withValues(alpha: 0.55), blurRadius: 14, spreadRadius: 3),
+                BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 5, offset: const Offset(0, 2)),
+              ],
+            ),
+            child: Center(child: Icon(StationUi.markerIcon(status), size: 20, color: Colors.white)),
+          ),
+          if (favorite)
+            Positioned(
+              right: -4,
+              top: -4,
+              child: Container(
+                decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white),
+                child: Icon(Icons.star_rounded, size: 14, color: AppColors.amber),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Bong bóng cụm: hiện số trạm; viền theo mức nghiêm trọng nhất trong cụm.
+class ClusterBubble extends StatelessWidget {
+  final int count;
+  final Color color;
+  const ClusterBubble({super.key, required this.count, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: AppColors.panel,
+        border: Border.all(color: color, width: 3),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 6, offset: const Offset(0, 2))],
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        count > 99 ? '99+' : '$count',
+        style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 14, color: AppColors.textPrimary),
       ),
     );
   }

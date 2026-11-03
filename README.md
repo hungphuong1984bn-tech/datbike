@@ -148,3 +148,41 @@ Mở từ biểu tượng trạm sạc trên thanh trên của Dashboard (route 
 ## 📄 Giấy Phép (License)
 
 Dự án được phân phối dưới giấy phép mã nguồn mở **MIT License**. Bạn được tự do sử dụng, chỉnh sửa và phân phối theo các điều khoản của giấy phép này.
+
+---
+
+## 🗺️ Bản đồ trạm sạc — Map Station 2.0
+
+Màn **Trạm sạc** hiển thị bản đồ ngay trong app bằng `flutter_map` + OpenStreetMap (không cần Google Maps SDK / API key).
+
+| Thành phần | Tệp |
+|---|---|
+| Màn bản đồ, Marker theo trạng thái, cụm Marker, thẻ trạm | `lib/features/navigation/charge_finder_screen.dart`, `station_info_sheet.dart`, `station_widgets.dart` |
+| Gom nhóm Marker, lọc theo vùng nhìn | `lib/core/charging/station_cluster.dart` |
+| Màu/trạng thái Marker | `lib/core/charging/station_marker_status.dart` |
+| Dẫn đường Google Maps | `lib/core/charging/external_nav.dart` |
+| Quản trị: thêm/sửa/xóa/ẩn/xác minh, duyệt đề xuất, CSV/JSON, lịch sử | `station_admin_store.dart`, `station_admin_screen.dart`, `station_picker_screen.dart` |
+| Log hoạt động, đồng ý ghi khu vực | `station_log.dart` |
+| Dashboard + Heatmap (từ log thật) | `station_analytics.dart`, `station_dashboard_screen.dart` |
+| Khung đồng bộ Backend | `station_sync.dart` |
+
+### Cấu hình nhà cung cấp tile (khuyến nghị khi phát hành)
+Mặc định dùng máy chủ cộng đồng OSM-FR (miễn phí, có giới hạn sử dụng). Khi lượng người dùng tăng, hãy dùng nhà cung cấp có chính sách rõ ràng, **không ghi khóa vào mã**:
+
+```bash
+flutter build apk --release \
+  --dart-define=TILE_URL_TEMPLATE="https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=KHOA_CUA_BAN"
+```
+Tile được cache trên máy (`OfflineCacheTileProvider`) nên vùng đã xem vẫn dùng được khi mất mạng.
+
+### Dẫn đường
+Nút **DẪN ĐƯỜNG** mở `https://www.google.com/maps/dir/?api=1&destination=lat,lng` (không cần API key): mở ứng dụng Google Maps nếu có, nếu không mở trình duyệt; dự phòng `geo:`. Menu ⋮ cạnh nút cho chọn xe máy / ô tô / đi bộ.
+
+### Phân quyền & dữ liệu — giới hạn cần biết
+- "Quản trị viên" là khóa PIN **cục bộ** trên thiết bị (băm SHA-256 + muối, lưu Keystore/Keychain). Chưa phải đăng nhập máy chủ; phân quyền đa người dùng thật cần Backend.
+- Dữ liệu trạm do admin nhập và log hoạt động lưu **trên máy** (SharedPreferences). `StationSyncService` báo rõ "chưa cấu hình máy chủ"; khi có API, viết một lớp `implements StationRemote` và gán vào `StationSyncService.remote`.
+- Log ẩn danh; tọa độ khu vực chỉ ghi khi người dùng đồng ý và làm tròn ~1 km. Heatmap chỉ vẽ từ log thật.
+- Trạng thái "đang hoạt động" (xanh lá) chỉ khi dữ liệu đã được xác minh; mặc định là "chưa xác minh" (cam).
+
+### Chưa làm
+Chụp/chọn ảnh trạm (cần gói `image_picker` + quyền camera/thư viện), xác minh ghi đè cho trạm từ OSM, Backend đồng bộ & xác thực thật, kiểm thử Android/iOS thực tế. Sau khi cập nhật `pubspec.yaml` (bỏ `google_maps_flutter`, thêm `url_launcher`) hãy chạy `flutter pub get`.

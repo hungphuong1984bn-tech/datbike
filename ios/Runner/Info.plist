@@ -66,6 +66,8 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>THBIKE dùng vị trí của bạn để hiển thị trạm sạc gần nhất, tính khoảng cách và ghi lộ trình chuyến đi.</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Ứng dụng cần quyền truy cập Bluetooth để kết nối, hiển thị thông số và điều khiển khóa/mở xe điện THBIKE.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>

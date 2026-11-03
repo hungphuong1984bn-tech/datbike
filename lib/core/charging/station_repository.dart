@@ -18,6 +18,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/charging_station_service.dart';
+import 'station_admin_store.dart';
 import 'station_proposal_store.dart';
 
 /// Gộp trùng lặp: cùng id, hoặc rất gần nhau (< [maxMeters]) và tên tương đồng / một bên tên chung.
@@ -345,6 +346,8 @@ class StationRepository {
       ...await (seedLoader ?? loadSeed)(),
       // Điểm người dùng đề xuất: luôn cộng đồng + chờ xác minh (xem station_proposal_store.dart).
       for (final p in await StationProposalStore.all()) p.toStation(),
+      // Trạm do quản trị viên nhập (bỏ trạm đã ẩn) — xem station_admin_store.dart.
+      ...await StationAdminStore.visibleStations(),
     ];
     final net = await fetchOsm(lat, lng, radiusM, client: client, endpoints: endpoints, timeout: timeout, delay: delay);
     final sources = <String>[if (seed.isNotEmpty) 'Dữ liệu đóng gói / đề xuất cục bộ'];
@@ -353,7 +356,7 @@ class StationRepository {
       await saveRegion(lat, lng, net.list!);
       sources.add('OpenStreetMap');
       return StationResult(
-        StationDedupe.dedupe([...seed, ...net.list!]),
+        await StationAdminStore.withoutHidden(StationDedupe.dedupe([...seed, ...net.list!])),
         fetchedAt: DateTime.now(),
         sources: sources,
       );
@@ -364,7 +367,7 @@ class StationRepository {
     if (cache != null) {
       sources.add('Bộ nhớ đã lưu');
       return StationResult(
-        StationDedupe.dedupe([...seed, ...cache.stations]),
+        await StationAdminStore.withoutHidden(StationDedupe.dedupe([...seed, ...cache.stations])),
         fromCache: true,
         cachedAt: cache.at,
         error: msg,
@@ -373,7 +376,7 @@ class StationRepository {
       );
     }
     return StationResult(
-      StationDedupe.dedupe(seed),
+      await StationAdminStore.withoutHidden(StationDedupe.dedupe(seed)),
       fromCache: seed.isNotEmpty,
       error: msg,
       errorKind: net.error,

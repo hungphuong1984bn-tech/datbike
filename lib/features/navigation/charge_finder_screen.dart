@@ -13,27 +13,36 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart' as gm;
 import 'package:latlong2/latlong.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/ble/ble_controller.dart';
 import '../../core/charging/external_nav.dart';
 import '../../core/charging/place_search_service.dart';
+import '../../core/charging/station_admin_store.dart';
+import '../../core/charging/station_cluster.dart';
+import '../../core/charging/station_log.dart';
+import '../../core/charging/station_marker_status.dart';
 import '../../core/charging/station_repository.dart';
 import '../../core/charging/station_search.dart';
 import '../../core/charging/station_user_store.dart';
 import '../../core/services/charging_station_service.dart';
 import '../../core/services/energy_estimator.dart';
+import '../../core/services/map_tile_service.dart';
 import '../../core/services/route_service.dart';
 import '../../ui/app_theme.dart';
-import '../../ui/map_style.dart';
 import '../../ui/components.dart';
 import '../../core/charging/station_proposal_store.dart';
 import '../home/trip_history_screen.dart';
+import 'station_admin_screen.dart';
+import 'station_dashboard_screen.dart';
 import 'station_detail_screen.dart';
+import 'station_info_sheet.dart';
+import 'station_picker_screen.dart';
 import 'station_proposal_screen.dart';
 import 'station_widgets.dart';
 import 'store_list_screen.dart';
@@ -52,8 +61,25 @@ class _ChargeFinderScreenState extends ConsumerState<ChargeFinderScreen> {
   static const Distance _dist = Distance();
   static const List<double?> _radii = [5, 10, 20, 50, null];
 
-  gm.GoogleMapController? _gmap;
+  final MapController _map = MapController();
+  bool _mapReady = false;
   double _zoomNow = 14;
+  LatLngBounds? _bounds;
+  Timer? _camTimer;
+  Timer? _saveTimer;
+  static const String _camKey = 'charge_map_camera_v1';
+
+  // Lớp bản đồ nền (giữ nguyên instance giữa các lần dựng để tile không bị tải lại).
+  TileLayer? _tileLayer;
+  bool? _tileDark;
+  DateTime? _tileErrorAt;
+  DateTime? _lastTileErrLog;
+  bool _askConsent = false;
+
+  // Dữ liệu phụ cho Marker/thẻ trạm.
+  Set<String> _warnIds = {};
+  Set<String> _updatingIds = {};
+  Map<String, String> _photoById = {};
   final TextEditingController _searchCtl = TextEditingController();
   final FocusNode _searchFocus = FocusNode();
   final ScrollController _cards = ScrollController();
@@ -121,18 +147,120 @@ class _ChargeFinderScreenState extends ConsumerState<ChargeFinderScreen> {
     _searchCtl.dispose();
     _searchFocus.dispose();
     _cards.dispose();
-    _gmap?.dispose();
+    _camTimer?.cancel();
+    _saveTimer?.cancel();
+    _saveCamera();
+    StationLogStore.flush();
+    _map.dispose();
     super.dispose();
   }
 
   Future<void> _loadLocal() async {
     final fav = await StationUserStore.favorites();
     final hist = await StationUserStore.history();
+    final reports = await StationUserStore.reports();
+    final managed = await StationAdminStore.all();
+    final props = await StationProposalStore.all();
+    final asked = await StationLogConsent.asked();
+    // Cảnh báo (Marker đỏ): chỉ từ báo cáo người dùng trong 30 ngày — chưa xác minh.
+    final cutoff = DateTime.now().subtract(const Duration(days: 30));
+    final warn = <String>{
+      for (final r in reports)
+        if (r.at.isAfter(cutoff) &&
+            (r.kind == ReportKind.notWorking || r.kind == ReportKind.closed || r.kind == ReportKind.noMotorbike))
+          r.stationId,
+    };
     if (!mounted) return;
     setState(() {
       _favIds = {for (final s in fav) s.id};
       _history = hist;
+      _warnIds = warn;
+      _updatingIds = {for (final m in managed) if (m.updating) m.id};
+      _photoById = {
+        for (final m in managed)
+          if (m.photoPath != null) m.id: m.photoPath!,
+        for (final p in props)
+          if (p.photoPath != null) p.id: p.photoPath!,
+      };
+      _askConsent = !asked;
     });
+  }
+
+  // ───────────── Camera: khôi phục & lưu vị trí bản đồ ─────────────
+
+  Future<void> _restoreCamera() async {
+    try {
+      final raw = (await SharedPreferences.getInstance()).getString(_camKey);
+      if (raw == null) return;
+      final p = raw.split(',');
+      if (p.length != 3) return;
+      final lat = double.tryParse(p[0]), lng = double.tryParse(p[1]), z = double.tryParse(p[2]);
+      if (lat == null || lng == null || z == null) return;
+      // Chỉ khôi phục khi chưa có GPS/tâm tìm kiếm; có GPS thì bản đồ tự về vị trí hiện tại.
+      if (_me == null && _center == null) _safeMove(LatLng(lat, lng), z);
+    } catch (_) {}
+  }
+
+  Future<void> _saveCamera() async {
+    if (!_mapReady) return;
+    try {
+      final c = _map.camera;
+      await (await SharedPreferences.getInstance())
+          .setString(_camKey, '${c.center.latitude.toStringAsFixed(5)},${c.center.longitude.toStringAsFixed(5)},${c.zoom.toStringAsFixed(2)}');
+    } catch (_) {}
+  }
+
+  void _onCamera(MapCamera cam) {
+    _zoomNow = cam.zoom;
+    _bounds = cam.visibleBounds;
+    // Dựng lại Marker tối đa ~8 lần/giây khi kéo/zoom để không giật máy yếu.
+    _camTimer ??= Timer(const Duration(milliseconds: 120), () {
+      _camTimer = null;
+      if (mounted) setState(() {});
+    });
+    _saveTimer?.cancel();
+    _saveTimer = Timer(const Duration(milliseconds: 1500), _saveCamera);
+  }
+
+  void _onTileError(Object e) {
+    final now = DateTime.now();
+    if (_lastTileErrLog != null && now.difference(_lastTileErrLog!) < const Duration(seconds: 20)) return;
+    _lastTileErrLog = now;
+    _tileErrorAt = now;
+    _logEvent(StationEvent.mapError, detail: 'tile: $e');
+    if (mounted) setState(() {});
+  }
+
+  TileLayer _tiles() {
+    final dark = AppColors.isDark;
+    if (_tileLayer == null || _tileDark != dark) {
+      _tileDark = dark;
+      _tileLayer = MapTileService.buildTileLayer(
+        style: dark ? MapTileStyle.darkEv : MapTileStyle.fastCdn,
+        onTileError: _onTileError,
+      );
+    }
+    return _tileLayer!;
+  }
+
+  // ───────────── Nhật ký hoạt động (ẩn danh, không bao giờ ném lỗi) ─────────────
+
+  void _logEvent(StationEvent e, {ChargingStation? st, String? query, String? detail, double? km}) {
+    final o = _origin;
+    StationLogStore.record(
+      e,
+      stationId: st?.id,
+      query: query,
+      distanceKm: km,
+      areaLat: o?.latitude,
+      areaLng: o?.longitude,
+      detail: detail,
+    );
+  }
+
+  double? _distanceKm(ChargingStation s) {
+    final me = _me;
+    return me == null ? null : _dist.as(LengthUnit.Kilometer, me, s.position);
   }
 
   // ───────────── Vị trí ─────────────
@@ -147,6 +275,7 @@ class _ChargeFinderScreenState extends ConsumerState<ChargeFinderScreen> {
             _locError = 'GPS đang tắt trong hệ thống. Bật vị trí để tìm trạm gần bạn, hoặc dùng ô tìm kiếm.';
           });
         }
+        _logEvent(StationEvent.gpsError, detail: 'gps_off');
         return;
       }
       var perm = await Geolocator.checkPermission();
@@ -159,6 +288,7 @@ class _ChargeFinderScreenState extends ConsumerState<ChargeFinderScreen> {
                 'Bạn vẫn có thể tìm theo tên, địa chỉ, tỉnh/thành.';
           });
         }
+        _logEvent(StationEvent.gpsError, detail: 'permission_denied');
         return;
       }
       if (mounted) setState(() {
@@ -176,6 +306,7 @@ class _ChargeFinderScreenState extends ConsumerState<ChargeFinderScreen> {
       _onPosition(p);
     } catch (e) {
       if (mounted) setState(() => _locError = 'Không lấy được vị trí: $e');
+      _logEvent(StationEvent.gpsError, detail: 'fix_failed');
     }
   }
 
@@ -205,8 +336,9 @@ class _ChargeFinderScreenState extends ConsumerState<ChargeFinderScreen> {
   }
 
   void _safeMove(LatLng p, double zoom) {
+    if (!_mapReady) return;
     try {
-      _gmap?.animateCamera(gm.CameraUpdate.newLatLngZoom(gm.LatLng(p.latitude, p.longitude), zoom));
+      _map.move(p, zoom);
     } catch (_) {
       // Bản đồ chưa dựng xong — bỏ qua, lần định vị sau sẽ di chuyển.
     }
@@ -249,6 +381,11 @@ class _ChargeFinderScreenState extends ConsumerState<ChargeFinderScreen> {
     });
     final r = await StationRepository.fetchNear(o.latitude, o.longitude, radiusM: (km * 1000).round());
     if (!mounted) return;
+    if (r.stations.isEmpty) {
+      _logEvent(StationEvent.emptyResult, detail: r.error == null ? 'r=${km.toStringAsFixed(0)}km' : 'error');
+    } else if (r.error != null) {
+      _logEvent(StationEvent.mapError, detail: 'data: ${r.errorKind.name}');
+    }
     setState(() {
       _result = r;
       _loadedRadiusKm = km;
@@ -269,6 +406,7 @@ class _ChargeFinderScreenState extends ConsumerState<ChargeFinderScreen> {
 
   void _select(ChargingStation s, {bool scrollCard = true}) {
     setState(() => _selected = s);
+    _logEvent(StationEvent.view, st: s, km: _distanceKm(s));
     _safeMove(s.position, math.max(_cameraZoom, 15));
     if (scrollCard) {
       final i = _hits.indexWhere((h) => h.station.id == s.id);
@@ -300,6 +438,7 @@ class _ChargeFinderScreenState extends ConsumerState<ChargeFinderScreen> {
       return;
     }
     await StationUserStore.addHistory(q);
+    _logEvent(StationEvent.search, query: q);
     _history = await StationUserStore.history();
     setState(() {
       _filter = _filter.copyWith(query: q);
@@ -474,9 +613,10 @@ class _ChargeFinderScreenState extends ConsumerState<ChargeFinderScreen> {
         minLng = math.min(minLng, q.longitude);
         maxLng = math.max(maxLng, q.longitude);
       }
-      _gmap?.animateCamera(gm.CameraUpdate.newLatLngBounds(
-        gm.LatLngBounds(southwest: gm.LatLng(minLat, minLng), northeast: gm.LatLng(maxLat, maxLng)),
-        64,
+      if (!_mapReady) return;
+      _map.fitCamera(CameraFit.bounds(
+        bounds: LatLngBounds(LatLng(minLat, minLng), LatLng(maxLat, maxLng)),
+        padding: const EdgeInsets.all(64),
       ));
     } catch (_) {}
   }
@@ -484,6 +624,7 @@ class _ChargeFinderScreenState extends ConsumerState<ChargeFinderScreen> {
   // ───────────── Hành động ─────────────
 
   Future<void> _openDetail(ChargingStation s) async {
+    _logEvent(StationEvent.detail, st: s, km: _distanceKm(s));
     final res = await Navigator.of(context).push<StationDetailResult>(
       MaterialPageRoute(
         builder: (_) => StationDetailScreen(
@@ -540,6 +681,7 @@ class _ChargeFinderScreenState extends ConsumerState<ChargeFinderScreen> {
       MaterialPageRoute(builder: (_) => StationProposalScreen(existing: _result?.stations ?? const [])),
     );
     if (p == null || !mounted) return;
+    _logEvent(StationEvent.propose, detail: 'manual');
     final cur = _result?.stations ?? const <ChargingStation>[];
     setState(() {
       _result = StationResult([...cur, p.toStation()],
@@ -574,6 +716,7 @@ class _ChargeFinderScreenState extends ConsumerState<ChargeFinderScreen> {
         _filter = f;
         _recompute();
       });
+      _logEvent(StationEvent.filter, detail: 'adv=${f.advancedCount} r=${f.radiusKm ?? 'all'}');
     }
   }
 
@@ -600,6 +743,7 @@ class _ChargeFinderScreenState extends ConsumerState<ChargeFinderScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    _titleRow(),
                     _searchBar(canPop),
                     const SizedBox(height: 8),
                     _filterRow(),
@@ -621,7 +765,44 @@ class _ChargeFinderScreenState extends ConsumerState<ChargeFinderScreen> {
     );
   }
 
-  double get _bottomInset => _route != null ? 250 : 210;
+  bool get _sheetOpen => _selected != null && _route == null;
+
+  double get _bottomInset => _route != null ? 250 : (_sheetOpen ? 380 : 210);
+
+  Widget _titleRow() {
+    return Container(
+      height: 44,
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(left: 14, right: 4),
+      decoration: _glass(radius: AppRadius.pill),
+      child: Row(
+        children: [
+          Icon(Icons.ev_station_rounded, size: 18, color: AppColors.primary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'TRẠM SẠC XE ĐIỆN',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 13.5, letterSpacing: 0.8, color: AppColors.textPrimary),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Bộ lọc trạm sạc',
+            visualDensity: VisualDensity.compact,
+            icon: Badge(
+              isLabelVisible: _filter.advancedCount > 0,
+              label: Text('${_filter.advancedCount}'),
+              child: const Icon(Icons.tune_rounded),
+            ),
+            onPressed: _openFilters,
+          ),
+          IconButton(tooltip: 'Vị trí hiện tại', visualDensity: VisualDensity.compact, icon: const Icon(Icons.my_location_rounded), onPressed: _recenter),
+          IconButton(tooltip: 'Làm mới dữ liệu', visualDensity: VisualDensity.compact, icon: const Icon(Icons.refresh_rounded), onPressed: _loadStations),
+        ],
+      ),
+    );
+  }
 
   BoxDecoration _glass({double radius = AppRadius.lg}) => BoxDecoration(
         color: AppColors.panel.withValues(alpha: 0.94),
@@ -668,28 +849,21 @@ class _ChargeFinderScreenState extends ConsumerState<ChargeFinderScreen> {
           if (_searchCtl.text.isNotEmpty || _filter.query.isNotEmpty || _center != null)
             IconButton(tooltip: 'Xóa tìm kiếm', icon: const Icon(Icons.close_rounded), onPressed: _clearSearch),
           IconButton(
-            tooltip: 'Trạm đã lưu & lịch sử',
-            icon: Badge(
-              isLabelVisible: _favIds.isNotEmpty,
-              label: Text('${_favIds.length}'),
-              child: const Icon(Icons.star_outline_rounded),
-            ),
-            onPressed: _openSaved,
-          ),
-          IconButton(
-            tooltip: 'Cửa hàng & dịch vụ Dat Bike',
-            icon: const Icon(Icons.storefront_outlined),
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const StoreListScreen())),
-          ),
-          IconButton(
-            tooltip: 'Đề xuất điểm sạc mới',
-            icon: const Icon(Icons.add_location_alt_outlined),
-            onPressed: _propose,
-          ),
-          IconButton(
             tooltip: _listMode ? 'Xem bản đồ' : 'Xem danh sách',
             icon: Icon(_listMode ? Icons.map_rounded : Icons.view_list_rounded),
             onPressed: () => setState(() => _listMode = !_listMode),
+          ),
+          PopupMenuButton<String>(
+            tooltip: 'Thêm',
+            onSelected: _onMenu,
+            itemBuilder: (_) => [
+              PopupMenuItem(value: 'saved', child: Text('Trạm đã lưu & lịch sử (${_favIds.length})')),
+              const PopupMenuItem(value: 'stores', child: Text('Cửa hàng & dịch vụ Dat Bike')),
+              const PopupMenuItem(value: 'propose', child: Text('Gửi đề xuất trạm sạc')),
+              const PopupMenuDivider(),
+              const PopupMenuItem(value: 'admin', child: Text('Quản trị trạm sạc')),
+              const PopupMenuItem(value: 'dash', child: Text('Phân tích dữ liệu trạm')),
+            ],
           ),
         ],
       ),
@@ -787,80 +961,202 @@ class _ChargeFinderScreenState extends ConsumerState<ChargeFinderScreen> {
     );
   }
 
-  gm.LatLng _g(LatLng p) => gm.LatLng(p.latitude, p.longitude);
-
-  double _hueFor(ChargingStation st, bool selected) {
-    if (selected) return gm.BitmapDescriptor.hueYellow;
-    return switch (st.category) {
-      StationCategory.datBike => gm.BitmapDescriptor.hueGreen,
-      StationCategory.partner => gm.BitmapDescriptor.hueCyan,
-      StationCategory.community => gm.BitmapDescriptor.hueViolet,
-    };
+  void _onMenu(String v) {
+    switch (v) {
+      case 'saved':
+        _openSaved();
+      case 'stores':
+        Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const StoreListScreen()));
+      case 'propose':
+        _propose();
+      case 'admin':
+        StationAdminGate.open(
+          context,
+          (_) => StationAdminScreen(stations: _result?.stations ?? const [], center: _origin),
+        ).then((_) {
+          if (mounted) {
+            _loadLocal();
+            _loadStations();
+          }
+        });
+      case 'dash':
+        StationAdminGate.open(
+          context,
+          (_) => StationDashboardScreen(stations: _result?.stations ?? const [], center: _origin),
+        );
+    }
   }
 
-  Set<gm.Marker> _markers() {
-    final out = <gm.Marker>{};
+  /// Chạm giữ trên bản đồ: chỉ đường trong app / đề xuất trạm / (quản trị) thêm trạm tại đó.
+  Future<void> _onLongPress(LatLng p) async {
+    _searchFocus.unfocus();
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppColors.panel,
+      builder: (_) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text('${p.latitude.toStringAsFixed(6)}, ${p.longitude.toStringAsFixed(6)}',
+                  style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+            ),
+          ),
+          ListTile(leading: const Icon(Icons.route_rounded), title: const Text('Lập tuyến tới đây'), onTap: () => Navigator.of(context).pop('route')),
+          ListTile(leading: const Icon(Icons.add_location_alt_outlined), title: const Text('Đề xuất trạm sạc tại đây'), onTap: () => Navigator.of(context).pop('propose')),
+          ListTile(leading: const Icon(Icons.admin_panel_settings_outlined), title: const Text('Thêm trạm sạc tại đây (quản trị viên)'), onTap: () => Navigator.of(context).pop('admin')),
+        ]),
+      ),
+    );
+    if (!mounted || choice == null) return;
+    switch (choice) {
+      case 'route':
+        _routeToDestination(p);
+      case 'propose':
+        final r = await Navigator.of(context).push<StationProposal>(MaterialPageRoute(
+          builder: (_) => StationProposalScreen(existing: _result?.stations ?? const [], initial: p),
+        ));
+        if (r != null && mounted) {
+          _logEvent(StationEvent.propose, detail: 'map');
+          _loadStations();
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(const SnackBar(content: Text('Đã lưu đề xuất — trạng thái chờ xác minh.')));
+        }
+      case 'admin':
+        await StationAdminGate.open(
+          context,
+          (_) => StationEditScreen(picked: PickedPlace(p), existing: _result?.stations ?? const [], center: p),
+        );
+        if (mounted) {
+          _loadLocal();
+          _loadStations();
+        }
+    }
+  }
+
+  List<Marker> _buildMarkers() {
+    final items = <ClusterItem<StationHit>>[];
     for (final h in _hits) {
       final st = h.station;
-      final sel = _selected?.id == st.id || _stop?.station.id == st.id || _target?.id == st.id;
-      out.add(gm.Marker(
-        markerId: gm.MarkerId('st:${st.id}'),
-        position: _g(st.position),
-        icon: gm.BitmapDescriptor.defaultMarkerWithHue(_hueFor(st, sel)),
-        infoWindow: gm.InfoWindow(title: '${_favIds.contains(st.id) ? '★ ' : ''}${st.name}'),
-        onTap: () => _select(st),
-      ));
+      final pinned = _selected?.id == st.id || _stop?.station.id == st.id || _target?.id == st.id;
+      items.add(ClusterItem<StationHit>(h, st.lat, st.lng, pinned: pinned));
     }
-    final c = _center;
-    if (c != null) {
-      out.add(gm.Marker(
-        markerId: const gm.MarkerId('center'),
-        position: _g(c),
-        icon: gm.BitmapDescriptor.defaultMarkerWithHue(gm.BitmapDescriptor.hueAzure),
-        infoWindow: gm.InfoWindow(title: _centerName ?? 'Tâm tìm kiếm'),
-      ));
-    }
-    final d = _dest;
-    if (d != null) {
-      out.add(gm.Marker(
-        markerId: const gm.MarkerId('dest'),
-        position: _g(d),
-        icon: gm.BitmapDescriptor.defaultMarkerWithHue(gm.BitmapDescriptor.hueRed),
-        infoWindow: const gm.InfoWindow(title: 'Điểm đến'),
-      ));
+    final b = _bounds;
+    final box = b == null ? null : GeoBox(b.south, b.west, b.north, b.east).padded(0.25);
+    final clusters = StationClusterer.cluster<StationHit>(items, zoom: _zoomNow, box: box);
+    final out = <Marker>[];
+    for (final c in clusters) {
+      if (c.isSingle) {
+        final st = c.first.item.station;
+        final sel = _selected?.id == st.id || _stop?.station.id == st.id || _target?.id == st.id;
+        final status = markerStatusOf(st, hasWarning: _warnIds.contains(st.id), isUpdating: _updatingIds.contains(st.id));
+        out.add(Marker(
+          point: LatLng(c.lat, c.lng),
+          width: 40,
+          height: 40,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => _select(st),
+            child: Semantics(
+              button: true,
+              label: '${st.name}, ${status.label}',
+              child: StationPin(status: status, selected: sel, favorite: _favIds.contains(st.id), dimmed: st.carOnly),
+            ),
+          ),
+        ));
+      } else {
+        out.add(Marker(
+          point: LatLng(c.lat, c.lng),
+          width: 48,
+          height: 48,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => _zoomCluster(c),
+            child: Semantics(button: true, label: 'Cụm ${c.count} trạm sạc', child: ClusterBubble(count: c.count, color: AppColors.primary)),
+          ),
+        ));
+      }
     }
     return out;
   }
 
+  void _zoomCluster(Cluster<StationHit> c) {
+    if (!_mapReady) return;
+    try {
+      _map.fitCamera(CameraFit.bounds(
+        bounds: LatLngBounds.fromPoints([for (final m in c.members) LatLng(m.lat, m.lng)]),
+        padding: const EdgeInsets.all(70),
+        maxZoom: 18,
+      ));
+    } catch (_) {}
+  }
+
+  Widget _dot(Color color, double size) => Container(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: color,
+          border: Border.all(color: Colors.white, width: 3),
+          boxShadow: [BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 8)],
+        ),
+      );
+
   Widget _mapView() {
     final me = _me;
     final r = _route;
-    return gm.GoogleMap(
-      style: currentMapStyle(),
-      initialCameraPosition: gm.CameraPosition(
-        target: me != null ? _g(me) : const gm.LatLng(16.0, 106.0),
-        zoom: me == null ? 5 : 14,
+    final c = _center;
+    final d = _dest;
+    return FlutterMap(
+      mapController: _map,
+      options: MapOptions(
+        initialCenter: me ?? const LatLng(16.0, 106.0),
+        initialZoom: me == null ? 5 : 14,
+        minZoom: 3,
+        maxZoom: 19,
+        onMapReady: () {
+          _mapReady = true;
+          try {
+            _zoomNow = _map.camera.zoom;
+            _bounds = _map.camera.visibleBounds;
+          } catch (_) {}
+          if (_me != null && _center == null) {
+            _safeMove(_me!, 14);
+          } else {
+            _restoreCamera();
+          }
+          if (mounted) setState(() {});
+        },
+        onPositionChanged: (cam, _) => _onCamera(cam),
+        onLongPress: (_, p) => _onLongPress(p),
+        onTap: (_, __) => _searchFocus.unfocus(),
       ),
-      onMapCreated: (c) => _gmap = c,
-      onCameraMove: (p) => _zoomNow = p.zoom,
-      onLongPress: (p) => _routeToDestination(LatLng(p.latitude, p.longitude)),
-      onTap: (_) => _searchFocus.unfocus(),
-      markers: _markers(),
-      polylines: {
+      children: [
+        _tiles(),
         if (r != null)
-          gm.Polyline(
-            polylineId: const gm.PolylineId('route'),
-            points: [for (final q in r.points) _g(q)],
-            width: 6,
-            color: AppColors.primaryFill.withValues(alpha: 0.85),
-          ),
-      },
-      myLocationEnabled: me != null,
-      myLocationButtonEnabled: false,
-      zoomControlsEnabled: false,
-      mapToolbarEnabled: false,
-      compassEnabled: false,
+          PolylineLayer(polylines: [
+            Polyline(points: r.points, strokeWidth: 6, color: AppColors.primaryFill.withValues(alpha: 0.85)),
+          ]),
+        MarkerLayer(markers: _buildMarkers()),
+        MarkerLayer(markers: [
+          if (c != null) Marker(point: c, width: 26, height: 26, child: _dot(const Color(0xFF2563EB), 26)),
+          if (d != null) Marker(point: d, width: 30, height: 30, child: const Icon(Icons.flag_rounded, size: 30, color: Color(0xFFDC2626))),
+          if (me != null) Marker(point: me, width: 22, height: 22, child: _dot(const Color(0xFF1D9BF0), 22)),
+        ]),
+        const RichAttributionWidget(
+          alignment: AttributionAlignment.bottomLeft,
+          attributions: [TextSourceAttribution('© OpenStreetMap contributors')],
+        ),
+      ],
     );
+  }
+
+  void _zoomBy(double delta) {
+    if (!_mapReady) return;
+    try {
+      final cam = _map.camera;
+      _map.move(cam.center, (cam.zoom + delta).clamp(3, 19).toDouble());
+    } catch (_) {}
   }
 
   Widget _mapButtons() {
@@ -871,11 +1167,40 @@ class _ChargeFinderScreenState extends ConsumerState<ChargeFinderScreen> {
         );
     return Column(
       children: [
-        btn(Icons.add_rounded, 'Phóng to', () => _gmap?.animateCamera(gm.CameraUpdate.zoomIn())),
-        btn(Icons.remove_rounded, 'Thu nhỏ', () => _gmap?.animateCamera(gm.CameraUpdate.zoomOut())),
+        if (!_sheetOpen) ...[
+          btn(Icons.add_rounded, 'Phóng to', () => _zoomBy(1)),
+          btn(Icons.remove_rounded, 'Thu nhỏ', () => _zoomBy(-1)),
+        ],
         btn(Icons.my_location_rounded, 'Định vị lại', _recenter),
-        btn(Icons.route_rounded, 'Lịch sử hành trình', () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const TripHistoryScreen()))),
+        if (!_sheetOpen)
+          btn(Icons.route_rounded, 'Lịch sử hành trình', () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const TripHistoryScreen()))),
       ],
+    );
+  }
+
+  Future<void> _navigate(ChargingStation s, NavMode mode) async {
+    _logEvent(StationEvent.navigate, st: s, km: _distanceKm(s), detail: mode.name);
+    final ok = await ExternalNav.navigateTo(s.position, s.name, mode: mode);
+    _logEvent(StationEvent.navigateResult, st: s, detail: ok ? 'ok' : 'fail');
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('Không mở được Google Maps hay ứng dụng bản đồ nào trên máy.')));
+    }
+  }
+
+  Widget _selectedSheet() {
+    final s = _selected!;
+    return StationInfoSheet(
+      station: s,
+      status: markerStatusOf(s, hasWarning: _warnIds.contains(s.id), isUpdating: _updatingIds.contains(s.id)),
+      distanceKm: _distanceKm(s),
+      photoPath: _photoById[s.id],
+      favorite: _favIds.contains(s.id),
+      onDetail: () => _openDetail(s),
+      onNavigate: (m) => _navigate(s, m),
+      onClose: () => setState(() => _selected = null),
+      onToggleFavorite: () => _toggleFav(s),
     );
   }
 
@@ -889,7 +1214,7 @@ class _ChargeFinderScreenState extends ConsumerState<ChargeFinderScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _banners(),
-          if (_route != null) _routePanel() else _cardStrip(),
+          if (_route != null) _routePanel() else if (_selected != null) _selectedSheet() else _cardStrip(),
           const SizedBox(height: 8),
         ],
       ),
@@ -929,6 +1254,58 @@ class _ChargeFinderScreenState extends ConsumerState<ChargeFinderScreen> {
             _startLocation();
           }
         },
+      ));
+    }
+    final te = _tileErrorAt;
+    if (te != null && DateTime.now().difference(te) < const Duration(seconds: 30)) {
+      out.add(banner(
+        'Không tải được một phần bản đồ (mất mạng hoặc máy chủ bản đồ lỗi). Vùng đã xem trước đó vẫn dùng được.',
+        AppColors.amber,
+        icon: Icons.map_outlined,
+        action: 'Thử lại',
+        onAction: () => setState(() {
+          _tileErrorAt = null;
+          _tileLayer = null;
+        }),
+      ));
+    }
+    if (_askConsent) {
+      out.add(Container(
+        margin: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+        padding: const EdgeInsets.fromLTRB(12, 8, 8, 4),
+        decoration: BoxDecoration(
+          color: AppColors.panel.withValues(alpha: 0.96),
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.5)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Giúp THBIKE mở rộng mạng lưới trạm sạc: cho phép ghi khu vực bạn tìm trạm (làm tròn ~1 km, ẩn danh, chỉ khi dùng màn này). Dữ liệu lưu trên máy bạn.',
+              style: TextStyle(fontSize: 12.5, color: AppColors.textPrimary, height: 1.3),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () async {
+                    await StationLogConsent.setArea(false);
+                    if (mounted) setState(() => _askConsent = false);
+                  },
+                  child: const Text('Không'),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    await StationLogConsent.setArea(true);
+                    if (mounted) setState(() => _askConsent = false);
+                  },
+                  child: const Text('Đồng ý'),
+                ),
+              ],
+            ),
+          ],
+        ),
       ));
     }
     final r = _result;
@@ -1103,7 +1480,7 @@ class _ChargeFinderScreenState extends ConsumerState<ChargeFinderScreen> {
       color: AppColors.bg,
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.only(top: 112),
+          padding: const EdgeInsets.only(top: 168),
           child: _hits.isEmpty
               ? ListView(children: [
                   StateView(
@@ -1206,14 +1583,10 @@ class _ChargeFinderScreenState extends ConsumerState<ChargeFinderScreen> {
                 Expanded(
                   child: FilledButton.icon(
                     onPressed: () async {
-                      final ok = await ExternalNav.navigateTo(target.position, target.name);
-                      if (!ok && mounted) {
-                        ScaffoldMessenger.of(context)
-                            .showSnackBar(const SnackBar(content: Text('Không mở được ứng dụng bản đồ trên máy.')));
-                      }
+                      await _navigate(target, NavMode.choose);
                     },
                     icon: const Icon(Icons.navigation_rounded, size: 18),
-                    label: const Text('Mở ứng dụng bản đồ'),
+                    label: const Text('Dẫn đường bằng Google Maps'),
                   ),
                 ),
             ],

@@ -10,6 +10,18 @@ enum MapTileStyle {
 }
 
 class MapTileService {
+  /// Nhà cung cấp tile do bạn chọn, truyền lúc build — KHÔNG ghi khóa vào mã nguồn:
+  ///   flutter build apk --dart-define=TILE_URL_TEMPLATE=https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=KHOA
+  /// Khi đặt, mọi kiểu bản đồ (trừ CyclOSM) dùng nguồn này thay cho máy chủ cộng đồng OSM-FR.
+  /// Nên dùng nhà cung cấp có chính sách sử dụng rõ ràng (MapTiler, Stadia, Thunderforest…) hoặc tự dựng
+  /// khi lượng người dùng lớn.
+  static const String customTileTemplate = String.fromEnvironment('TILE_URL_TEMPLATE');
+
+  /// Mã nhận diện nhà cung cấp tùy chỉnh để hiện ghi công đúng (vd. "© MapTiler © OpenStreetMap").
+  static const String customAttribution = String.fromEnvironment('TILE_ATTRIBUTION');
+
+  static bool get hasCustomProvider => customTileTemplate.isNotEmpty;
+
   /// Matrix đảo màu và xoay hệ màu để biến bản đồ OSM tiêu chuẩn thành bản đồ đêm Dark EV
   /// Tương thích 100% mọi thiết bị, không cần API Key, không phụ thuộc server bên thứ ba
   static const List<double> darkMatrix = <double>[
@@ -21,7 +33,25 @@ class MapTileService {
 
   static TileLayer buildTileLayer({
     MapTileStyle style = MapTileStyle.fastCdn,
+    void Function(Object error)? onTileError,
   }) {
+    final errCb = onTileError == null ? null : (dynamic tile, Object error, StackTrace? stack) => onTileError(error);
+    if (hasCustomProvider && style != MapTileStyle.cyclosm) {
+      final dark = style == MapTileStyle.darkEv;
+      return TileLayer(
+        urlTemplate: customTileTemplate,
+        userAgentPackageName: 'vn.mybike.mybike_app',
+        maxZoom: 20,
+        tileProvider: OfflineCacheTileProvider(),
+        errorTileCallback: errCb,
+        tileBuilder: dark
+            ? (context, tileWidget, tile) => ColorFiltered(
+                  colorFilter: const ColorFilter.matrix(darkMatrix),
+                  child: tileWidget,
+                )
+            : null,
+      );
+    }
     // Tự động kiểm tra bộ nhớ đệm ổ cứng local offline trước (0ms latency, chạy offline hoàn toàn)
     // Nếu chưa có thì tải từ mạng và tự động lưu vào ổ cứng
     final offlineProvider = OfflineCacheTileProvider();
@@ -34,6 +64,7 @@ class MapTileService {
           userAgentPackageName: 'vn.mybike.mybike_app',
           maxZoom: 20,
           tileProvider: offlineProvider,
+          errorTileCallback: errCb,
         );
 
       case MapTileStyle.darkEv:
@@ -43,6 +74,7 @@ class MapTileService {
           userAgentPackageName: 'vn.mybike.mybike_app',
           maxZoom: 20,
           tileProvider: offlineProvider,
+          errorTileCallback: errCb,
           tileBuilder: (context, tileWidget, tile) {
             return ColorFiltered(
               colorFilter: const ColorFilter.matrix(darkMatrix),
@@ -58,6 +90,7 @@ class MapTileService {
           userAgentPackageName: 'vn.mybike.mybike_app',
           maxZoom: 20,
           tileProvider: offlineProvider,
+          errorTileCallback: errCb,
         );
 
       case MapTileStyle.osmStandard:
@@ -66,6 +99,7 @@ class MapTileService {
           userAgentPackageName: 'vn.mybike.mybike_app',
           maxZoom: 19,
           tileProvider: offlineProvider,
+          errorTileCallback: errCb,
         );
     }
   }

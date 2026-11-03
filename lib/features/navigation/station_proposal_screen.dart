@@ -3,15 +3,21 @@
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../core/charging/station_proposal_store.dart';
 import '../../core/services/charging_station_service.dart';
+import '../../core/charging/place_search_service.dart';
 import '../../ui/app_theme.dart';
+import 'station_picker_screen.dart';
 
 class StationProposalScreen extends StatefulWidget {
   /// Trạm đang có, dùng để chống trùng lặp.
   final List<ChargingStation> existing;
-  const StationProposalScreen({super.key, required this.existing});
+
+  /// Vị trí chọn sẵn (vd. chạm giữ trên bản đồ).
+  final LatLng? initial;
+  const StationProposalScreen({super.key, required this.existing, this.initial});
 
   @override
   State<StationProposalScreen> createState() => _StationProposalScreenState();
@@ -25,6 +31,38 @@ class _StationProposalScreenState extends State<StationProposalScreen> {
   final _note = TextEditingController();
   String? _error;
   bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final p = widget.initial;
+    if (p != null) {
+      _coords.text = '${p.latitude.toStringAsFixed(6)}, ${p.longitude.toStringAsFixed(6)}';
+      _fillAddress(p);
+    }
+  }
+
+  /// Điền địa chỉ từ tọa độ nếu có mạng và ô địa chỉ còn trống; người dùng vẫn sửa được.
+  Future<void> _fillAddress(LatLng p) async {
+    final r = await PlaceReverseService.lookup(p.latitude, p.longitude);
+    if (!mounted || r == null || _address.text.trim().isNotEmpty) return;
+    setState(() => _address.text = r.address);
+  }
+
+  Future<void> _pickOnMap() async {
+    final cur = StationProposalStore.parseLatLng(_coords.text);
+    final r = await Navigator.of(context).push<PickedPlace>(MaterialPageRoute(
+      builder: (_) => StationPickerScreen(
+        initial: cur == null ? widget.initial : LatLng(cur.lat, cur.lng),
+        existing: widget.existing,
+      ),
+    ));
+    if (r == null || !mounted) return;
+    setState(() {
+      _coords.text = '${r.position.latitude.toStringAsFixed(6)}, ${r.position.longitude.toStringAsFixed(6)}';
+      if (r.address != null && _address.text.trim().isEmpty) _address.text = r.address!;
+    });
+  }
 
   @override
   void dispose() {
@@ -117,6 +155,14 @@ class _StationProposalScreenState extends State<StationProposalScreen> {
               onPressed: _useGps,
               icon: const Icon(Icons.my_location_rounded, size: 18),
               label: const Text('Dùng vị trí hiện tại (GPS)'),
+            ),
+          ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: _pickOnMap,
+              icon: const Icon(Icons.map_outlined, size: 18),
+              label: const Text('Chọn trên bản đồ (chạm giữ)'),
             ),
           ),
           const SizedBox(height: 4),
