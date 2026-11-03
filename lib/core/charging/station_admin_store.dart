@@ -73,7 +73,7 @@ class StationAdminAuth {
   }
 
   static String hashPin(String pin, String salt) {
-    var h = utf8.encode('$salt:$pin');
+    List<int> h = utf8.encode('$salt:$pin');
     for (var i = 0; i < 2000; i++) {
       h = sha256.convert(h).bytes;
     }
