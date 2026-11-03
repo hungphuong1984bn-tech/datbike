@@ -32,6 +32,7 @@ import '../../ui/app_theme.dart';
 import '../../ui/map_style.dart';
 import '../../ui/components.dart';
 import '../../core/charging/station_proposal_store.dart';
+import '../home/trip_history_screen.dart';
 import 'station_detail_screen.dart';
 import 'station_proposal_screen.dart';
 import 'station_widgets.dart';
@@ -873,6 +874,7 @@ class _ChargeFinderScreenState extends ConsumerState<ChargeFinderScreen> {
         btn(Icons.add_rounded, 'Phóng to', () => _gmap?.animateCamera(gm.CameraUpdate.zoomIn())),
         btn(Icons.remove_rounded, 'Thu nhỏ', () => _gmap?.animateCamera(gm.CameraUpdate.zoomOut())),
         btn(Icons.my_location_rounded, 'Định vị lại', _recenter),
+        btn(Icons.route_rounded, 'Lịch sử hành trình', () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const TripHistoryScreen()))),
       ],
     );
   }

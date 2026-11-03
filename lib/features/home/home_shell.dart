@@ -1,7 +1,7 @@
 // Shell chính — thanh điều hướng dưới (thao tác một tay) với 5 mục, mỗi mục là
 // một module THẬT của app (không có trang giả):
 //
-//   Tổng quan · Trạm sạc · Bác sĩ Pin · Chẩn đoán · Cài đặt
+//   HOME · VEHICLE · CONTROL · MAP · SETTINGS
 //
 // Các chức năng còn lại vẫn truy cập được như trước:
 //   • Cockpit HUD   — nút lớn ở Tổng quan (và biểu tượng đồng hồ ở thanh tiêu đề)
@@ -16,8 +16,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../ui/app_theme.dart';
-import '../battery/battery_diagnostics_screen.dart';
-import '../diagnostics/diagnostics_screen.dart';
+import '../hubs/control_hub_screen.dart';
+import '../hubs/vehicle_hub_screen.dart';
 import '../navigation/charge_finder_screen.dart';
 import '../profile/profile_screen.dart';
 import 'my_bike_screen.dart';
@@ -53,18 +53,10 @@ class _HomeShellState extends State<HomeShell> with SingleTickerProviderStateMix
   ).animate(_fade);
 
   static const _items = <_NavItem>[
-    _NavItem('Tổng quan', Icons.dashboard_outlined, Icons.dashboard_rounded),
-    _NavItem('Trạm sạc', Icons.ev_station_outlined, Icons.ev_station_rounded),
-    _NavItem(
-      'Bác sĩ Pin',
-      Icons.battery_charging_full_outlined,
-      Icons.battery_charging_full_rounded,
-    ),
-    _NavItem(
-      'Chẩn đoán',
-      Icons.health_and_safety_outlined,
-      Icons.health_and_safety_rounded,
-    ),
+    _NavItem('Trang chủ', Icons.home_outlined, Icons.home_rounded),
+    _NavItem('Xe', Icons.electric_scooter_outlined, Icons.electric_scooter_rounded),
+    _NavItem('Điều khiển', Icons.tune_outlined, Icons.tune_rounded),
+    _NavItem('Bản đồ', Icons.map_outlined, Icons.map_rounded),
     _NavItem('Cài đặt', Icons.settings_outlined, Icons.settings_rounded),
   ];
 
@@ -73,11 +65,11 @@ class _HomeShellState extends State<HomeShell> with SingleTickerProviderStateMix
       case 0:
         return const MyBikeScreen();
       case 1:
-        return const ChargeFinderScreen();
+        return const VehicleHubScreen();
       case 2:
-        return const BatteryDiagnosticsScreen();
+        return const ControlHubScreen();
       case 3:
-        return const DiagnosticsScreen();
+        return const ChargeFinderScreen();
       default:
         return const ProfileScreen();
     }

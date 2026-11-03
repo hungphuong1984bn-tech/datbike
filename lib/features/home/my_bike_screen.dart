@@ -18,6 +18,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/ble/ble_controller.dart';
+import '../../core/control/regen_monitor.dart';
+import '../../core/proximity/proximity_controller.dart';
+import '../../core/proximity/smart_key_state.dart';
 import '../../core/services/trip_gps_tracker.dart';
 import '../navigation/charge_finder_screen.dart';
 import '../scan/scan_screen.dart';
@@ -27,6 +30,7 @@ import '../../ui/ds/ds.dart';
 import '../../ui/widgets.dart';
 import 'home_hero.dart';
 import 'overview_control_summary.dart';
+import 'overview_collapsible.dart';
 import 'overview_energy.dart';
 import 'overview_header.dart';
 import 'overview_metrics.dart';
@@ -43,6 +47,11 @@ class MyBikeScreen extends ConsumerStatefulWidget {
 }
 
 class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
+  // null = tự động (mở khi đang sạc); true/false = người dùng đã chọn.
+  bool? _energyOpenByUser;
+  bool _metricsOpen = false;
+  bool _tripOpen = false;
+  bool _stationOpen = false;
   late final AppLifecycleListener _lifecycleListener;
 
   // Quản lý lifecycle app
@@ -1181,6 +1190,63 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                 : (isBikeOn ? 'Sẵn sàng chạy' : 'Đang đỗ')));
 
     final lastTelemetryAt = ref.read(bleProvider.notifier).lastTelemetryAt;
+    // Smart Key (chỉ hiển thị): suy ra từ dữ liệu thật, giống màn Smart Key.
+    final prox = ref.watch(proximityProvider);
+    final smartKey = deriveSmartKey(SmartKeyInput(
+      bluetoothOn: true, // chưa có provider quyền/Bluetooth hệ thống (xem proximity_screen)
+      permissionGranted: true,
+      connected: connected,
+      connecting: ble.phase == BlePhase.scanning ||
+          ble.phase == BlePhase.connecting ||
+          ble.phase == BlePhase.reconnecting,
+      everConnected: ble.phase != BlePhase.idle,
+      authorized: ble.isAuthorized,
+      securityFault: false, // không có tín hiệu riêng — không bịa
+      bikeLocked: ble.isLocked,
+      bikeOn: telemetry?.isBikeOn ?? false,
+      zone: prox.zone,
+      speedKmh: telemetry?.speed,
+      telemetryFresh: ref.read(bleProvider.notifier).telemetryFresh,
+    ));
+    // Cảnh báo đang hoạt động — chỉ từ dữ liệu thật.
+    final alerts = <String>[
+      if (connected && (telemetry?.error ?? 0) != 0)
+        'Bộ điều khiển báo mã lỗi ${telemetry!.error}. Xem Chẩn đoán xe.',
+      if (smartKey.warning != null) smartKey.warning!,
+    ];
+    void openNotifications() => showModalBottomSheet<void>(
+          context: context,
+          builder: (ctx) => SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Thông báo', style: AppTypography.labelLg()),
+                  const SizedBox(height: AppSpacing.md),
+                  if (alerts.isEmpty)
+                    Text('Không có cảnh báo nào đang hoạt động.',
+                        style: AppTypography.bodyMd(color: AppColors.textSecondary))
+                  else
+                    for (final a in alerts)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.warning_amber_rounded,
+                                size: 20, color: AppColors.amber),
+                            const SizedBox(width: AppSpacing.sm),
+                            Expanded(child: Text(a, style: AppTypography.bodyMd())),
+                          ],
+                        ),
+                      ),
+                ],
+              ),
+            ),
+          ),
+        );
     void openHud() => Navigator.of(context).pushNamed('/dashboard');
     void openConnect() => Navigator.of(context)
         .push(MaterialPageRoute(builder: (_) => const ScanScreen()));
@@ -1210,6 +1276,11 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                       onSwitchBike: () => _openBikeSwitcherSheet(context),
                       onConnect: openConnect,
                       onHud: openHud,
+                      smartKey: smartKey,
+                      onSmartKey: () =>
+                          Navigator.of(context).pushNamed('/proximity'),
+                      alertCount: alerts.length,
+                      onNotifications: openNotifications,
                     ),
                     const SizedBox(height: AppSpacing.sm),
 
@@ -1232,6 +1303,9 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                       errorCode: telemetry?.error ?? 0,
                       isFindingBike: ble.isFindingBike,
                       onStopFind: _quickFindBike,
+                      odoKm: (telemetry != null && telemetry.odo > 0) ? telemetry.odo : null,
+                      reading: regenReadingFrom(telemetry),
+                      recoveredWh: ref.watch(regenPeaksProvider.select((p) => p.recoveredWh)),
                     ),
                     gap,
 
@@ -1257,27 +1331,59 @@ class _MyBikeScreenState extends ConsumerState<MyBikeScreen> {
                     _buildQuickActions(ble, isLocked: isLocked, isBikeOn: isBikeOn),
                     gap,
 
-                    // 5. THÔNG SỐ KỸ THUẬT: lưới 2/3 cột, có nguồn dữ liệu.
-                    const OverviewMetricsSection(),
-                    gap,
-
-                    // 6. NĂNG LƯỢNG: dòng xả/nạp · công suất · phiên sạc.
-                    OverviewEnergySection(
-                      showVehicleInfo: false,
-                      onOpenCharging: () => Navigator.of(context).pushNamed('/charging'),
-                    ),
-                    gap,
-
-                    // 7. TRUNG TÂM ĐIỀU KHIỂN: Grab · ECE · Regen (chỉ hiển thị).
+                    // 5. TRUNG TÂM ĐIỀU KHIỂN: Grab · ECE · Regen (chỉ hiển thị).
                     const OverviewControlSummary(),
                     gap,
 
-                    // 8. HÀNH TRÌNH hiện tại + lịch sử.
-                    _buildTripCard(ble.trip),
+                    // 6. CHI TIẾT — thu gọn mặc định để Trang chủ không cuộn dài.
+                    //    Nội dung bên trong giữ nguyên logic cũ; chỉ dựng khi mở.
+                    OverviewCollapsible(
+                      icon: Icons.speed_rounded,
+                      title: 'Thông số kỹ thuật',
+                      hint: 'Nhiệt độ BMS · động cơ · ECU · chế độ lái',
+                      open: _metricsOpen,
+                      onToggle: () => setState(() => _metricsOpen = !_metricsOpen),
+                      child: const OverviewMetricsSection(),
+                    ),
                     gap,
 
-                    // 9. TRẠM SẠC GẦN NHẤT (từ dữ liệu tìm kiếm đã lưu).
-                    const OverviewNearestStation(),
+                    // Dòng/công suất tức thời đã có ở thẻ Hero; ở đây là chi tiết
+                    // xả/nạp và phiên sạc. Tự mở khi đang sạc.
+                    OverviewCollapsible(
+                      icon: Icons.bolt_rounded,
+                      title: 'Năng lượng & phiên sạc',
+                      hint: 'Dòng xả/nạp, công suất, phiên sạc gần nhất',
+                      open: _energyOpenByUser ?? (telemetry?.charging != null),
+                      onToggle: () => setState(() => _energyOpenByUser =
+                          !(_energyOpenByUser ?? (telemetry?.charging != null))),
+                      child: OverviewEnergySection(
+                        showVehicleInfo: false,
+                        onOpenCharging: () => Navigator.of(context).pushNamed('/charging'),
+                      ),
+                    ),
+                    gap,
+
+                    OverviewCollapsible(
+                      icon: Icons.route_rounded,
+                      title: 'Hành trình',
+                      hint: ble.trip.distanceKm > 0
+                          ? 'Chuyến hiện tại: ${ble.trip.distanceKm.toStringAsFixed(1)} km · và lịch sử'
+                          : 'Chuyến hiện tại và lịch sử hành trình',
+                      open: _tripOpen,
+                      onToggle: () => setState(() => _tripOpen = !_tripOpen),
+                      child: _buildTripCard(ble.trip),
+                    ),
+                    gap,
+
+                    // Trạm sạc gần nhất (từ dữ liệu tìm kiếm đã lưu; không gọi mạng).
+                    OverviewCollapsible(
+                      icon: Icons.ev_station_rounded,
+                      title: 'Trạm sạc gần nhất',
+                      hint: 'Theo kết quả tìm trạm đã lưu',
+                      open: _stationOpen,
+                      onToggle: () => setState(() => _stationOpen = !_stationOpen),
+                      child: const OverviewNearestStation(),
+                    ),
                   ],
                 ),
               ),

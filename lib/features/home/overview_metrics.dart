@@ -6,8 +6,8 @@
 //
 // Chỉ ĐỌC telemetry (bleProvider). Không gửi lệnh, không đổi giao thức.
 //
-// Các thông số đã có chỗ riêng được cố ý KHÔNG lặp ở đây: SOC, tốc độ, quãng
-// đường còn lại (thẻ Hero); dòng xả/nạp và công suất (bảng Năng lượng).
+// Các thông số đã có chỗ riêng được cố ý KHÔNG lặp ở đây: SOC, tốc độ, ODO,
+// điện áp, dòng điện, công suất, quãng đường còn lại (thẻ Hero).
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -69,27 +69,11 @@ class OverviewMetricsSection extends ConsumerWidget {
 
     final metrics = <OverviewMetric>[
       OverviewMetric(
-        icon: Icons.electrical_services_rounded,
-        label: 'Điện áp pin',
-        value: (t != null && t.voltage > 0) ? t.voltage : null,
-        unit: 'V',
-        decimals: 1,
-        source: MetricSource.vehicle,
-      ),
-      OverviewMetric(
         icon: Icons.device_thermostat_rounded,
         label: 'Nhiệt độ BMS',
         value: (t != null && t.bmsTemp > 0) ? t.bmsTemp : null,
         unit: '°C',
         source: MetricSource.bms,
-      ),
-      OverviewMetric(
-        icon: Icons.route_rounded,
-        label: 'ODO',
-        value: (t != null && t.odo > 0) ? t.odo : null,
-        unit: 'km',
-        decimals: 1,
-        source: MetricSource.vehicle,
       ),
       OverviewMetric(
         icon: Icons.settings_suggest_rounded,
@@ -165,8 +149,8 @@ class OverviewMetricsGrid extends StatelessWidget {
             const SizedBox(height: 6),
             LayoutBuilder(
               builder: (context, c) {
-                // 3 cột khi đủ rộng (≥ 340dp nội dung); hẹp hơn → 2 cột.
-                final cols = c.maxWidth >= 340 ? 3 : 2;
+                // 3 cột khi đủ rộng (≥ 340dp) và số ô chia hết cho 3; ngược lại 2 cột (tránh ô lẻ).
+                final cols = (c.maxWidth >= 340 && metrics.length % 3 == 0) ? 3 : 2;
                 const gap = AppSpacing.sm;
                 final w = (c.maxWidth - gap * (cols - 1)) / cols;
                 return Wrap(

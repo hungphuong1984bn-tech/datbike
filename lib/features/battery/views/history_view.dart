@@ -128,6 +128,17 @@ class _BatteryHistoryViewState extends State<BatteryHistoryView> {
         ),
         const SizedBox(height: 12),
         _chartCard(
+          title: 'Dòng điện BMS (trung bình)',
+          buckets: buckets,
+          digits: 1,
+          minSpan: 2,
+          unit: 'A',
+          lines: [
+            _Line('Dòng trung bình (A)', (b) => b.currentAvg, Bms.accent2, fill: true),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _chartCard(
           title: 'SOC (trung bình)',
           buckets: buckets,
           digits: 0,

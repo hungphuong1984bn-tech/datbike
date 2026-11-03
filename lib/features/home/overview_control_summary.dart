@@ -328,7 +328,7 @@ class _RegenRow extends StatelessWidget {
                   Text(
                     p == null
                         ? (connected ? 'Chưa có dữ liệu mới' : 'Chưa kết nối')
-                        : 'Chỉ giám sát (V × I) · chưa có kênh điều khiển được xác minh',
+                        : 'Chỉ giám sát (V × I, dương = nạp ngược) · chưa có kênh điều khiển được xác minh',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: AppTypography.labelSm(color: AppColors.textMuted),

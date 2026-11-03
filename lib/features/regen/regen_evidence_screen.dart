@@ -17,6 +17,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/ble/ble_controller.dart';
 import '../../core/brand/app_info.dart';
 import '../../core/control/regen_monitor.dart';
+import '../../core/regen/regen_analysis.dart';
 import '../../core/regen/regen_evidence.dart';
 import '../../ui/app_theme.dart';
 import '../../ui/ds/ds.dart';
@@ -327,9 +328,28 @@ class _RegenEvidenceScreenState extends ConsumerState<RegenEvidenceScreen> {
             ),
             const SizedBox(height: 6),
             Text(
-              'Dấu của dòng pha chưa kiểm chứng nên app báo cả cực tiểu lẫn cực đại, '
-              'không gắn nhãn "nạp ngược".',
+              'Dấu đã kiểm chứng: dòng pha DƯƠNG = nạp ngược, ÂM = kéo ga. '
+              'Cực đại dương = đỉnh nạp ngược; cực tiểu âm = đỉnh kéo ga.',
               style: AppTypography.bodySm(color: AppColors.textMuted),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            const SectionTitle('Phân tích mức Regen'),
+            const SizedBox(height: 6),
+            _AnalysisCard(
+              report: RegenAnalysis.analyze(
+                [
+                  for (final x in st.samples)
+                    RegenPoint(
+                      ms: x.ms,
+                      speedKmh: x.speedKmh,
+                      phaseA: x.phaseA,
+                      voltageV: x.voltageV,
+                      powerKw: x.powerKw,
+                      stateIndex: x.stateIndex,
+                    ),
+                ],
+                [for (final m in st.marks) RegenMark(m.ms, m.label)],
+              ),
             ),
           ],
           const SizedBox(height: AppSpacing.lg),
@@ -447,6 +467,103 @@ class _Live extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(label, style: AppTypography.labelSm(color: AppColors.textSecondary)),
+        ],
+      ),
+    );
+  }
+}
+
+
+/// Kết quả phân tích: dấu dòng pha, từng mức, thứ tự yếu → mạnh.
+class _AnalysisCard extends StatelessWidget {
+  final RegenReport report;
+  const _AnalysisCard({required this.report});
+
+  @override
+  Widget build(BuildContext context) {
+    final sign = report.sign;
+    return GlassCard(
+      key: const Key('regen_analysis_card'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            sign.summary,
+            key: const Key('regen_analysis_sign'),
+            style: AppTypography.bodyMd(
+              color: sign.conclusive ? AppColors.greenText : AppColors.amberText,
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (report.levels.isEmpty)
+            Text(
+              'Chưa có mốc mức Regen. Đánh dấu mốc (ví dụ "1".."5" theo app gốc) '
+              'trước mỗi lần thử để so sánh các mức.',
+              style: AppTypography.bodySm(color: AppColors.textMuted),
+            )
+          else ...[
+            for (final l in report.levels) _LevelRow(stats: l),
+            const SizedBox(height: 8),
+            if (report.rankWeakToStrong.isNotEmpty)
+              Text(
+                'Xếp từ YẾU → MẠNH (theo dòng nạp trung bình): '
+                '${report.rankWeakToStrong.join(' < ')}',
+                key: const Key('regen_analysis_rank'),
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+          ],
+          const SizedBox(height: 6),
+          Text(
+            'Tổng thu hồi trong phiên: ${report.totalRecoveredWh.toStringAsFixed(1)} Wh '
+            '(${report.events.length} đợt nạp).',
+            style: AppTypography.bodySm(color: AppColors.textSecondary),
+          ),
+          for (final n in report.notes)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text('• $n',
+                  style: AppTypography.bodySm(color: AppColors.textMuted)),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LevelRow extends StatelessWidget {
+  final RegenLevelStats stats;
+  const _LevelRow({required this.stats});
+
+  @override
+  Widget build(BuildContext context) {
+    final decel = stats.meanDecelMs2 == null
+        ? '—'
+        : '${stats.meanDecelMs2!.toStringAsFixed(2)} m/s²';
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 56,
+            child: Text('Mức ${stats.label}',
+                style: const TextStyle(fontWeight: FontWeight.w800)),
+          ),
+          Expanded(
+            child: Text(
+              'TB ${stats.meanRegenA.toStringAsFixed(1)} A · đỉnh '
+              '${stats.peakA.toStringAsFixed(1)} A · '
+              '${stats.meanRegenKw.toStringAsFixed(2)} kW · '
+              '${stats.energyWh.toStringAsFixed(1)} Wh · giảm tốc $decel · '
+              '${stats.events} đợt'
+              '${stats.lowData ? '  ⚠ ít dữ liệu' : ''}',
+              style: AppTypography.bodySm(
+                color: stats.lowData
+                    ? AppColors.amberText
+                    : AppColors.textSecondary,
+              ),
+            ),
+          ),
         ],
       ),
     );

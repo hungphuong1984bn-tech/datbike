@@ -1,17 +1,23 @@
-// Thẻ "Tổng quan xe" của trang chủ — Design System v3 (Premium EV).
+// Thẻ "Tổng quan xe" của trang chủ — Design System v3 (Premium EV), bố cục theo mockup.
 //
-// Bố cục: hàng huy hiệu trạng thái → [ảnh xe | tốc độ] → SOC + quãng đường →
-// thanh năng lượng → độ mới dữ liệu → cảnh báo.
+// Bố cục: huy hiệu trạng thái → [vòng SOC | ảnh xe] → tốc độ lớn + ODO →
+// hàng Điện áp · Dòng điện · Công suất → thanh Regen → độ mới dữ liệu → cảnh báo.
 //
 // Nguyên tắc dữ liệu: chỉ hiển thị giá trị xe đã gửi thật. Giá trị null → "--".
-// Không dùng số mẫu. Quãng đường còn lại do app tự ước tính được gắn nhãn "Ước tính".
-// Mất kết nối: tốc độ về "--" (không để số cũ trông như đang chạy); SOC/quãng đường
-// giữ giá trị cuối kèm nhãn "Dữ liệu cũ".
+// Quãng đường còn lại do app tự ước tính được gắn dấu "≈". Mất kết nối: tốc độ,
+// điện áp, dòng, công suất về "--" (không để số cũ trông như đang chạy).
+// Dòng điện = dòng pha bộ điều khiển, theo dấu ĐÃ KIỂM CHỨNG (docs/REGEN_VERIFICATION.md):
+// dương = nạp ngược (regen), âm = kéo ga. Công suất = V × I giữ nguyên dấu.
+// Thanh Regen chỉ phản ánh dòng nạp ĐO ĐƯỢC; mức Regen 1–5 chưa đọc được từ xe
+// nên KHÔNG hiển thị mức giả.
 // Widget chỉ nhận tham số thuần (không đọc BLE) nên dễ kiểm thử và không ảnh hưởng giao thức.
+
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
 import '../../core/ble/ble_controller.dart' show BlePhase;
+import '../../core/control/regen_monitor.dart';
 import '../../ui/app_theme.dart';
 import '../../ui/bike_image.dart';
 import '../../ui/components.dart';
@@ -39,6 +45,11 @@ class HomeHeroCard extends StatelessWidget {
   final int errorCode;
   final bool isFindingBike;
 
+  // Mới (tuỳ chọn, null = chưa có dữ liệu)
+  final double? odoKm;
+  final RegenReading? reading; // V · I · P thật từ telemetry
+  final double? recoveredWh; // năng lượng thu hồi tích lũy từ lúc reset
+
   // Hành động
   final VoidCallback onStopFind;
 
@@ -60,6 +71,9 @@ class HomeHeroCard extends StatelessWidget {
     required this.errorCode,
     required this.isFindingBike,
     required this.onStopFind,
+    this.odoKm,
+    this.reading,
+    this.recoveredWh,
   });
 
   static Color socColor(int? p) {
@@ -74,8 +88,9 @@ class HomeHeroCard extends StatelessWidget {
     final connected = phase == BlePhase.connected;
     final pct = percent;
     final c = socColor(pct);
-    // Tốc độ chỉ có ý nghĩa khi đang kết nối; mất kết nối → "--".
+    // Số tức thời chỉ có ý nghĩa khi đang kết nối; mất kết nối → "--".
     final shownSpeed = connected ? speedKmh : null;
+    final r = connected ? reading : null;
 
     final warnings = <String>[
       if (isSideStandDown) 'Chân chống đang hạ',
@@ -136,45 +151,62 @@ class HomeHeroCard extends StatelessWidget {
               ),
             ),
 
-          // ── Ảnh xe (trái) + tốc độ (phải) ──────────────────────────────
+          // ── Vòng SOC (trái) + ảnh xe (phải) ─────────────────────────────
           SizedBox(
-            height: 168,
+            height: 172,
             child: Row(
               children: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 16, top: 10),
+                  child: _SocRing(
+                    percent: pct,
+                    color: c,
+                    kmLeft: kmLeft,
+                    kmEstimated: kmEstimated,
+                    charging: isCharging,
+                  ),
+                ),
                 const Expanded(
-                  flex: 11,
                   child: Padding(
-                    padding: EdgeInsets.only(left: 8, top: 4, bottom: 4),
+                    padding: EdgeInsets.only(left: 4, right: 8, top: 4, bottom: 4),
                     child: BikeImage(),
                   ),
                 ),
+              ],
+            ),
+          ),
+
+          // ── Tốc độ lớn (giữa) + ODO (phải) ─────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                const Expanded(child: SizedBox()),
+                Semantics(
+                  label: shownSpeed == null
+                      ? 'Tốc độ hiện tại: chưa có dữ liệu'
+                      : 'Tốc độ hiện tại: ${shownSpeed.round()} ki-lô-mét trên giờ',
+                  excludeSemantics: true,
+                  child: AnimatedMetric(
+                    value: shownSpeed,
+                    unit: 'km/h',
+                    valueSize: 64,
+                    align: CrossAxisAlignment.center,
+                  ),
+                ),
                 Expanded(
-                  flex: 9,
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 16, left: 4),
-                    child: Semantics(
-                      label: shownSpeed == null
-                          ? 'Tốc độ hiện tại: chưa có dữ liệu'
-                          : 'Tốc độ hiện tại: ${shownSpeed.round()} ki-lô-mét trên giờ',
-                      excludeSemantics: true,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text('TỐC ĐỘ',
-                              style: AppTypography.labelSm(color: AppColors.textSecondary)),
-                          const SizedBox(height: 2),
-                          FittedBox(
-                            fit: BoxFit.scaleDown,
-                            alignment: Alignment.centerRight,
-                            child: AnimatedMetric(
-                              value: shownSpeed,
-                              unit: 'km/h',
-                              valueSize: 60,
-                              align: CrossAxisAlignment.end,
-                            ),
-                          ),
-                        ],
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: AnimatedMetric(
+                        value: connected ? odoKm : null,
+                        unit: 'km',
+                        label: 'ODO',
+                        valueSize: 20,
+                        align: CrossAxisAlignment.end,
                       ),
                     ),
                   ),
@@ -183,57 +215,56 @@ class HomeHeroCard extends StatelessWidget {
             ),
           ),
 
-          // ── Năng lượng: SOC lớn + quãng đường ─────────────────────────
+          // ── Điện áp · Dòng điện · Công suất ────────────────────────────
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Flexible(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: AnimatedMetric(
-                      value: pct?.toDouble(),
-                      unit: '%',
-                      label: 'Mức pin (SOC)',
-                      valueSize: 44,
-                      color: pct == null ? null : AppColors.readable(c),
-                    ),
+                Expanded(
+                  child: _HeroStat(
+                    icon: Icons.bolt_rounded,
+                    label: 'Điện áp',
+                    value: r?.voltageV,
+                    unit: 'V',
+                    decimals: 1,
                   ),
                 ),
-                const SizedBox(width: 12),
-                Flexible(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerRight,
-                        child: AnimatedMetric(
-                          value: kmLeft?.toDouble(),
-                          unit: 'km',
-                          label: 'Quãng đường còn lại',
-                          valueSize: 28,
-                          align: CrossAxisAlignment.end,
-                        ),
-                      ),
-                      if (kmEstimated && kmLeft != null) ...[
-                        const SizedBox(height: 4),
-                        const FreshnessBadge(freshness: DataFreshness.estimated),
-                      ],
-                    ],
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _HeroStat(
+                    icon: Icons.electric_meter_rounded,
+                    label: 'Dòng điện',
+                    value: r?.phaseCurrentA,
+                    unit: 'A',
+                    decimals: 1,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _HeroStat(
+                    icon: Icons.flash_on_rounded,
+                    label: 'Công suất',
+                    value: r?.powerKw,
+                    unit: 'kW',
+                    decimals: 1,
                   ),
                 ),
               ],
             ),
           ),
+
+          // ── Thanh Regen (số đo thật, không phải mức cài đặt) ───────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+            child: _RegenStrip(
+              reading: r,
+              recoveredWh: connected ? recoveredWh : null,
+            ),
+          ),
+
+          // ── Trạng thái + độ mới dữ liệu ───────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
-            child: _EnergyBar(percent: pct, color: c, charging: isCharging),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
             child: TickBuilder(
               builder: (context, now) {
                 final fresh = connected
@@ -304,87 +335,280 @@ class HomeHeroCard extends StatelessWidget {
   }
 }
 
-/// Thanh năng lượng có hiệu ứng chạy khi đang sạc.
-class _EnergyBar extends StatefulWidget {
+/// Vòng SOC: cung gradient theo mức pin, số % lớn và quãng đường còn lại ở giữa.
+class _SocRing extends StatelessWidget {
   final int? percent;
   final Color color;
+  final int? kmLeft;
+  final bool kmEstimated;
   final bool charging;
-  const _EnergyBar({required this.percent, required this.color, required this.charging});
 
-  @override
-  State<_EnergyBar> createState() => _EnergyBarState();
-}
-
-class _EnergyBarState extends State<_EnergyBar> with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 1600));
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.charging) _ctrl.repeat();
-  }
-
-  @override
-  void didUpdateWidget(covariant _EnergyBar old) {
-    super.didUpdateWidget(old);
-    if (widget.charging && !_ctrl.isAnimating) {
-      _ctrl.repeat();
-    } else if (!widget.charging && _ctrl.isAnimating) {
-      _ctrl.stop();
-    }
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
+  const _SocRing({
+    required this.percent,
+    required this.color,
+    required this.kmLeft,
+    required this.kmEstimated,
+    required this.charging,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final frac = ((widget.percent ?? 0) / 100.0).clamp(0.0, 1.0);
+    final frac = ((percent ?? 0) / 100.0).clamp(0.0, 1.0);
+    final km = kmLeft == null ? '-- km' : '${kmEstimated ? '≈ ' : ''}$kmLeft km';
     return Semantics(
-      label: widget.percent == null ? 'Chưa có mức pin' : 'Mức pin ${widget.percent}%',
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        child: SizedBox(
-          height: 10,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              ColoredBox(color: AppColors.surfaceContainerHigh),
-              TweenAnimationBuilder<double>(
-                tween: Tween<double>(end: frac),
-                duration: AppMotion.slow,
-                curve: AppMotion.curve,
-                builder: (_, f, __) => FractionallySizedBox(
-                  alignment: Alignment.centerLeft,
-                  widthFactor: f,
-                  child: AnimatedBuilder(
-                    animation: _ctrl,
-                    builder: (_, __) {
-                      final base = widget.color;
-                      final shift = widget.charging ? _ctrl.value : 0.0;
-                      return DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment(-1 + shift * 2, 0),
-                            end: Alignment(1 + shift * 2, 0),
-                            colors: [
-                              base.withValues(alpha: 0.65),
-                              base,
-                              base.withValues(alpha: 0.65),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
+      label: percent == null
+          ? 'Mức pin: chưa có dữ liệu'
+          : 'Mức pin $percent phần trăm, quãng đường còn lại ${kmLeft ?? 'chưa rõ'} ki-lô-mét',
+      excludeSemantics: true,
+      child: SizedBox(
+        width: 136,
+        height: 136,
+        child: TweenAnimationBuilder<double>(
+          tween: Tween<double>(end: frac),
+          duration: AppMotion.slow,
+          curve: AppMotion.curve,
+          builder: (_, f, __) => CustomPaint(
+            painter: _RingPainter(
+              fraction: f,
+              hasValue: percent != null,
+              color: color,
+              track: AppColors.surfaceContainerHigh,
+            ),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (charging)
+                    Icon(Icons.bolt_rounded, size: 16, color: AppColors.tertiary),
+                  Text(
+                    percent == null ? '--' : '$percent%',
+                    style: AppTypography.evWide(
+                      fontSize: 34,
+                      color: percent == null
+                          ? AppColors.textMuted
+                          : AppColors.readable(color),
+                      letterSpacing: -0.5,
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 2),
+                  Text(km, style: AppTypography.labelMd(color: AppColors.textSecondary)),
+                ],
               ),
-            ],
+            ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RingPainter extends CustomPainter {
+  final double fraction;
+  final bool hasValue;
+  final Color color;
+  final Color track;
+
+  const _RingPainter({
+    required this.fraction,
+    required this.hasValue,
+    required this.color,
+    required this.track,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const stroke = 11.0;
+    final rect = Offset.zero & size;
+    final arcRect = rect.deflate(stroke / 2 + 2);
+    const start = -math.pi / 2;
+
+    final trackPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.round
+      ..color = track;
+    canvas.drawArc(arcRect, 0, math.pi * 2, false, trackPaint);
+
+    if (!hasValue || fraction <= 0) return;
+    final sweep = math.pi * 2 * fraction;
+    final fill = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.round
+      ..shader = SweepGradient(
+        startAngle: 0,
+        endAngle: math.pi * 2,
+        transform: const GradientRotation(start),
+        colors: [color, AppColors.cyan, color],
+      ).createShader(rect);
+    canvas.drawArc(arcRect, start, sweep, false, fill);
+  }
+
+  @override
+  bool shouldRepaint(covariant _RingPainter o) =>
+      o.fraction != fraction ||
+      o.hasValue != hasValue ||
+      o.color != color ||
+      o.track != track;
+}
+
+/// Ô số liệu gọn: biểu tượng · số (có dấu) · đơn vị · nhãn. null → "--".
+class _HeroStat extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final double? value;
+  final String unit;
+  final int decimals;
+
+  const _HeroStat({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.unit,
+    required this.decimals,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final v = value;
+    return Semantics(
+      label: v == null
+          ? '$label: chưa có dữ liệu'
+          : '$label: ${v.toStringAsFixed(decimals)} $unit',
+      excludeSemantics: true,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.panel.withValues(alpha: AppColors.isDark ? 0.55 : 0.8),
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          border: Border.all(
+            color: AppColors.isDark
+                ? AppColors.panelBorderBright.withValues(alpha: 0.6)
+                : AppColors.panelBorder,
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 18, color: v == null ? AppColors.textMuted : AppColors.cyan),
+            const SizedBox(height: 4),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(
+                    v == null ? '--' : v.toStringAsFixed(decimals),
+                    style: AppTypography.evWide(
+                      fontSize: 20,
+                      color: v == null ? AppColors.textMuted : AppColors.textPrimary,
+                    ),
+                  ),
+                  if (v != null) ...[
+                    const SizedBox(width: 3),
+                    Text(unit,
+                        style: AppTypography.labelMd(color: AppColors.textSecondary)),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.labelSm(color: AppColors.textSecondary)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Thanh Regen: 5 vạch sáng theo dòng nạp ĐO ĐƯỢC (mỗi vạch ≈ 5 A), kèm nhãn trạng thái.
+/// Không hiển thị "mức 1–5" vì xe chưa có kênh đọc mức Regen được xác minh.
+class _RegenStrip extends StatelessWidget {
+  final RegenReading? reading;
+  final double? recoveredWh;
+
+  const _RegenStrip({required this.reading, required this.recoveredWh});
+
+  @override
+  Widget build(BuildContext context) {
+    final r = reading;
+    final flow = classifyRegenFlow(r);
+    final String text;
+    final Color tone;
+    var lit = 0;
+    if (r == null) {
+      text = 'Regen: chưa có dữ liệu';
+      tone = AppColors.textMuted;
+    } else if (flow == RegenFlow.regen) {
+      text = 'Regen: đang thu hồi · ${r.powerKw.toStringAsFixed(1)} kW';
+      tone = AppColors.tertiary;
+      lit = (r.phaseCurrentA / 5).ceil().clamp(1, 5);
+    } else if (flow == RegenFlow.traction) {
+      text = 'Regen: đang kéo ga';
+      tone = AppColors.amber;
+    } else {
+      text = 'Regen: chưa thu hồi';
+      tone = AppColors.textSecondary;
+    }
+    final wh = recoveredWh;
+    return Semantics(
+      label: '$text. Mức Regen cài đặt chưa đọc được từ xe.',
+      excludeSemantics: true,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: tone.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          border: Border.all(color: tone.withValues(alpha: 0.45)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.energy_savings_leaf_rounded, size: 20, color: AppColors.readable(tone)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(text,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.labelLg(color: AppColors.readable(tone))),
+                  Text(
+                    (wh != null && wh > 0)
+                        ? 'Đã thu hồi ${wh.toStringAsFixed(wh < 10 ? 1 : 0)} Wh · mức cài đặt chưa đọc được'
+                        : 'Số đo thật từ xe · mức cài đặt chưa đọc được',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.labelSm(color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                for (var i = 0; i < 5; i++)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 3),
+                    child: AnimatedContainer(
+                      duration: AppMotion.normal,
+                      width: 6,
+                      height: 8.0 + i * 4,
+                      decoration: BoxDecoration(
+                        color: i < lit ? tone : AppColors.surfaceContainerHigh,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
         ),
       ),
     );

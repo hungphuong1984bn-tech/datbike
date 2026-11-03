@@ -44,6 +44,7 @@ class _RegenMonitorCardState extends ConsumerState<RegenMonitorCard> {
     final fresh = connected && ref.read(bleProvider.notifier).telemetryFresh;
     final reading = fresh ? regenReadingFrom(tele) : null;
     final peaks = ref.watch(regenPeaksProvider);
+    final flow = classifyRegenFlow(reading);
 
     String num(double? v, String unit, {int d = 1}) =>
         v == null ? '—' : '${v.toStringAsFixed(d)} $unit';
@@ -98,15 +99,39 @@ class _RegenMonitorCardState extends ConsumerState<RegenMonitorCard> {
             style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
+          if (reading != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                children: [
+                  _chip(
+                    switch (flow) {
+                      RegenFlow.regen => 'ĐANG NẠP NGƯỢC',
+                      RegenFlow.traction => 'ĐANG KÉO GA',
+                      RegenFlow.idle => 'KHÔNG NẠP / KHÔNG KÉO',
+                    },
+                    flow == RegenFlow.regen
+                        ? AppColors.greenText
+                        : AppColors.textSecondary,
+                    flow == RegenFlow.regen
+                        ? AppColors.greenSoft
+                        : AppColors.panelSecondary,
+                    const Key('regen_flow_chip'),
+                  ),
+                ],
+              ),
+            ),
           _row('Dòng pha', num(reading?.phaseCurrentA, 'A'), const Key('regen_phase')),
           _row('Điện áp pack', num(reading?.voltageV, 'V'), const Key('regen_voltage')),
           _row('Công suất (V×I)', num(reading?.powerKw, 'kW', d: 2), const Key('regen_power')),
           _row('Tốc độ', num(reading?.speedKmh, 'km/h'), const Key('regen_speed')),
           const Divider(height: 24),
-          _row('Công suất lớn nhất từ lúc reset', num(peaks.maxKw, 'kW', d: 2),
+          _row('Đỉnh nạp ngược từ lúc reset', num(peaks.maxKw, 'kW', d: 2),
               const Key('regen_peak_max')),
-          _row('Công suất nhỏ nhất từ lúc reset', num(peaks.minKw, 'kW', d: 2),
+          _row('Đỉnh kéo ga từ lúc reset', num(peaks.minKw, 'kW', d: 2),
               const Key('regen_peak_min')),
+          _row('Đã thu hồi từ lúc reset', num(peaks.recoveredWh, 'Wh'),
+              const Key('regen_recovered_wh')),
           Align(
             alignment: Alignment.centerRight,
             child: TextButton(
@@ -125,10 +150,9 @@ class _RegenMonitorCardState extends ConsumerState<RegenMonitorCard> {
             ),
           ),
           Text(
-            'Lưu ý dấu: tài liệu trong dự án mâu thuẫn về dấu của dòng pha khi tái '
-            'sinh (bộ giải mã ghi "dương = tái tạo", tài liệu giao thức ghi "âm"). '
-            'App vì thế hiển thị giá trị có dấu và cả hai cực trị, không tự gắn nhãn '
-            '"đang nạp ngược". Cần đối chiếu trên xe thật.',
+            'Dấu đã kiểm chứng trên dữ liệu chạy thật (02/11/2026): dòng pha và '
+            'công suất DƯƠNG = nạp ngược, ÂM = kéo ga. Ngưỡng nhận biết nạp ngược: '
+            '≥ 3 A và ≥ 5 km/h.',
             style: TextStyle(fontSize: 12, height: 1.35, color: AppColors.textSecondary),
           ),
         ],

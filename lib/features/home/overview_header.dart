@@ -6,6 +6,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/ble/ble_controller.dart' show BlePhase;
+import '../../core/proximity/smart_key_state.dart';
 import '../../ui/app_theme.dart';
 import '../../ui/brand_logo.dart';
 import '../../ui/ds/ds.dart';
@@ -20,6 +21,14 @@ class OverviewHeader extends StatelessWidget {
   final VoidCallback onConnect;
   final VoidCallback onHud;
 
+  /// Trạng thái Smart Key suy ra từ dữ liệu thật; null → không hiện biểu tượng.
+  final SmartKeyView? smartKey;
+  final VoidCallback? onSmartKey;
+
+  /// Số cảnh báo đang hoạt động (mã lỗi, cảnh báo Smart Key…); 0 = không có.
+  final int alertCount;
+  final VoidCallback? onNotifications;
+
   const OverviewHeader({
     super.key,
     required this.phase,
@@ -27,13 +36,17 @@ class OverviewHeader extends StatelessWidget {
     required this.onSwitchBike,
     required this.onConnect,
     required this.onHud,
+    this.smartKey,
+    this.onSmartKey,
+    this.alertCount = 0,
+    this.onNotifications,
   });
 
   @override
   Widget build(BuildContext context) {
     final connected = phase == BlePhase.connected;
     // Màn hẹp (≤ 340dp): chỉ hiện biểu tượng Bluetooth để tên xe còn chỗ.
-    final compact = MediaQuery.sizeOf(context).width < 340;
+    final compact = MediaQuery.sizeOf(context).width < 400;
     return SizedBox(
       height: 56,
       child: Row(
@@ -94,6 +107,30 @@ class OverviewHeader extends StatelessWidget {
                   : ConnectionBadge(phase: phase),
             ),
           ),
+          if (smartKey != null) ...[
+            const SizedBox(width: AppSpacing.xs),
+            _SmartKeyDot(view: smartKey!, onTap: onSmartKey),
+          ],
+          if (onNotifications != null)
+            Semantics(
+              button: true,
+              label: alertCount > 0
+                  ? 'Thông báo: $alertCount cảnh báo đang hoạt động'
+                  : 'Thông báo: không có cảnh báo',
+              excludeSemantics: true,
+              child: IconButton(
+                tooltip: 'Thông báo',
+                constraints: const BoxConstraints(
+                    minWidth: AppSizes.minTap, minHeight: AppSizes.minTap),
+                icon: Badge(
+                  isLabelVisible: alertCount > 0,
+                  label: Text('$alertCount'),
+                  child: Icon(Icons.notifications_none_rounded,
+                      size: 22, color: AppColors.textPrimary),
+                ),
+                onPressed: onNotifications,
+              ),
+            ),
           IconButton(
             tooltip: 'Đồng hồ lái (HUD)',
             constraints: const BoxConstraints(
@@ -102,6 +139,54 @@ class OverviewHeader extends StatelessWidget {
             onPressed: onHud,
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Chấm Smart Key tròn tô màu theo SmartKeyTone (xanh/vàng/đỏ/xám).
+class _SmartKeyDot extends StatelessWidget {
+  final SmartKeyView view;
+  final VoidCallback? onTap;
+  const _SmartKeyDot({required this.view, this.onTap});
+
+  static Color toneColor(SmartKeyTone t) => switch (t) {
+        SmartKeyTone.green => AppColors.tertiary,
+        SmartKeyTone.yellow => AppColors.amber,
+        SmartKeyTone.red => AppColors.red,
+        SmartKeyTone.grey => AppColors.textMuted,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final c = toneColor(view.tone);
+    return Semantics(
+      button: onTap != null,
+      label: 'Smart Key: ${view.title}',
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        child: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: c.withValues(alpha: 0.12),
+            shape: BoxShape.circle,
+            border: Border.all(color: c.withValues(alpha: 0.4)),
+          ),
+          child: Icon(
+            view.state == SmartKeyState.locked ||
+                    view.state == SmartKeyState.securityLock
+                ? Icons.lock_rounded
+                : (view.state == SmartKeyState.unlocked ||
+                        view.state == SmartKeyState.nearby
+                    ? Icons.lock_open_rounded
+                    : Icons.key_rounded),
+            size: 18,
+            color: AppColors.readable(c),
+          ),
+        ),
       ),
     );
   }

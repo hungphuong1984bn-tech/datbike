@@ -116,12 +116,7 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
                   'Thông số vận hành chỉ hiển thị khi kết nối BLE. Biểu đồ giữ lại số liệu của lần kết nối gần nhất.',
             ))
           else if (t == null)
-            _pad(const StateView(
-              kind: StateKind.loading,
-              compact: true,
-              title: 'Đang chờ dữ liệu từ xe',
-              message: 'Chưa nhận được gói telemetry đầu tiên.',
-            )),
+            const SkeletonGrid(count: 6),
           if (t != null && t.error != 0) ...[
             const SizedBox(height: AppSpacing.md),
             _pad(GlassCard(

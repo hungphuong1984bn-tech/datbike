@@ -84,13 +84,13 @@ class _AppSettingsScreenState extends ConsumerState<AppSettingsScreen>
 
     return DsScaffold(
       title: 'Cài đặt ứng dụng',
-      subtitle: 'Giao diện, đơn vị, thông báo, kết nối',
+      subtitle: 'Giao diện · Dashboard · Smart Key · Regen · Bluetooth',
       body: ListView(
         padding: const EdgeInsets.fromLTRB(
             AppSpacing.pageH, 0, AppSpacing.pageH, AppSpacing.huge),
         children: [
           // ── Giao diện & ngôn ngữ ────────────────────────────────────────
-          const _Group('Giao diện'),
+          const _Group('Cài đặt giao diện'),
           GlassCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -107,8 +107,8 @@ class _AppSettingsScreenState extends ConsumerState<AppSettingsScreen>
             _Row(Icons.translate_rounded, 'Ngôn ngữ', 'Tiếng Việt'),
           ], footer: 'Ứng dụng hiện chỉ hỗ trợ tiếng Việt.'),
 
-          // ── Hiển thị ────────────────────────────────────────────────────
-          const _Group('Hiển thị'),
+          // ── Dashboard ───────────────────────────────────────────────────
+          const _Group('Cài đặt Dashboard'),
           GlassCard(
             padding: EdgeInsets.zero,
             child: Column(
@@ -140,6 +140,41 @@ class _AppSettingsScreenState extends ConsumerState<AppSettingsScreen>
                   title: 'Tùy chỉnh đồng hồ lái xe',
                   subtitle: 'Kiểu đồng hồ, ô dữ liệu, màu sắc, cỡ chữ',
                   onTap: () => Navigator.of(context).pushNamed('/studio'),
+                ),
+              ],
+            ),
+          ),
+
+          // ── Smart Key ───────────────────────────────────────────────────
+          const _Group('Cài đặt Smart Key'),
+          GlassCard(
+            padding: EdgeInsets.zero,
+            child: _NavRow(
+              icon: Icons.sensors_rounded,
+              title: 'Mở khóa thông minh',
+              subtitle: 'Giới hạn khoảng cách, tự khóa, hiệu chỉnh 1 m / 2 m',
+              onTap: () => Navigator.of(context).pushNamed('/proximity'),
+            ),
+          ),
+
+          // ── Regen ───────────────────────────────────────────────────────
+          const _Group('Cài đặt Regen'),
+          GlassCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                _NavRow(
+                  icon: Icons.energy_savings_leaf_rounded,
+                  title: 'Regen 5 cấp độ',
+                  subtitle: 'Giám sát dòng nạp ngược; ghi mức Regen chỉ mở khi đã kiểm chứng',
+                  onTap: () => Navigator.of(context).pushNamed('/regen'),
+                ),
+                Divider(height: 1, color: AppColors.panelBorder),
+                _NavRow(
+                  icon: Icons.fact_check_rounded,
+                  title: 'Bằng chứng giao thức Regen',
+                  subtitle: 'Dữ liệu đối chiếu mức Grab với dòng nạp',
+                  onTap: () => Navigator.of(context).pushNamed('/regen-evidence'),
                 ),
               ],
             ),
@@ -198,7 +233,7 @@ class _AppSettingsScreenState extends ConsumerState<AppSettingsScreen>
           ),
 
           // ── Kết nối ─────────────────────────────────────────────────────
-          const _Group('Kết nối'),
+          const _Group('Cài đặt Bluetooth'),
           GlassCard(
             padding: EdgeInsets.zero,
             child: Column(
@@ -230,6 +265,13 @@ class _AppSettingsScreenState extends ConsumerState<AppSettingsScreen>
                   subtitle: 'Quét và kết nối một xe khác',
                   onTap: () => Navigator.of(context).pushNamed('/scan'),
                 ),
+                Divider(height: 1, color: AppColors.panelBorder),
+                _NavRow(
+                  icon: Icons.receipt_long_rounded,
+                  title: 'Nhật ký kết nối & chẩn đoán',
+                  subtitle: 'Chất lượng BLE, lỗi kết nối, log kỹ thuật',
+                  onTap: () => Navigator.of(context).pushNamed('/logs'),
+                ),
                 if (connected || ble.phase == BlePhase.reconnecting) ...[
                   Divider(height: 1, color: AppColors.panelBorder),
                   _NavRow(
@@ -245,7 +287,7 @@ class _AppSettingsScreenState extends ConsumerState<AppSettingsScreen>
           ),
 
           // ── Thông tin xe ────────────────────────────────────────────────
-          const _Group('Thông tin xe'),
+          const _Group('Quản lý thiết bị'),
           _InfoCard(
             rows: [
               _Row(Icons.two_wheeler_rounded, 'Tên xe', orDash(ble.bikeName)),
@@ -262,12 +304,12 @@ class _AppSettingsScreenState extends ConsumerState<AppSettingsScreen>
           ),
 
           // ── Phiên bản ứng dụng ──────────────────────────────────────────
-          const _Group('Phiên bản ứng dụng'),
+          const _Group('Thông tin ứng dụng'),
           _InfoCard(rows: const [
             _Row(Icons.info_outline_rounded, 'Ứng dụng', '$kAppName $kAppVersionName'),
             _Row(Icons.numbers_rounded, 'Build Number', '$kAppBuildNumber'),
             _Row(Icons.build_circle_outlined, 'Bản dựng', appBuild),
-            _Row(Icons.person_rounded, 'Nhà phát triển', kDeveloperName),
+            _Row(Icons.person_rounded, 'Tác giả', kDeveloperName),
           ]),
           const SizedBox(height: AppSpacing.md),
           GlassCard(
@@ -279,6 +321,13 @@ class _AppSettingsScreenState extends ConsumerState<AppSettingsScreen>
               onTap: () => Navigator.of(context).pushNamed('/about'),
             ),
           ),
+
+          // ── Phiên bản & bản quyền ───────────────────────────────────────
+          const _Group('Phiên bản và bản quyền'),
+          const _InfoCard(rows: [
+            _Row(Icons.verified_rounded, 'Phiên bản', '$kAppName $kAppVersionName (build $kAppBuildNumber)'),
+            _Row(Icons.copyright_rounded, 'Bản quyền', kCopyright),
+          ]),
 
           // ── Thuật ngữ ───────────────────────────────────────────────────
           const _Group('Giải thích thuật ngữ'),
