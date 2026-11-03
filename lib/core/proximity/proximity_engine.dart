@@ -19,6 +19,8 @@
 //   • Mất mẫu (stale) / mất kết nối KHÔNG phải bằng chứng rời xe: không quyết
 //     định gì khi không có mẫu mới.
 
+import 'dart:math' as math;
+
 import '../utils/kalman_filter.dart';
 
 enum ProximityZone { unknown, near, middle, far }
@@ -65,6 +67,15 @@ class ProximityConfig {
   /// Thời gian phải liên tục ở ngoài vùng trước khi khóa (giây).
   final int lockConfirmSeconds;
 
+  /// CHẾ ĐỘ KHÓA THÔNG MINH THEO KHOẢNG CÁCH (mét). null = tắt (dùng ngưỡng
+  /// RSSI cũ). Khi đặt (mặc định 2 m): trong bán kính này mới được mở xe, ra
+  /// ngoài bán kính (sau thời gian xác nhận) thì tự tắt xe.
+  final double? rangeLimitM;
+
+  /// RSSI trung vị đo khi đứng cách xe ~2 m (null = chưa đo). Nếu có cả 1 m và
+  /// 2 m, app suy ra hệ số suy hao thật của môi trường thay vì dùng mặc định.
+  final double? calibratedRssi2m;
+
   const ProximityConfig({
     this.unlockEnabled = false,
     this.lockEnabled = false,
@@ -73,9 +84,15 @@ class ProximityConfig {
     this.legacyNearThreshold = -55.0,
     this.legacyFarThreshold = -83.0,
     this.lockConfirmSeconds = 5,
+    this.rangeLimitM,
+    this.calibratedRssi2m,
   });
 
   bool get calibrated => calibratedRssi1m != null;
+
+  /// Đang dùng chế độ khoảng cách (kể cả khi chưa hiệu chỉnh → dùng RSSI@1m
+  /// mặc định tạm thời, xem [ProximityEngine.defaultRssi1m]).
+  bool get rangeMode => rangeLimitM != null;
 }
 
 /// Điều kiện hiện tại của xe/kết nối do BleController cung cấp.
@@ -120,11 +137,28 @@ class CalibrationResult {
   final int samples;
   final double stdDev;
   final String message;
+
+  /// Khoảng cách đã đứng khi đo: 1 hoặc 2 (m). [rssi1m] giữ tên cũ nhưng là
+  /// RSSI của mốc [targetM] (tương thích ngược).
+  final int targetM;
   const CalibrationResult({
     required this.ok,
     required this.rssi1m,
     required this.samples,
     required this.stdDev,
+    required this.message,
+    this.targetM = 1,
+  });
+}
+
+/// Kết quả kiểm tra bán kính cho thao tác tay.
+class RangeCheck {
+  final bool ok;
+  final double? distanceM;
+  final String message;
+  const RangeCheck({
+    required this.ok,
+    required this.distanceM,
     required this.message,
   });
 }
@@ -149,6 +183,35 @@ class ProximityEngine {
   static const Duration actionWindow = Duration(minutes: 10);
   static const Duration failureBackoff = Duration(seconds: 60);
   static const Duration verifyTimeout = Duration(seconds: 10);
+
+  // ---- Chế độ khoảng cách (Smart Key 2 m) ----
+  /// RSSI@1 m TẠM THỜI khi người dùng chưa hiệu chỉnh. Lấy từ log thực tế
+  /// (đứng cạnh xe ≈ -65 dBm khi để máy trong túi). Chỉ là điểm xuất phát:
+  /// hãy hiệu chỉnh 1 m (và 2 m) để chính xác.
+  static const double defaultRssi1m = -62.0;
+
+  /// Hệ số suy hao đường truyền mặc định (2.0 = không gian tự do, 2.5–3.5 =
+  /// trong nhà/có vật cản). Dùng khi chưa đo cả hai điểm 1 m và 2 m.
+  static const double defaultPathLossN = 2.4;
+  static const double minPathLossN = 1.6;
+  static const double maxPathLossN = 4.0;
+
+  /// Vùng đệm ngay NGOÀI bán kính: RSSI thấp hơn ngưỡng này bao nhiêu dB thì
+  /// mới tính là "đã ra ngoài" (chống nhảy khi đứng sát ranh giới).
+  static const double rangeLockMarginDb = 1.5; // (cũ, còn giữ cho tương thích)
+
+  /// Nửa bề rộng vùng chuyển trạng thái quanh bán kính giới hạn (mét).
+  /// Với giới hạn 2 m: vùng GẦN ≤ 1,8 m, vùng XA ≥ 2,2 m, khoảng giữa
+  /// (1,8–2,2 m) GIỮ trạng thái trước đó. Giá trị là ngưỡng logic ban đầu —
+  /// khoảng cách thật phụ thuộc hiệu chỉnh RSSI@1 m / 2 m và môi trường.
+  static const double rangeZoneHalfWidthM = 0.2;
+
+  /// Hysteresis của vùng trong chế độ khoảng cách (nhỏ hơn chế độ cũ).
+  static const double rangeHysteresisDb = 1.0;
+
+  /// Dung sai khi kiểm tra thao tác tay (mở khóa/bật xe): cho phép thấp hơn
+  /// ngưỡng tối đa chừng này dB vì RSSI dao động ±1–2 dB tại chỗ.
+  static const double manualToleranceDb = 1.0;
 
   // Biên độ theo độ nhạy [thấp, vừa, cao] — dB so với RSSI@1m.
   static const List<double> unlockMarginDb = [1.0, 3.0, 5.0];
@@ -188,6 +251,7 @@ class ProximityEngine {
 
   // ---- Hiệu chỉnh ----
   bool _calibrating = false;
+  int _calTargetM = 1;
   DateTime? _calStart;
   final List<double> _calSamples = [];
   static const Duration calibrationDuration = Duration(seconds: 8);
@@ -210,9 +274,84 @@ class ProximityEngine {
     if (_events.length > _maxEvents) _events.removeAt(0);
   }
 
+  // ================= Độ tin cậy khoảng cách =================
+  /// Số mẫu đang nằm trong cửa sổ lọc.
+  int get windowSize => _win.length;
+
+  /// Độ lệch chuẩn (dB) của cửa sổ lọc; null nếu < 3 mẫu.
+  double? get windowStdDev {
+    if (_win.length < 3) return null;
+    final mean = _win.reduce((a, b) => a + b) / _win.length;
+    var v = 0.0;
+    for (final x in _win) {
+      v += (x - mean) * (x - mean);
+    }
+    return _sqrt(v / (_win.length - 1));
+  }
+
+  /// Độ tin cậy 0..1 của ước lượng khoảng cách. KHÔNG phải xác suất thống kê;
+  /// chỉ là điểm heuristic từ: số mẫu, độ nhiễu, độ mới và mức hiệu chỉnh.
+  /// 0 = không có mẫu hợp lệ.
+  double distanceConfidence(ProximityConfig c, DateTime now) {
+    if (_filtered == null || _lastSampleAt == null) return 0;
+    if (now.difference(_lastSampleAt!) > sampleStale) return 0;
+    final sd = windowStdDev;
+    final samplePart = (_win.length / _window).clamp(0.0, 1.0);
+    final noisePart = sd == null ? 0.3 : (1.0 - (sd / 6.0)).clamp(0.0, 1.0);
+    final calPart = (c.calibratedRssi1m != null && c.calibratedRssi2m != null)
+        ? 1.0
+        : (c.calibratedRssi1m != null ? 0.7 : 0.4);
+    return (0.3 * samplePart + 0.4 * noisePart + 0.3 * calPart)
+        .clamp(0.0, 1.0)
+        .toDouble();
+  }
+
   // ================= Ngưỡng =================
+  /// Hệ số suy hao dùng để quy đổi RSSI ↔ khoảng cách.
+  /// Có cả mốc 1 m và 2 m → suy ra từ chính hai mốc đó; ngược lại dùng mặc định.
+  double pathLossN(ProximityConfig c) {
+    final r1 = c.calibratedRssi1m;
+    final r2 = c.calibratedRssi2m;
+    if (r1 != null && r2 != null && r1 - r2 > 0.5) {
+      final n = (r1 - r2) / (10 * math.log(2) / math.ln10);
+      return n.clamp(minPathLossN, maxPathLossN).toDouble();
+    }
+    return defaultPathLossN;
+  }
+
+  /// RSSI@1 m hiệu lực (đã hiệu chỉnh, hoặc mặc định tạm thời ở chế độ khoảng
+  /// cách). null nếu không ở chế độ khoảng cách và chưa hiệu chỉnh.
+  double? effectiveRssi1m(ProximityConfig c) =>
+      c.calibratedRssi1m ?? (c.rangeMode ? defaultRssi1m : null);
+
+  /// RSSI kỳ vọng tại khoảng cách [meters] (mô hình log-distance).
+  double? rssiAtDistance(ProximityConfig c, double meters) {
+    final r1 = effectiveRssi1m(c);
+    if (r1 == null || meters <= 0) return null;
+    // Có đo trực tiếp đúng 2 m thì dùng thẳng, không qua mô hình.
+    if (c.calibratedRssi2m != null && (meters - 2.0).abs() < 1e-9) {
+      return c.calibratedRssi2m;
+    }
+    return r1 - 10 * pathLossN(c) * (math.log(meters) / math.ln10);
+  }
+
+  /// Ước lượng khoảng cách (m) từ RSSI đã lọc. null nếu chưa có RSSI@1m hiệu
+  /// lực. ĐÂY LÀ ƯỚC LƯỢNG: sai số có thể ±50% tùy hướng cầm máy/vật cản.
+  double? estimateDistanceM(ProximityConfig c, double rssi) {
+    final r1 = effectiveRssi1m(c);
+    if (r1 == null) return null;
+    final n = pathLossN(c);
+    final d = math.pow(10, (r1 - rssi) / (10 * n)).toDouble();
+    return d.clamp(0.1, 50.0).toDouble();
+  }
+
   /// Ngưỡng "gần" (dBm): RSSI >= giá trị này nghĩa là trong vùng mở khóa.
   double unlockThreshold(ProximityConfig c) {
+    if (c.rangeMode) {
+      // Vùng GẦN: khoảng cách ≤ (giới hạn − 0,2 m), ví dụ 1,8 m.
+      final nearM = math.max(0.5, c.rangeLimitM! - rangeZoneHalfWidthM);
+      return rssiAtDistance(c, nearM)!;
+    }
     final s = c.sensitivity.clamp(0, 2);
     if (c.calibratedRssi1m == null) return c.legacyNearThreshold;
     return c.calibratedRssi1m! - unlockMarginDb[s];
@@ -220,14 +359,55 @@ class ProximityEngine {
 
   /// Ngưỡng "xa" (dBm): RSSI <= giá trị này nghĩa là đã rời xa (vùng khóa).
   double lockThreshold(ProximityConfig c) {
-    final s = c.sensitivity.clamp(0, 2);
     final near = unlockThreshold(c);
+    if (c.rangeMode) {
+      // Vùng XA: khoảng cách ≥ (giới hạn + 0,2 m), ví dụ 2,2 m. Giữa hai
+      // ngưỡng là vùng đệm: giữ nguyên trạng thái trước đó.
+      final farM = c.rangeLimitM! + rangeZoneHalfWidthM;
+      return rssiAtDistance(c, farM)!;
+    }
+    final s = c.sensitivity.clamp(0, 2);
     final raw = c.calibratedRssi1m == null
         ? c.legacyFarThreshold
         : c.calibratedRssi1m! - lockDropDb[s];
     // Luôn giữ khoảng hysteresis giữa hai ngưỡng.
     return raw > near - minGapDb ? near - minGapDb : raw;
   }
+
+  /// Kiểm tra THAO TÁC TAY (nút Mở khóa / Bật xe): có đang trong bán kính
+  /// không. Không đổi trạng thái engine. [ok] = true khi tắt chế độ khoảng
+  /// cách (không áp giới hạn).
+  RangeCheck checkManualRange(ProximityConfig c, DateTime now) {
+    if (!c.rangeMode) {
+      return const RangeCheck(ok: true, distanceM: null, message: '');
+    }
+    final limit = c.rangeLimitM!;
+    if (_filtered == null || _lastSampleAt == null ||
+        now.difference(_lastSampleAt!) > sampleStale) {
+      return RangeCheck(
+        ok: false,
+        distanceM: null,
+        message: 'Chưa đo được khoảng cách tới xe (chưa có tín hiệu mới). '
+            'Đứng trong ${_fmtM(limit)} m quanh xe rồi thử lại.',
+      );
+    }
+    final d = estimateDistanceM(c, _filtered!);
+    final okByRssi =
+        _filtered! >= rssiAtDistance(c, limit)! - manualToleranceDb;
+    if (okByRssi) {
+      return RangeCheck(ok: true, distanceM: d, message: '');
+    }
+    return RangeCheck(
+      ok: false,
+      distanceM: d,
+      message: 'Bạn đang cách xe khoảng ${d == null ? '?' : _fmtM(d)} m — '
+          'quá ${_fmtM(limit)} m nên không mở được xe. '
+          'Đến gần xe hơn (trong ${_fmtM(limit)} m) rồi thử lại.',
+    );
+  }
+
+  static String _fmtM(double v) =>
+      v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
 
   // ================= Nạp mẫu =================
   /// Nạp một mẫu RSSI thô (dBm). Trả về RSSI đã lọc.
@@ -300,12 +480,13 @@ class ProximityEngine {
   ProximityZone _classify(ProximityConfig c, double f) {
     final nearT = unlockThreshold(c);
     final farT = lockThreshold(c);
+    final hyst = c.rangeMode ? rangeHysteresisDb : hysteresisDb;
     switch (_zone) {
       case ProximityZone.near:
-        if (f >= nearT - hysteresisDb) return ProximityZone.near;
+        if (f >= nearT - hyst) return ProximityZone.near;
         break;
       case ProximityZone.far:
-        if (f <= farT + hysteresisDb) return ProximityZone.far;
+        if (f <= farT + hyst) return ProximityZone.far;
         break;
       default:
         break;
@@ -434,7 +615,10 @@ class ProximityEngine {
         _verifySince = null;
         return _begin(
           ProximityAction.unlock,
-          'RSSI ${_filtered!.toStringAsFixed(1)} ≥ ${unlockThreshold(c).toStringAsFixed(1)} dBm',
+          c.rangeMode
+              ? 'trong ${_fmtM(c.rangeLimitM!)} m (≈${_fmtM(estimateDistanceM(c, _filtered!) ?? 0)} m, '
+                  'RSSI ${_filtered!.toStringAsFixed(1)} ≥ ${unlockThreshold(c).toStringAsFixed(1)} dBm)'
+              : 'RSSI ${_filtered!.toStringAsFixed(1)} ≥ ${unlockThreshold(c).toStringAsFixed(1)} dBm',
           now,
         );
       }
@@ -457,15 +641,18 @@ class ProximityEngine {
               '${inZone.inSeconds}/${need.inSeconds} s…';
           return ProximityDecision.none;
         }
-        final why = _gateCommon(ctx, now) ?? _gateLock(ctx);
+        final why = _gateCommon(ctx, now) ?? _gateLock(ctx, c);
         if (why != null) return _verifyOrBlock(why, now);
         final rate = _rateGate(now);
         if (rate != null) return _blockRate(rate, now);
         _verifySince = null;
         return _begin(
           ProximityAction.lock,
-          'RSSI ${_filtered!.toStringAsFixed(1)} ≤ ${lockThreshold(c).toStringAsFixed(1)} dBm '
-          'liên tục ${inZone.inSeconds} s',
+          (c.rangeMode
+                  ? 'ngoài ${_fmtM(c.rangeLimitM!)} m (≈${_fmtM(estimateDistanceM(c, _filtered!) ?? 0)} m, '
+                      'RSSI ${_filtered!.toStringAsFixed(1)} ≤ ${lockThreshold(c).toStringAsFixed(1)} dBm) '
+                  : 'RSSI ${_filtered!.toStringAsFixed(1)} ≤ ${lockThreshold(c).toStringAsFixed(1)} dBm ') +
+              'liên tục ${inZone.inSeconds} s',
           now,
         );
       }
@@ -474,9 +661,15 @@ class ProximityEngine {
     _verifySince = null;
     _status = ProximityStatus.idle;
     _message = switch (_zone) {
-      ProximityZone.near => 'Ở gần xe.',
-      ProximityZone.far => 'Đã rời xa xe.',
-      ProximityZone.middle => 'Vùng trung gian — chưa kích hoạt gì.',
+      ProximityZone.near => c.rangeMode
+          ? 'Trong ${_fmtM(c.rangeLimitM!)} m quanh xe.'
+          : 'Ở gần xe.',
+      ProximityZone.far => c.rangeMode
+          ? 'Ngoài ${_fmtM(c.rangeLimitM!)} m — xe không mở được.'
+          : 'Đã rời xa xe.',
+      ProximityZone.middle => c.rangeMode
+          ? 'Sát ranh giới ${_fmtM(c.rangeLimitM!)} m — chưa kích hoạt gì.'
+          : 'Vùng trung gian — chưa kích hoạt gì.',
       ProximityZone.unknown => 'Đang tìm xe…',
     };
     return ProximityDecision.none;
@@ -490,14 +683,17 @@ class ProximityEngine {
     return null;
   }
 
-  String? _gateLock(ProximityContext ctx) {
+  String? _gateLock(ProximityContext ctx, ProximityConfig c) {
     if (!ctx.telemetryFresh || ctx.speedKmh == null) {
       return 'Chưa có dữ liệu tốc độ mới (<4 s) nên không xác nhận được xe đứng yên.';
     }
     if (ctx.speedKmh! > 0.5) {
       return 'Xe đang chạy (${ctx.speedKmh!.toStringAsFixed(1)} km/h) — không khóa.';
     }
-    if (ctx.bikeInDriveGear) {
+    // Chế độ khoảng cách: xe đứng yên hoàn toàn mà chủ xe đã ở ngoài bán kính
+    // → tắt xe dù đang ở số lái (xe không có người điều khiển). Tốc độ > 0.5
+    // vẫn luôn bị chặn ở trên.
+    if (ctx.bikeInDriveGear && !c.rangeMode) {
       return 'Xe đang ở số lái — chỉ tự khóa khi ở P/STANDBY.';
     }
     return null;
@@ -580,11 +776,13 @@ class ProximityEngine {
   }
 
   // ================= Hiệu chỉnh 1 m =================
-  void startCalibration(DateTime now) {
+  /// [targetM]: 1 = đứng cách xe ~1 m; 2 = đứng cách xe ~2 m (mốc giới hạn).
+  void startCalibration(DateTime now, {int targetM = 1}) {
     _calibrating = true;
+    _calTargetM = targetM == 2 ? 2 : 1;
     _calStart = now;
     _calSamples.clear();
-    _log(now, 'calibrate_start', '');
+    _log(now, 'calibrate_start', '${_calTargetM} m');
   }
 
   void cancelCalibration() {
@@ -613,6 +811,7 @@ class ProximityEngine {
         rssi1m: null,
         samples: s.length,
         stdDev: 0,
+        targetM: _calTargetM,
         message:
             'Chỉ thu được ${s.length} mẫu (cần ≥ $calibrationMinSamples). '
             'Kiểm tra kết nối rồi thử lại.',
@@ -633,34 +832,38 @@ class ProximityEngine {
         rssi1m: null,
         samples: s.length,
         stdDev: sd,
+        targetM: _calTargetM,
         message:
             'Tín hiệu quá nhiễu (độ lệch ${sd.toStringAsFixed(1)} dB). '
             'Đứng yên, cầm máy như khi đi bộ rồi thử lại.',
       );
     }
-    if (med < -75) {
+    final weakLimit = _calTargetM == 2 ? -82.0 : -75.0;
+    if (med < weakLimit) {
       return CalibrationResult(
         ok: false,
         rssi1m: null,
         samples: s.length,
         stdDev: sd,
+        targetM: _calTargetM,
         message:
-            'Tín hiệu quá yếu (${med.toStringAsFixed(0)} dBm) để là ~1 m. '
+            'Tín hiệu quá yếu (${med.toStringAsFixed(0)} dBm) để là ~$_calTargetM m. '
             'Đứng sát xe hơn rồi thử lại.',
       );
     }
     _log(
       now,
       'calibrate_ok',
-      '${med.toStringAsFixed(1)} dBm, n=${s.length}, sd=${sd.toStringAsFixed(1)}',
+      '$_calTargetM m: ${med.toStringAsFixed(1)} dBm, n=${s.length}, sd=${sd.toStringAsFixed(1)}',
     );
     return CalibrationResult(
       ok: true,
       rssi1m: med,
       samples: s.length,
       stdDev: sd,
+      targetM: _calTargetM,
       message:
-          'Đã hiệu chỉnh: ${med.toStringAsFixed(1)} dBm tại ~1 m '
+          'Đã hiệu chỉnh: ${med.toStringAsFixed(1)} dBm tại ~$_calTargetM m '
           '(${s.length} mẫu, độ lệch ${sd.toStringAsFixed(1)} dB).',
     );
   }

@@ -3247,6 +3247,11 @@ class BleController extends Notifier<BleState> {
       });
       throw Exception('Xe đang khóa an toàn — mở khóa trước khi bật');
     }
+    final rangeBlock = _rangeGateBlock('power_on');
+    if (rangeBlock != null) {
+      BleLogger.instance.event('power_blocked', {'reason': 'ngoài bán kính Smart Key'});
+      throw Exception(rangeBlock);
+    }
     await _waitWhileCommandBusy();
     if (_isCommandBusy) {
       throw Exception('Xe đang xử lý lệnh trước đó, vui lòng đợi 1 giây...');
@@ -3381,6 +3386,17 @@ class BleController extends Notifier<BleState> {
     );
   }
 
+  /// SMART KEY GIỚI HẠN KHOẢNG CÁCH: trả về thông báo chặn nếu điện thoại đang
+  /// ở ngoài bán kính (mặc định 2 m) hoặc chưa đo được khoảng cách; null nếu
+  /// được phép. Tắt được trong màn Mở khóa thông minh. Chỉ áp cho thao tác
+  /// MỞ KHÓA / BẬT XE (không áp cho TẮT/KHÓA — luôn cho phép tắt xe).
+  String? _rangeGateBlock(String action) {
+    final r = ref.read(proximityProvider.notifier).checkManualRange(action);
+    if (r.ok) return null;
+    state = state.copyWith(message: '📏 ${r.message}');
+    return r.message;
+  }
+
   /// MỞ KHÓA XE AN TOÀN — disarm eec8fd7f '0' (qua BLE khi còn kết nối;
   /// nếu link đã đứt do khóa → quẹt thẻ NFC lên xe rồi kết nối lại).
   Future<String> unlockBike() async {
@@ -3389,6 +3405,8 @@ class BleController extends Notifier<BleState> {
     if (device == null || state.phase != BlePhase.connected) {
       return 'Xe chưa được kết nối Bluetooth!\n→ Xe đang khóa? Quẹt THẺ NFC lên xe rồi thử lại.';
     }
+    final rangeBlock = _rangeGateBlock('unlock');
+    if (rangeBlock != null) return rangeBlock;
     if (_isCommandBusy) {
       return 'Xe đang bận xử lý lệnh trước, vui lòng đợi giây lát...';
     }

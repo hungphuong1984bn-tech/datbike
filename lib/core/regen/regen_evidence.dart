@@ -23,7 +23,7 @@ class EvidenceSample {
   /// Mili-giây kể từ lúc bắt đầu ghi.
   final int ms;
   final double speedKmh;
-  final double phaseA; // dòng pha có dấu — dấu CHƯA được kiểm chứng
+  final double phaseA; // dòng pha có dấu — dương = nạp ngược (đã kiểm chứng 02/11/2026)
   final double voltageV;
   final double powerKw; // V × I / 1000, giữ dấu của dòng pha
   final double throttle;
@@ -269,7 +269,7 @@ String evidenceToJson({
 }) {
   return const JsonEncoder.withIndent('  ').convert({
     'kind': 'regen_evidence',
-    'note': 'Chỉ đọc. Không có lệnh ghi nào được gửi. Dấu dòng pha chưa kiểm chứng.',
+    'note': 'Chỉ đọc. Không có lệnh ghi nào được gửi. Dấu dòng pha: dương = nạp ngược (đã kiểm chứng 02/11/2026).',
     if (appVersion != null) 'app': appVersion,
     'startedAt': startedAt?.toIso8601String(),
     'marks': [

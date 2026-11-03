@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../ble/ble_logger.dart';
+import 'activity_history.dart';
 import 'proximity_engine.dart';
 
 class ProximitySnapshot {
@@ -31,6 +32,33 @@ class ProximitySnapshot {
   final bool lockArmed;
   final List<ProximityEvent> events;
 
+  // ---- Smart Key theo khoảng cách ----
+  /// Đang bật chế độ giới hạn khoảng cách (mặc định BẬT, 2 m).
+  final bool rangeStrict;
+  final double rangeLimitM;
+
+  /// Ước lượng khoảng cách (m) từ RSSI đã lọc; null nếu chưa có mẫu.
+  final double? distanceM;
+
+  /// RSSI đo ở mốc 2 m (null = chưa đo). Có cả 1 m và 2 m → chính xác hơn.
+  final double? calibratedRssi2m;
+
+  /// Hệ số suy hao đang dùng để quy đổi RSSI → mét.
+  final double pathLossN;
+
+  /// true = mốc 1 m là giá trị MẶC ĐỊNH tạm thời, chưa hiệu chỉnh.
+  final bool provisional;
+
+  /// Mốc đang đo hiệu chỉnh (1 hoặc 2).
+  final int calibratingTargetM;
+
+  /// Độ tin cậy 0..1 của khoảng cách ước lượng (heuristic, không phải xác suất).
+  final double distanceConfidence;
+
+  /// Ngưỡng vùng gần/xa theo mét (mặc định 1,8 m / 2,2 m quanh giới hạn 2 m).
+  final double nearZoneM;
+  final double farZoneM;
+
   const ProximitySnapshot({
     this.status = ProximityStatus.off,
     this.message = 'Chưa kết nối xe.',
@@ -49,7 +77,21 @@ class ProximitySnapshot {
     this.unlockArmed = true,
     this.lockArmed = false,
     this.events = const [],
+    this.rangeStrict = true,
+    this.rangeLimitM = 2.0,
+    this.distanceM,
+    this.calibratedRssi2m,
+    this.pathLossN = ProximityEngine.defaultPathLossN,
+    this.provisional = true,
+    this.calibratingTargetM = 1,
+    this.distanceConfidence = 0,
+    this.nearZoneM = 1.8,
+    this.farZoneM = 2.2,
   });
+
+  /// Đang trong bán kính (theo ước lượng). null nếu chưa biết.
+  bool? get withinRange =>
+      distanceM == null ? null : distanceM! <= rangeLimitM;
 }
 
 final proximityProvider =
@@ -60,10 +102,17 @@ class ProximityController extends Notifier<ProximitySnapshot> {
   static const _kSens = 'prox_sensitivity';
   static const _kCal = 'prox_calibrated_rssi_1m';
   static const _kConfirm = 'prox_lock_confirm_s';
+  static const _kCal2 = 'prox_calibrated_rssi_2m';
+  static const _kStrict = 'prox_range_strict';
+  static const _kRangeM = 'prox_range_m';
 
   final ProximityEngine _engine = ProximityEngine();
   int _sensitivity = 1;
   double? _cal;
+  double? _cal2;
+  bool _strict = true;
+  double _rangeM = 2.0;
+  int _calTarget = 1;
   int _confirm = 5;
   String? _calMsg;
   ProximityEvent? _lastLogged;
@@ -81,12 +130,17 @@ class ProximityController extends Notifier<ProximitySnapshot> {
       final p = await SharedPreferences.getInstance();
       _sensitivity = (p.getInt(_kSens) ?? 1).clamp(0, 2);
       _cal = p.getDouble(_kCal);
+      _cal2 = p.getDouble(_kCal2);
+      _strict = p.getBool(_kStrict) ?? true;
+      _rangeM = (p.getDouble(_kRangeM) ?? 2.0).clamp(1.0, 3.0).toDouble();
       _confirm = (p.getInt(_kConfirm) ?? 5).clamp(3, 15);
       _publish(DateTime.now());
     } catch (_) {}
   }
 
-  ProximityConfig _config(bool unlockOn, bool lockOn) => ProximityConfig(
+  ProximityConfig _config(bool unlockOn, bool lockOn,
+          {bool forceRange = false}) =>
+      ProximityConfig(
         unlockEnabled: unlockOn,
         lockEnabled: lockOn,
         sensitivity: _sensitivity,
@@ -94,6 +148,8 @@ class ProximityController extends Notifier<ProximitySnapshot> {
         legacyNearThreshold: _legacyNear,
         legacyFarThreshold: _legacyFar,
         lockConfirmSeconds: _confirm,
+        rangeLimitM: (_strict || forceRange) ? _rangeM : null,
+        calibratedRssi2m: _cal2,
       );
 
   void _publish(DateTime now, {bool unlockOn = false, bool lockOn = false}) {
@@ -108,6 +164,8 @@ class ProximityController extends Notifier<ProximitySnapshot> {
     for (final e in fresh.reversed) {
       BleLogger.instance.event('proximity_${e.kind}', {'detail': e.detail});
     }
+    // Lưu bền để xem lại ở "Lịch sử hoạt động" (best-effort, không chặn UI).
+    if (fresh.isNotEmpty) ActivityHistory.append(fresh.reversed.toList());
     if (ev.isNotEmpty) _lastLogged = ev.last;
 
     state = ProximitySnapshot(
@@ -128,6 +186,24 @@ class ProximityController extends Notifier<ProximitySnapshot> {
       unlockArmed: _engine.unlockArmed,
       lockArmed: _engine.lockArmed,
       events: ev.reversed.take(30).toList(),
+      rangeStrict: _strict,
+      rangeLimitM: _rangeM,
+      distanceM: _engine.filteredRssi == null
+          ? null
+          : _engine.estimateDistanceM(
+              _config(unlockOn, lockOn, forceRange: true),
+              _engine.filteredRssi!,
+            ),
+      calibratedRssi2m: _cal2,
+      pathLossN: _engine.pathLossN(_config(unlockOn, lockOn)),
+      provisional: _cal == null,
+      calibratingTargetM: _calTarget,
+      distanceConfidence:
+          _engine.distanceConfidence(_config(unlockOn, lockOn), now),
+      nearZoneM: (_rangeM - ProximityEngine.rangeZoneHalfWidthM)
+          .clamp(0.5, 10.0)
+          .toDouble(),
+      farZoneM: _rangeM + ProximityEngine.rangeZoneHalfWidthM,
     );
   }
 
@@ -149,8 +225,20 @@ class ProximityController extends Notifier<ProximitySnapshot> {
     if (cal != null) {
       _calMsg = cal.message;
       if (cal.ok && cal.rssi1m != null) {
-        _cal = cal.rssi1m;
-        _saveDouble(_kCal, _cal!);
+        if (cal.targetM == 2) {
+          // Mốc 2 m phải yếu hơn mốc 1 m rõ rệt, nếu không là đo sai.
+          if (_cal != null && cal.rssi1m! > _cal! - 1.0) {
+            _calMsg = 'Mốc 2 m (${cal.rssi1m!.toStringAsFixed(1)} dBm) không '
+                'yếu hơn mốc 1 m (${_cal!.toStringAsFixed(1)} dBm). '
+                'Hãy đứng xa xe hơn (đúng ~2 m) rồi đo lại.';
+          } else {
+            _cal2 = cal.rssi1m;
+            _saveDouble(_kCal2, _cal2!);
+          }
+        } else {
+          _cal = cal.rssi1m;
+          _saveDouble(_kCal, _cal!);
+        }
       }
     }
     final d = _engine.evaluate(_config(unlockEnabled, lockEnabled), ctx, now);
@@ -186,9 +274,49 @@ class ProximityController extends Notifier<ProximitySnapshot> {
     _publish(DateTime.now());
   }
 
-  void startCalibration() {
+  void startCalibration({int targetM = 1}) {
     _calMsg = null;
-    _engine.startCalibration(DateTime.now());
+    _calTarget = targetM == 2 ? 2 : 1;
+    _engine.startCalibration(DateTime.now(), targetM: _calTarget);
+    _publish(DateTime.now());
+  }
+
+  // ---------- Smart Key giới hạn khoảng cách ----------
+  Future<void> setRangeStrict(bool v) async {
+    _strict = v;
+    try {
+      await (await SharedPreferences.getInstance()).setBool(_kStrict, v);
+    } catch (_) {}
+    BleLogger.instance.event('range_strict_changed', {'enabled': v});
+    _publish(DateTime.now());
+  }
+
+  Future<void> setRangeLimitM(double m) async {
+    _rangeM = m.clamp(1.0, 3.0).toDouble();
+    await _saveDouble(_kRangeM, _rangeM);
+    _publish(DateTime.now());
+  }
+
+  /// Kiểm tra bán kính cho thao tác TAY (nút Mở khóa / Bật xe). Nếu tắt chế độ
+  /// khoảng cách thì luôn cho phép. Ghi nhật ký khi chặn.
+  RangeCheck checkManualRange(String action) {
+    final r = _engine.checkManualRange(_config(false, false), DateTime.now());
+    if (!r.ok) {
+      BleLogger.instance.event('range_gate_blocked', {
+        'action': action,
+        'distance_m': r.distanceM,
+        'limit_m': _rangeM,
+      });
+    }
+    return r;
+  }
+
+  Future<void> clearCalibration2m() async {
+    _cal2 = null;
+    _calMsg = 'Đã xóa mốc 2 m — quy đổi khoảng cách dùng hệ số mặc định.';
+    try {
+      (await SharedPreferences.getInstance()).remove(_kCal2);
+    } catch (_) {}
     _publish(DateTime.now());
   }
 
@@ -200,9 +328,12 @@ class ProximityController extends Notifier<ProximitySnapshot> {
 
   Future<void> clearCalibration() async {
     _cal = null;
-    _calMsg = 'Đã xóa hiệu chỉnh — dùng ngưỡng cũ.';
+    _cal2 = null;
+    _calMsg = 'Đã xóa hiệu chỉnh — dùng RSSI@1 m mặc định tạm thời.';
     try {
-      (await SharedPreferences.getInstance()).remove(_kCal);
+      final p = await SharedPreferences.getInstance();
+      await p.remove(_kCal);
+      await p.remove(_kCal2);
     } catch (_) {}
     _publish(DateTime.now());
   }

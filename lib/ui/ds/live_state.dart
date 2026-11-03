@@ -440,3 +440,43 @@ class BottomActionBar extends StatelessWidget {
     );
   }
 }
+
+/// Lưới skeleton 2 cột — hiện khi đã kết nối nhưng CHƯA nhận gói dữ liệu đầu
+/// tiên. Chỉ là khung chờ, không chứa số liệu nào.
+class SkeletonGrid extends StatelessWidget {
+  final int count;
+  final EdgeInsetsGeometry padding;
+
+  const SkeletonGrid({
+    super.key,
+    this.count = 8,
+    this.padding = const EdgeInsets.symmetric(horizontal: AppSpacing.pageH),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      liveRegion: true,
+      label: 'Đang chờ dữ liệu từ xe',
+      child: ExcludeSemantics(
+        child: Padding(
+          padding: padding,
+          child: LayoutBuilder(builder: (context, c) {
+            final w = (c.maxWidth - AppSpacing.md) / 2;
+            return Wrap(
+              spacing: AppSpacing.md,
+              runSpacing: AppSpacing.md,
+              children: [
+                for (var i = 0; i < count; i++)
+                  SizedBox(
+                    width: w,
+                    child: const SkeletonCard(lines: 1, margin: EdgeInsets.zero),
+                  ),
+              ],
+            );
+          }),
+        ),
+      ),
+    );
+  }
+}
