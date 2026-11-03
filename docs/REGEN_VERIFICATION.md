@@ -98,3 +98,28 @@ Màn **Bằng chứng Regen** (`/regen-evidence`, mở từ thẻ Regen trong Tr
 
 Kết quả chỉ là ỨNG VIÊN: một char đổi giá trị chưa chứng minh nó là kênh Regen. Chỉ khi btsnoop cho thấy app gốc
 ghi đúng char đó lúc đổi mức, đọc lại khớp, và firmware có handler tương ứng thì mới làm theo mục 3.
+
+
+---
+
+## 7. Cập nhật 02/11/2026 — dữ liệu chạy thật: dấu dòng pha và so sánh 5 mức
+
+Nguồn: `regen_evidence_1793622287049_1.json` (687 mẫu, ~8 phút, mốc mức 3,4,5,1,2 theo app gốc) — fixture tại `test/fixtures/regen_evidence_20261102.json`, phân tích bằng `lib/core/regen/regen_analysis.dart`.
+
+**Dấu dòng pha (ĐÃ KIỂM CHỨNG):** dương = nạp ngược, âm = kéo ga. Tương quan dòng pha–gia tốc r = −0,77 (n=502); 98% mẫu > +2 A đi cùng giảm tốc. `BLE_PROTOCOL_SPEC.md` ghi ngược là sai.
+
+| Mức | TB (A) | Đỉnh (A) | TB (kW) | Đợt nạp |
+|---|---|---|---|---|
+| 1 | 7,3 | 12,1 | 0,55 | 1 (ít dữ liệu) |
+| 2 | 15,2 | 28,2 | 1,14 | 7 |
+| 3 | 12,2 | 25,0 | 0,92 | 5 |
+| 4 | 22,7 | 35,1 | 1,72 | 5 |
+| 5 | 24,2 | 38,7 | 1,83 | 5 |
+
+Spearman(số mức, dòng nạp) = 0,90. Tốc độ TB lúc nạp 25–30 km/h giữa các mức. Mức 2/3 đảo nhẹ (khác điều kiện chạy). Đây là bằng chứng QUAN SÁT, cần thêm lần thử.
+
+**Kênh điều khiển:** `characteristicChanges` rỗng → không char đọc được nào đổi theo mức Regen. Vẫn KHÓA ghi; cần btsnoop (§2).
+
+## 8. Smart Key giới hạn khoảng cách (2 m)
+
+Chế độ mặc định BẬT: trong 2 m mới mở được xe (tự động và nút tay); ngoài 2 m nút Mở khóa/Bật xe bị chặn, và nếu bật Tự động khóa thì xe tự tắt khi đứng yên (xe chạy không bao giờ bị tắt). Hiệu chỉnh mốc 1 m + 2 m trong màn Smart Key. RSSI@1 m mặc định tạm thời −62 dBm; sai số khoảng cách ±30–50%. Dùng chế độ "Chỉ tắt xe" để quay lại trong 2 m tự mở lại được.
